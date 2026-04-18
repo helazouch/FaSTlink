@@ -3,50 +3,79 @@ import { httpClient } from '../api/httpClient'
 import { withFallback } from './fallback'
 import type { ServiceRequest, SubmitRequestInput } from '../../types/social'
 
-interface RequestDto {
+interface DemandeDto {
   id: number
-  title: string
-  category: string
+  entiteId: number
+  demandeurUtilisateurId: number
+  objet: string
   description: string
-  priority: ServiceRequest['priority']
-  status: ServiceRequest['status']
+  status: 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+  submittedAt?: string
   createdAt: string
   updatedAt: string
-  communityId: number
-  communityName: string
 }
 
 let requestsCache: ServiceRequest[] = [...mockRequests]
 
-const mapRequest = (payload: RequestDto): ServiceRequest => ({
+const mapStatus = (status: DemandeDto['status']): ServiceRequest['status'] => {
+  if (status === 'APPROVED') {
+    return 'approved'
+  }
+
+  if (status === 'REJECTED') {
+    return 'rejected'
+  }
+
+  return 'pending'
+}
+
+const mapRequest = (payload: DemandeDto): ServiceRequest => ({
   id: payload.id,
-  title: payload.title,
-  category: payload.category,
+  title: payload.objet,
+  category: 'General',
   description: payload.description,
-  priority: payload.priority,
-  status: payload.status,
-  createdAt: payload.createdAt,
+  priority: 'medium',
+  status: mapStatus(payload.status),
+  createdAt: payload.submittedAt ?? payload.createdAt,
   updatedAt: payload.updatedAt,
-  communityId: payload.communityId,
-  communityName: payload.communityName,
+  communityId: payload.entiteId,
+  communityName: `Community #${payload.entiteId}`,
 })
 
 const createRequestId = () => Math.round(Date.now() / 10)
 
-export const getMyRequests = async (): Promise<ServiceRequest[]> =>
+export const getMyRequests = async (userId: number): Promise<ServiceRequest[]> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<RequestDto[]>('/v1/requests/my')
+      const response = await httpClient.get<DemandeDto[]>('/v1/requests', {
+        params: {
+          utilisateurId: userId,
+        },
+      })
+
       return response.data.map(mapRequest)
     },
     () => requestsCache,
   )
 
-export const submitRequest = async (input: SubmitRequestInput): Promise<ServiceRequest> =>
+export const submitRequest = async (
+  input: SubmitRequestInput,
+  userId: number,
+): Promise<ServiceRequest> =>
   withFallback(
     async () => {
-      const response = await httpClient.post<RequestDto>('/v1/requests', input)
-      return mapRequest(response.data)
+      const response = await httpClient.post<DemandeDto>('/v1/requests', {
+        utilisateurId: userId,
+        entiteId: input.communityId,
+        objet: input.title,
+        description: input.description,
+        materiels: [],
+        reservations: [],
+      })
+
+      const created = mapRequest(response.data)
+      requestsCache = [created, ...requestsCache]
+      return created
     },
     () => {
       const created: ServiceRequest = {

@@ -20,26 +20,30 @@ interface ProfileDto {
   }
 }
 
-const mapProfile = (payload: ProfileDto): UserProfile => ({
-  id: payload.id,
-  fullName: payload.fullName ?? payload.nomComplet ?? 'FaST Link Member',
-  email: payload.email,
-  headline: payload.headline ?? 'Community Member',
-  bio: payload.bio ?? 'No bio provided yet.',
-  location: payload.location ?? 'Unknown location',
-  joinedAt: payload.joinedAt ?? new Date().toISOString(),
-  interests: payload.interests ?? [],
-  stats: payload.stats ?? {
-    followers: 0,
-    following: 0,
-    posts: 0,
-  },
-})
+const mapProfile = (payload: ProfileDto): UserProfile => {
+  const baseProfile = mockProfile.id === payload.id ? mockProfile : null
+
+  return {
+    id: payload.id,
+    fullName: payload.fullName ?? payload.nomComplet ?? 'FaST Link Member',
+    email: payload.email,
+    headline: payload.headline ?? baseProfile?.headline ?? 'Community Member',
+    bio: payload.bio ?? baseProfile?.bio ?? 'No bio provided yet.',
+    location: payload.location ?? baseProfile?.location ?? 'Unknown location',
+    joinedAt: payload.joinedAt ?? baseProfile?.joinedAt ?? new Date().toISOString(),
+    interests: payload.interests ?? baseProfile?.interests ?? [],
+    stats: payload.stats ?? {
+      followers: baseProfile?.stats.followers ?? 0,
+      following: baseProfile?.stats.following ?? 0,
+      posts: baseProfile?.stats.posts ?? 0,
+    },
+  }
+}
 
 export const getMyProfile = async (): Promise<UserProfile> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<ProfileDto>('/v1/profile/me')
+      const response = await httpClient.get<ProfileDto>('/v1/auth/validate')
       return mapProfile(response.data)
     },
     () => mockProfile,

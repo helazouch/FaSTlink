@@ -46,19 +46,34 @@ const mapNotification = (payload: NotificationDto): NotificationItem => ({
   read: payload.read ?? payload.lu ?? false,
 })
 
-export const getNotifications = async (): Promise<NotificationItem[]> =>
+export const getNotifications = async (userId: number): Promise<NotificationItem[]> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<NotificationDto[]>('/v1/notifications/my')
-      return response.data.map(mapNotification)
+      const response = await httpClient.get<NotificationDto[]>('/v1/notifications', {
+        params: {
+          utilisateurId: userId,
+        },
+      })
+
+      const mapped = response.data.map(mapNotification)
+      notificationsCache = mapped
+      return mapped
     },
     () => notificationsCache,
   )
 
-export const markNotificationAsRead = async (id: string): Promise<void> => {
+export const markNotificationAsRead = async (id: string, userId: number): Promise<void> => {
   await withFallback(
     async () => {
-      await httpClient.post(`/v1/notifications/${id}/read`)
+      await httpClient.post(`/v1/notifications/${id}/read`, null, {
+        params: {
+          utilisateurId: userId,
+        },
+      })
+
+      notificationsCache = notificationsCache.map((item) =>
+        item.id === id ? { ...item, read: true } : item,
+      )
     },
     () => {
       notificationsCache = notificationsCache.map((item) =>
@@ -68,10 +83,25 @@ export const markNotificationAsRead = async (id: string): Promise<void> => {
   )
 }
 
-export const markAllNotificationsAsRead = async (): Promise<void> => {
+export const markAllNotificationsAsRead = async (
+  userId: number,
+  notificationIds: string[],
+): Promise<void> => {
   await withFallback(
     async () => {
-      await httpClient.post('/v1/notifications/read-all')
+      await Promise.all(
+        notificationIds.map((id) =>
+          httpClient.post(`/v1/notifications/${id}/read`, null, {
+            params: {
+              utilisateurId: userId,
+            },
+          }),
+        ),
+      )
+
+      notificationsCache = notificationsCache.map((item) =>
+        notificationIds.includes(item.id) ? { ...item, read: true } : item,
+      )
     },
     () => {
       notificationsCache = notificationsCache.map((item) => ({ ...item, read: true }))

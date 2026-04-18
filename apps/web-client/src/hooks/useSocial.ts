@@ -3,6 +3,7 @@ import { getCommunityById, getSuggestedCommunities } from '../services/social/co
 import { getUpcomingEvents, updateEventParticipation } from '../services/social/eventService'
 import { getMyProfile } from '../services/social/profileService'
 import { getMyRequests, submitRequest } from '../services/social/requestService'
+import { useAuthStore } from '../stores/authStore'
 import type { SubmitRequestInput, UpdateParticipationInput } from '../types/social'
 
 const queryKeys = {
@@ -34,26 +35,50 @@ export const useEvents = () =>
 
 export const useUpdateParticipation = () => {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.id)
 
   return useMutation({
-    mutationFn: (input: UpdateParticipationInput) => updateEventParticipation(input),
+    mutationFn: (input: UpdateParticipationInput) => {
+      if (!userId) {
+        throw new Error('You must be signed in to update participation')
+      }
+
+      return updateEventParticipation(input, userId)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.events })
     },
   })
 }
 
-export const useRequests = () =>
-  useQuery({
-    queryKey: queryKeys.requests,
-    queryFn: getMyRequests,
+export const useRequests = () => {
+  const userId = useAuthStore((state) => state.user?.id)
+
+  return useQuery({
+    queryKey: [...queryKeys.requests, userId] as const,
+    queryFn: () => {
+      if (!userId) {
+        return Promise.resolve([])
+      }
+
+      return getMyRequests(userId)
+    },
+    enabled: Boolean(userId),
   })
+}
 
 export const useSubmitRequest = () => {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.id)
 
   return useMutation({
-    mutationFn: (input: SubmitRequestInput) => submitRequest(input),
+    mutationFn: (input: SubmitRequestInput) => {
+      if (!userId) {
+        throw new Error('You must be signed in to submit a request')
+      }
+
+      return submitRequest(input, userId)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.requests })
     },

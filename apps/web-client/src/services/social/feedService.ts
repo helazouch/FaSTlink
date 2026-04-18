@@ -11,23 +11,13 @@ import type {
 
 interface FeedPostDto {
   id: string | number
-  author?: {
-    id: number
-    fullName?: string
-    nomComplet?: string
-    headline?: string
-  }
-  entity?: string
+  utilisateurId?: number
+  entiteIds?: number[]
   communityId?: number
   contenu?: string
   content?: string
-  media?: Array<{
-    id?: string
-    name?: string
-    mimeType?: string
-    url: string
-  }>
-  createdAt: string
+  media?: MediaDto[]
+  createdAt?: string
   likeCount?: number
   commentCount?: number
   shareCount?: number
@@ -35,9 +25,38 @@ interface FeedPostDto {
   savedByMe?: boolean
 }
 
+interface MediaDto {
+  id?: string | number
+  name?: string
+  mimeType?: string
+  type?: 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+  url: string
+}
+
 interface FeedPageDto {
   items: FeedPostDto[]
   nextCursor: string | null
+}
+
+interface PublicationResponseDto {
+  id: number
+  utilisateurId: number
+  contenu: string
+  entiteIds: number[]
+  createdAt?: string
+}
+
+interface MediaResponseDto {
+  id: number
+  url: string
+  type: 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+}
+
+interface CommentaireResponseDto {
+  id: number
+  utilisateurId: number
+  contenu: string
+  createdAt?: string
 }
 
 let feedCache: FeedPost[] = mockFeedPosts.map((item) => ({
@@ -54,14 +73,40 @@ const createId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-const toMedia = (
-  media: FeedPostDto['media'] | undefined,
-): MediaAttachment[] =>
+const isPersistableUrl = (url: string): boolean => /^https?:\/\//i.test(url)
+
+const mediaTypeFromMime = (mimeType: string): 'IMAGE' | 'VIDEO' | 'DOCUMENT' => {
+  const normalized = mimeType.toLowerCase()
+
+  if (normalized.startsWith('image/')) {
+    return 'IMAGE'
+  }
+
+  if (normalized.startsWith('video/')) {
+    return 'VIDEO'
+  }
+
+  return 'DOCUMENT'
+}
+
+const mimeFromMediaType = (mediaType: 'IMAGE' | 'VIDEO' | 'DOCUMENT'): string => {
+  if (mediaType === 'IMAGE') {
+    return 'image/jpeg'
+  }
+
+  if (mediaType === 'VIDEO') {
+    return 'video/mp4'
+  }
+
+  return 'application/octet-stream'
+}
+
+const toMedia = (media: MediaDto[] | undefined): MediaAttachment[] =>
   Array.isArray(media)
     ? media.map((item) => ({
-        id: item.id ?? createId('media'),
+        id: String(item.id ?? createId('media')),
         name: item.name ?? 'attachment',
-        mimeType: item.mimeType ?? 'image/jpeg',
+        mimeType: item.mimeType ?? mimeFromMediaType(item.type ?? 'IMAGE'),
         url: item.url,
       }))
     : []
@@ -69,15 +114,15 @@ const toMedia = (
 const mapPost = (payload: FeedPostDto): FeedPost => ({
   id: String(payload.id),
   author: {
-    id: payload.author?.id ?? 0,
-    fullName: payload.author?.fullName ?? payload.author?.nomComplet ?? 'Unknown member',
-    headline: payload.author?.headline ?? 'FaST Link member',
+    id: payload.utilisateurId ?? 0,
+    fullName: payload.utilisateurId ? `User #${payload.utilisateurId}` : 'Unknown member',
+    headline: 'FaST Link member',
   },
-  entity: payload.entity ?? 'FaST Link',
-  communityId: payload.communityId ?? 1,
+  entity: payload.entiteIds?.[0] ? `Entity #${payload.entiteIds[0]}` : 'FaST Link',
+  communityId: payload.communityId ?? payload.entiteIds?.[0] ?? 1,
   content: payload.content ?? payload.contenu ?? '',
   media: toMedia(payload.media),
-  createdAt: payload.createdAt,
+  createdAt: payload.createdAt ?? new Date().toISOString(),
   likeCount: payload.likeCount ?? 0,
   commentCount: payload.commentCount ?? 0,
   shareCount: payload.shareCount ?? 0,
@@ -115,6 +160,47 @@ const getFallbackPage = (
   }
 }
 
+const mergeServerPosts = (posts: FeedPost[]): void => {
+  if (posts.length === 0) {
+    return
+  }
+
+  const byId = new Map<string, FeedPost>()
+
+  posts.forEach((post) => {
+    byId.set(post.id, post)
+  })
+
+  feedCache.forEach((post) => {
+    if (!byId.has(post.id)) {
+      byId.set(post.id, post)
+    }
+  })
+
+  feedCache = Array.from(byId.values()).sort(
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  )
+}
+
+const updateFeedPost = (postId: string, transform: (post: FeedPost) => FeedPost): FeedPost => {
+  let updated: FeedPost | null = null
+
+  feedCache = feedCache.map((item) => {
+    if (item.id !== postId) {
+      return item
+    }
+
+    updated = transform(item)
+    return updated
+  })
+
+  if (!updated) {
+    throw new Error('Post not found')
+  }
+
+  return updated
+}
+
 export const getFeedPage = async (
   cursor: string | null,
   limit: number,
@@ -123,7 +209,7 @@ export const getFeedPage = async (
 ): Promise<FeedPage> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<FeedPageDto>('/v1/feed/posts', {
+      const response = await httpClient.get<FeedPageDto | FeedPostDto[]>('/v1/publications', {
         params: {
           cursor,
           limit,
@@ -132,10 +218,10 @@ export const getFeedPage = async (
         },
       })
 
-      return {
-        items: response.data.items.map(mapPost),
-        nextCursor: response.data.nextCursor,
-      }
+      const serverItems = Array.isArray(response.data) ? response.data : response.data.items
+      mergeServerPosts(serverItems.map(mapPost))
+
+      return getFallbackPage(cursor, limit, communityId, searchQuery)
     },
     () => getFallbackPage(cursor, limit, communityId, searchQuery),
   )
@@ -143,14 +229,66 @@ export const getFeedPage = async (
 export const createPost = async (input: CreatePostInput): Promise<FeedPost> =>
   withFallback(
     async () => {
-      const response = await httpClient.post<FeedPostDto>('/v1/feed/posts', {
-        communityId: input.communityId,
-        entity: input.entity,
-        content: input.content,
-        media: input.media,
+      const publicationResponse = await httpClient.post<PublicationResponseDto>('/v1/publications', {
+        utilisateurId: input.author.id,
+        contenu: input.content,
+        entiteIds: [input.communityId],
       })
 
-      return mapPost(response.data)
+      const persistedMedia: MediaAttachment[] = []
+
+      for (const item of input.media) {
+        if (!isPersistableUrl(item.previewUrl)) {
+          continue
+        }
+
+        try {
+          const mediaResponse = await httpClient.post<MediaResponseDto>(
+            `/v1/publications/${publicationResponse.data.id}/medias`,
+            {
+              utilisateurId: input.author.id,
+              url: item.previewUrl,
+              type: mediaTypeFromMime(item.mimeType),
+            },
+          )
+
+          persistedMedia.push({
+            id: String(mediaResponse.data.id),
+            name: item.name,
+            mimeType: mimeFromMediaType(mediaResponse.data.type),
+            url: mediaResponse.data.url,
+          })
+        } catch {
+          // Keep post creation successful even if a media URL cannot be persisted.
+        }
+      }
+
+      const post: FeedPost = {
+        id: String(publicationResponse.data.id),
+        author: input.author,
+        entity: input.entity,
+        communityId: publicationResponse.data.entiteIds?.[0] ?? input.communityId,
+        content: publicationResponse.data.contenu,
+        media:
+          persistedMedia.length > 0
+            ? persistedMedia
+            : input.media.map((item) => ({
+                id: item.id,
+                name: item.name,
+                mimeType: item.mimeType,
+                url: item.previewUrl,
+              })),
+        createdAt: publicationResponse.data.createdAt ?? new Date().toISOString(),
+        likeCount: 0,
+        commentCount: 0,
+        shareCount: 0,
+        likedByMe: false,
+        savedByMe: false,
+        comments: [],
+      }
+
+      feedCache = [post, ...feedCache]
+      return post
     },
     () => {
       const post: FeedPost = {
@@ -179,60 +317,77 @@ export const createPost = async (input: CreatePostInput): Promise<FeedPost> =>
     },
   )
 
-export const toggleLike = async (postId: string): Promise<FeedPost> =>
+export const toggleLike = async (postId: string, userId: number): Promise<FeedPost> =>
   withFallback(
     async () => {
-      const response = await httpClient.post<FeedPostDto>(`/v1/feed/posts/${postId}/like`)
-      return mapPost(response.data)
-    },
-    () => {
-      let updated: FeedPost | null = null
-
-      feedCache = feedCache.map((item) => {
-        if (item.id !== postId) {
-          return item
-        }
-
-        const likedByMe = !item.likedByMe
-        const likeCount = likedByMe ? item.likeCount + 1 : Math.max(item.likeCount - 1, 0)
-        updated = {
-          ...item,
-          likedByMe,
-          likeCount,
-        }
-        return updated
-      })
-
-      if (!updated) {
+      const currentPost = feedCache.find((item) => item.id === postId)
+      if (!currentPost) {
         throw new Error('Post not found')
       }
 
-      return updated
+      const shouldLike = !currentPost.likedByMe
+
+      if (shouldLike) {
+        await httpClient.post(`/v1/publications/${postId}/reactions`, {
+          utilisateurId: userId,
+          type: 'LIKE',
+        })
+      }
+
+      return updateFeedPost(postId, (post) => ({
+        ...post,
+        likedByMe: shouldLike,
+        likeCount: shouldLike ? post.likeCount + 1 : Math.max(post.likeCount - 1, 0),
+      }))
     },
+    () =>
+      updateFeedPost(postId, (post) => {
+        const likedByMe = !post.likedByMe
+
+        return {
+          ...post,
+          likedByMe,
+          likeCount: likedByMe ? post.likeCount + 1 : Math.max(post.likeCount - 1, 0),
+        }
+      }),
   )
 
-export const addComment = async (input: CreateCommentInput): Promise<FeedPost> =>
+export const addComment = async (input: CreateCommentInput, userId: number): Promise<FeedPost> =>
   withFallback(
     async () => {
-      const response = await httpClient.post<FeedPostDto>(
-        `/v1/feed/posts/${input.postId}/comments`,
+      const response = await httpClient.post<CommentaireResponseDto>(
+        `/v1/publications/${input.postId}/commentaires`,
         {
-          content: input.content,
+          utilisateurId: userId,
+          contenu: input.content,
         },
       )
 
-      return mapPost(response.data)
-    },
-    () => {
-      let updated: FeedPost | null = null
-
-      feedCache = feedCache.map((item) => {
-        if (item.id !== input.postId) {
-          return item
-        }
-
+      return updateFeedPost(input.postId, (post) => {
         const nextComments = [
-          ...item.comments,
+          ...post.comments,
+          {
+            id: String(response.data.id),
+            author: {
+              ...input.author,
+              id: response.data.utilisateurId,
+            },
+            content: response.data.contenu,
+            createdAt: response.data.createdAt ?? new Date().toISOString(),
+          },
+        ]
+
+        return {
+          ...post,
+          comments: nextComments,
+          commentCount: nextComments.length,
+        }
+      })
+    },
+    () =>
+      updateFeedPost(input.postId, (post) => {
+        const nextComments = [
+          ...post.comments,
           {
             id: createId('comment'),
             author: input.author,
@@ -241,21 +396,12 @@ export const addComment = async (input: CreateCommentInput): Promise<FeedPost> =
           },
         ]
 
-        updated = {
-          ...item,
+        return {
+          ...post,
           comments: nextComments,
           commentCount: nextComments.length,
         }
-
-        return updated
-      })
-
-      if (!updated) {
-        throw new Error('Post not found')
-      }
-
-      return updated
-    },
+      }),
   )
 
 export const toggleSavedPost = (postId: string): FeedPost | null => {

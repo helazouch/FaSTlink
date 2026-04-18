@@ -5,6 +5,7 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from '../services/social/notificationService'
+import { useAuthStore } from '../stores/authStore'
 import { useNotificationStore } from '../stores/notificationStore'
 
 const queryKeys = {
@@ -13,10 +14,18 @@ const queryKeys = {
 
 export const useNotifications = () => {
   const setItems = useNotificationStore((state) => state.setItems)
+  const userId = useAuthStore((state) => state.user?.id)
 
   const query = useQuery({
-    queryKey: queryKeys.notifications,
-    queryFn: getNotifications,
+    queryKey: [...queryKeys.notifications, userId] as const,
+    queryFn: () => {
+      if (!userId) {
+        return Promise.resolve([])
+      }
+
+      return getNotifications(userId)
+    },
+    enabled: Boolean(userId),
   })
 
   useEffect(() => {
@@ -30,10 +39,17 @@ export const useNotifications = () => {
 
 export const useMarkNotificationAsRead = () => {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.id)
   const markAsReadInStore = useNotificationStore((state) => state.markAsRead)
 
   return useMutation({
-    mutationFn: (id: string) => markNotificationAsRead(id),
+    mutationFn: (id: string) => {
+      if (!userId) {
+        throw new Error('You must be signed in to update notifications')
+      }
+
+      return markNotificationAsRead(id, userId)
+    },
     onSuccess: (_, id) => {
       markAsReadInStore(id)
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
@@ -43,10 +59,19 @@ export const useMarkNotificationAsRead = () => {
 
 export const useMarkAllNotificationsAsRead = () => {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.id)
+  const notifications = useNotificationStore((state) => state.items)
   const markAllInStore = useNotificationStore((state) => state.markAllAsRead)
 
   return useMutation({
-    mutationFn: markAllNotificationsAsRead,
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error('You must be signed in to update notifications')
+      }
+
+      const unreadIds = notifications.filter((item) => !item.read).map((item) => item.id)
+      return markAllNotificationsAsRead(userId, unreadIds)
+    },
     onSuccess: () => {
       markAllInStore()
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })

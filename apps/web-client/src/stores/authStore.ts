@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { loginWithCredentials, refreshSession, registerAccount, validateCurrentUser } from '../services/auth/authService'
+import { normalizeApiError } from '../lib/errors'
+import { loginWithCredentials, registerAccount, validateCurrentUser } from '../services/auth/authService'
 import { clearStoredSession, readStoredSession, saveStoredSession } from '../services/auth/authStorage'
 import type { AuthSession, LoginPayload, RegisterPayload } from '../types/auth'
 
@@ -72,17 +73,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       const validatedUser = await validateCurrentUser()
       persistSession(toAuthSession(storedSession, validatedUser.fullName), set)
     } catch {
-      if (!storedSession.refreshToken) {
-        get().logout()
-        return
-      }
-
-      try {
-        const refreshedSession = await refreshSession(storedSession.refreshToken)
-        persistSession(refreshedSession, set)
-      } catch {
-        get().logout()
-      }
+      get().logout()
     }
   },
   login: async (payload) => {
@@ -92,11 +83,12 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       const session = await loginWithCredentials(payload)
       persistSession(session, set)
     } catch (error) {
+      const normalized = normalizeApiError(error)
       set({
         status: 'unauthenticated',
         session: null,
         user: null,
-        error: error instanceof Error ? error.message : 'Unable to sign in',
+        error: normalized.message || 'Unable to sign in',
       })
       throw error
     }
@@ -108,11 +100,12 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       const session = await registerAccount(payload)
       persistSession(session, set)
     } catch (error) {
+      const normalized = normalizeApiError(error)
       set({
         status: 'unauthenticated',
         session: null,
         user: null,
-        error: error instanceof Error ? error.message : 'Unable to create account',
+        error: normalized.message || 'Unable to create account',
       })
       throw error
     }

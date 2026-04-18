@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-surface-100 text-slate-900 dark:bg-surface-900 dark:text-slate-100;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.panel {
+  @apply rounded-xl border border-slate-200 bg-white shadow-panel dark:border-surface-700 dark:bg-surface-800;
+}
+
+.table-cell {
+  @apply px-4 py-3 text-sm;
+}

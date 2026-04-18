@@ -4,39 +4,42 @@ import { withFallback } from './fallback'
 import type { ChatMessage } from '../../types/social'
 
 interface ChatMessageDto {
-  id?: string | number
-  communityId: number
-  sender: {
-    id: number
-    fullName?: string
-    nomComplet?: string
-    headline?: string
-  }
-  content: string
+  id: string | number
+  communauteId: number
+  utilisateurId: number
+  contenu: string
   createdAt: string
 }
 
-const mapMessage = (payload: ChatMessageDto): ChatMessage => ({
-  id: String(payload.id ?? `${payload.communityId}-${payload.createdAt}`),
-  communityId: payload.communityId,
+const mapMessage = (payload: ChatMessageDto, userId: number): ChatMessage => ({
+  id: String(payload.id),
+  communityId: payload.communauteId,
   sender: {
-    id: payload.sender.id,
-    fullName: payload.sender.fullName ?? payload.sender.nomComplet ?? 'FaST Link Member',
-    headline: payload.sender.headline ?? 'Community member',
+    id: payload.utilisateurId,
+    fullName: `User #${payload.utilisateurId}`,
+    headline: 'Community member',
   },
-  content: payload.content,
+  content: payload.contenu,
   createdAt: payload.createdAt,
-  mine: false,
+  mine: payload.utilisateurId === userId,
 })
 
-export const getCommunityMessages = async (communityId: number): Promise<ChatMessage[]> =>
+export const getCommunityMessages = async (
+  communityId: number,
+  userId: number,
+): Promise<ChatMessage[]> =>
   withFallback(
     async () => {
       const response = await httpClient.get<ChatMessageDto[]>(
         `/v1/communities/${communityId}/messages`,
+        {
+          params: {
+            utilisateurId: userId,
+          },
+        },
       )
 
-      return response.data.map(mapMessage)
+      return response.data.map((item) => mapMessage(item, userId))
     },
     () =>
       mockChatMessages.filter((item) => item.communityId === communityId || communityId === 1),

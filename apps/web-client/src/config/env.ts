@@ -26,11 +26,12 @@ const asNumber = (value: string | undefined, defaultValue: number): number => {
 
 export const env = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? '/api',
-  wsUrl: import.meta.env.VITE_WS_URL ?? '/ws-community',
-  chatTopicPrefix: import.meta.env.VITE_CHAT_TOPIC_PREFIX ?? '/topic/chat.',
-  chatDestination: import.meta.env.VITE_CHAT_DESTINATION ?? '/app/chat.send',
+  communityWsUrl: import.meta.env.VITE_WS_COMMUNITY_URL ?? import.meta.env.VITE_WS_URL ?? '/ws-community',
+  notificationWsUrl: import.meta.env.VITE_WS_NOTIFICATION_URL ?? '/ws-notifications',
+  chatTopicPrefix: import.meta.env.VITE_CHAT_TOPIC_PREFIX ?? '/topic/communities',
+  chatDestination: import.meta.env.VITE_CHAT_DESTINATION ?? '/app/communities/{communityId}/send',
   notificationTopicPrefix:
-    import.meta.env.VITE_NOTIFICATION_TOPIC_PREFIX ?? '/topic/notifications.',
+    import.meta.env.VITE_NOTIFICATION_TOPIC_PREFIX ?? '/topic/users',
   enableWebsocket: asBoolean(import.meta.env.VITE_ENABLE_WEBSOCKET, true),
   feedPageSize: asNumber(import.meta.env.VITE_FEED_PAGE_SIZE, 5),
   defaultCommunityId: asNumber(import.meta.env.VITE_DEFAULT_COMMUNITY_ID, 1),

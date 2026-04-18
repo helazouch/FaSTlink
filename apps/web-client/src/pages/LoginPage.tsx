@@ -1,23 +1,19 @@
-import { AxiosError } from 'axios'
 import { LogIn } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/atoms/Button'
 import { TextInput } from '../components/atoms/TextInput'
+import { normalizeApiError } from '../lib/errors'
 import { useAuthStore } from '../stores/authStore'
 
 const getFriendlyError = (error: unknown): string => {
-  if (error instanceof AxiosError) {
-    if (error.response?.status === 401) {
-      return 'Invalid credentials. Please check your email and password.'
-    }
+  const normalized = normalizeApiError(error)
 
-    if (typeof error.response?.data === 'string') {
-      return error.response.data
-    }
+  if (normalized.statusCode === 401 && normalized.message.includes('Request failed with status')) {
+    return 'Invalid credentials. Please check your email and password.'
   }
 
-  return error instanceof Error ? error.message : 'Unable to sign in. Please try again.'
+  return normalized.message || 'Unable to sign in. Please try again.'
 }
 
 export const LoginPage = () => {

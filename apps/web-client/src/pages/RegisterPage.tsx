@@ -1,23 +1,19 @@
-import { AxiosError } from 'axios'
 import { UserPlus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/atoms/Button'
 import { TextInput } from '../components/atoms/TextInput'
+import { normalizeApiError } from '../lib/errors'
 import { useAuthStore } from '../stores/authStore'
 
 const getFriendlyError = (error: unknown): string => {
-  if (error instanceof AxiosError) {
-    if (error.response?.status === 409) {
-      return 'This email is already associated with an account.'
-    }
+  const normalized = normalizeApiError(error)
 
-    if (typeof error.response?.data === 'string') {
-      return error.response.data
-    }
+  if (normalized.statusCode === 409 && normalized.message.includes('Request failed with status')) {
+    return 'This email is already associated with an account.'
   }
 
-  return error instanceof Error ? error.message : 'Registration failed. Please try again.'
+  return normalized.message || 'Registration failed. Please try again.'
 }
 
 export const RegisterPage = () => {

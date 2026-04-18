@@ -3,58 +3,108 @@ import { httpClient } from '../api/httpClient'
 import { withFallback } from './fallback'
 import type { EventItem, UpdateParticipationInput } from '../../types/social'
 
-interface EventDto {
+interface EvenementDto {
   id: number
-  title: string
+  entiteId: number
+  titre: string
   description: string
-  location: string
-  startsAt: string
-  endsAt: string
-  capacity: number
-  attendees: number
-  communityId: number
-  communityName: string
-  participation: EventItem['participation']
+  lieu: string
+  debutAt: string
+  finAt: string
+}
+
+interface ParticipationResponseDto {
+  evenementId: number
+  utilisateurId: number
+  statut: 'INTERESTED' | 'PARTICIPATING'
 }
 
 let eventsCache: EventItem[] = [...mockEvents]
 
-const mapEvent = (payload: EventDto): EventItem => ({
+const fromParticipationStatus = (
+  status: ParticipationResponseDto['statut'] | undefined,
+): EventItem['participation'] => {
+  if (status === 'PARTICIPATING') {
+    return 'going'
+  }
+
+  return 'interested'
+}
+
+const toParticipationStatus = (
+  participation: EventItem['participation'],
+): ParticipationResponseDto['statut'] =>
+  participation === 'going' ? 'PARTICIPATING' : 'INTERESTED'
+
+const mapEvent = (payload: EvenementDto): EventItem => ({
   id: payload.id,
-  title: payload.title,
+  title: payload.titre,
   description: payload.description,
-  location: payload.location,
-  startsAt: payload.startsAt,
-  endsAt: payload.endsAt,
-  capacity: payload.capacity,
-  attendees: payload.attendees,
-  communityId: payload.communityId,
-  communityName: payload.communityName,
-  participation: payload.participation,
+  location: payload.lieu,
+  startsAt: payload.debutAt,
+  endsAt: payload.finAt,
+  capacity: 0,
+  attendees: 0,
+  communityId: payload.entiteId,
+  communityName: `Entity #${payload.entiteId}`,
+  participation: 'interested',
 })
 
 export const getUpcomingEvents = async (): Promise<EventItem[]> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<EventDto[]>('/v1/events/upcoming')
-      return response.data.map(mapEvent)
+      const response = await httpClient.get<EvenementDto[]>('/v1/events')
+      const mapped = response.data.map(mapEvent)
+
+      if (mapped.length > 0) {
+        eventsCache = mapped
+      }
+
+      return eventsCache
     },
     () => eventsCache,
   )
 
 export const updateEventParticipation = async (
   input: UpdateParticipationInput,
+  userId: number,
 ): Promise<EventItem> =>
   withFallback(
     async () => {
-      const response = await httpClient.post<EventDto>(
-        `/v1/events/${input.eventId}/participation`,
+      const response = await httpClient.post<ParticipationResponseDto>(
+        `/v1/events/${input.eventId}/participants`,
         {
-          participation: input.participation,
+          utilisateurId: userId,
+          statut: toParticipationStatus(input.participation),
         },
       )
 
-      return mapEvent(response.data)
+      let updated: EventItem | null = null
+
+      eventsCache = eventsCache.map((item) => {
+        if (item.id !== response.data.evenementId) {
+          return item
+        }
+
+        const nextParticipation = fromParticipationStatus(response.data.statut)
+        const wasGoing = item.participation === 'going'
+        const isGoing = nextParticipation === 'going'
+
+        updated = {
+          ...item,
+          participation: nextParticipation,
+          attendees:
+            wasGoing === isGoing ? item.attendees : isGoing ? item.attendees + 1 : Math.max(item.attendees - 1, 0),
+        }
+
+        return updated
+      })
+
+      if (!updated) {
+        throw new Error('Event not found')
+      }
+
+      return updated
     },
     () => {
       let updated: EventItem | null = null

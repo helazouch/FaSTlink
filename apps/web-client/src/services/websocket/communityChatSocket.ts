@@ -1,4 +1,4 @@
-import type { ChatMessage, UserSummary } from '../../types/social'
+import type { ChatMessage } from '../../types/social'
 import { createStompSocket } from './stompSocket'
 
 interface CommunityChatSocketOptions {
@@ -6,6 +6,7 @@ interface CommunityChatSocketOptions {
   topicPrefix: string
   destination: string
   communityId: number
+  currentUserId?: number
   onConnect: () => void
   onDisconnect: () => void
   onError: (message: string) => void
@@ -13,9 +14,15 @@ interface CommunityChatSocketOptions {
 }
 
 interface OutgoingMessage {
-  communityId: number
-  sender: UserSummary
-  content: string
+  utilisateurId: number
+  contenu: string
+}
+
+interface IncomingMessage {
+  id: number
+  communauteId: number
+  utilisateurId: number
+  contenu: string
   createdAt: string
 }
 
@@ -35,7 +42,10 @@ export const createCommunityChatSocket = (options: CommunityChatSocketOptions) =
     onError: options.onError,
   })
 
-  const topic = `${options.topicPrefix}${options.communityId}`
+  const topic = `${options.topicPrefix}/${options.communityId}`
+  const destination = options.destination.includes('{communityId}')
+    ? options.destination.replace('{communityId}', String(options.communityId))
+    : options.destination
 
   return {
     connect: () => {
@@ -49,14 +59,18 @@ export const createCommunityChatSocket = (options: CommunityChatSocketOptions) =
 
         socket.subscribe(topic, (frame) => {
           try {
-            const payload = JSON.parse(frame.body) as OutgoingMessage
+            const payload = JSON.parse(frame.body) as IncomingMessage
             options.onMessage({
-              id: createId(),
-              communityId: payload.communityId,
-              sender: payload.sender,
-              content: payload.content,
+              id: String(payload.id ?? createId()),
+              communityId: payload.communauteId ?? options.communityId,
+              sender: {
+                id: payload.utilisateurId,
+                fullName: `User #${payload.utilisateurId}`,
+                headline: 'Community member',
+              },
+              content: payload.contenu,
               createdAt: payload.createdAt,
-              mine: false,
+              mine: payload.utilisateurId === options.currentUserId,
             })
           } catch {
             options.onMessage({
@@ -81,7 +95,7 @@ export const createCommunityChatSocket = (options: CommunityChatSocketOptions) =
       socket.disconnect()
     },
     send: (message: OutgoingMessage) => {
-      socket.publish(options.destination, message)
+      socket.publish(destination, message)
     },
     isConnected: () => socket.isConnected(),
   }

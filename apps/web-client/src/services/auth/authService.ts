@@ -13,16 +13,11 @@ interface AuthUserDto {
 
 interface AuthResponseDto {
   accessToken: string
-  refreshToken?: string
   tokenType?: string
   expiresAt?: string
   expiresInSeconds?: number
   utilisateur?: AuthUserDto
   user?: AuthUserDto
-}
-
-interface RefreshPayload {
-  refreshToken: string
 }
 
 const AUTH_BASE_PATH = '/v1/auth'
@@ -57,7 +52,6 @@ const toSession = (payload: AuthResponseDto): AuthSession => {
 
   return {
     accessToken: payload.accessToken,
-    refreshToken: payload.refreshToken,
     tokenType: payload.tokenType ?? 'Bearer',
     expiresAt: buildExpiry(payload.expiresAt, payload.expiresInSeconds),
     user: toAuthUser(rawUser),
@@ -67,7 +61,6 @@ const toSession = (payload: AuthResponseDto): AuthSession => {
 export const loginWithCredentials = async (payload: LoginPayload): Promise<AuthSession> => {
   const response = await httpClient.post<AuthResponseDto>(`${AUTH_BASE_PATH}/login`, {
     email: payload.email,
-    password: payload.password,
     motDePasse: payload.password,
   })
 
@@ -76,20 +69,10 @@ export const loginWithCredentials = async (payload: LoginPayload): Promise<AuthS
 
 export const registerAccount = async (payload: RegisterPayload): Promise<AuthSession> => {
   const response = await httpClient.post<AuthResponseDto>(`${AUTH_BASE_PATH}/register`, {
-    fullName: payload.fullName,
     nomComplet: payload.fullName,
     email: payload.email,
-    password: payload.password,
     motDePasse: payload.password,
   })
-
-  return toSession(response.data)
-}
-
-export const refreshSession = async (refreshToken: string): Promise<AuthSession> => {
-  const response = await httpClient.post<AuthResponseDto>(`${AUTH_BASE_PATH}/refresh`, {
-    refreshToken,
-  } satisfies RefreshPayload)
 
   return toSession(response.data)
 }

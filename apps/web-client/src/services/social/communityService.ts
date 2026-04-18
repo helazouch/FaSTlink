@@ -5,27 +5,32 @@ import type { CommunitySummary } from '../../types/social'
 
 interface CommunityDto {
   id: number
-  name: string
+  nom: string
   description: string
-  members: number
-  coverUrl?: string
+  createurUtilisateurId: number
 }
 
-const communitiesCache: CommunitySummary[] = [...mockCommunities]
+let communitiesCache: CommunitySummary[] = [...mockCommunities]
 
 const mapCommunity = (payload: CommunityDto): CommunitySummary => ({
   id: payload.id,
-  name: payload.name,
+  name: payload.nom,
   description: payload.description,
-  members: payload.members,
-  coverUrl: payload.coverUrl,
+  members: communitiesCache.find((item) => item.id === payload.id)?.members ?? 0,
+  coverUrl: communitiesCache.find((item) => item.id === payload.id)?.coverUrl,
 })
 
 export const getSuggestedCommunities = async (): Promise<CommunitySummary[]> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<CommunityDto[]>('/v1/communities/suggested')
-      return response.data.map(mapCommunity)
+      const response = await httpClient.get<CommunityDto[]>('/v1/communities')
+      const mapped = response.data.map(mapCommunity)
+
+      if (mapped.length > 0) {
+        communitiesCache = mapped
+      }
+
+      return communitiesCache
     },
     () => communitiesCache,
   )

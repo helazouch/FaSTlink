@@ -3,7 +3,6 @@ import { env } from '../config/env'
 import { createNotificationSocket } from '../services/websocket/notificationSocket'
 import { useAuthStore } from '../stores/authStore'
 import { useNotificationStore } from '../stores/notificationStore'
-import type { AuthSession } from '../types/auth'
 
 interface AppRuntimeProviderProps {
   children: ReactNode
@@ -14,7 +13,6 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
   const user = useAuthStore((state) => state.user)
   const bootstrap = useAuthStore((state) => state.bootstrap)
   const logout = useAuthStore((state) => state.logout)
-  const setSession = useAuthStore((state) => state.setSession)
   const prependNotification = useNotificationStore((state) => state.prependNotification)
 
   useEffect(() => {
@@ -26,21 +24,12 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
       logout()
     }
 
-    const handleSessionRefresh = (event: Event) => {
-      const session = (event as CustomEvent<AuthSession>).detail
-      if (session) {
-        setSession(session)
-      }
-    }
-
     window.addEventListener('fastlink:auth:unauthorized', handleUnauthorized)
-    window.addEventListener('fastlink:auth:session-refreshed', handleSessionRefresh)
 
     return () => {
       window.removeEventListener('fastlink:auth:unauthorized', handleUnauthorized)
-      window.removeEventListener('fastlink:auth:session-refreshed', handleSessionRefresh)
     }
-  }, [logout, setSession])
+  }, [logout])
 
   useEffect(() => {
     if (!env.enableWebsocket || status !== 'authenticated' || !user) {
@@ -48,8 +37,8 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
     }
 
     const socket = createNotificationSocket({
-      url: env.wsUrl,
-      topic: `${env.notificationTopicPrefix}${user.id}`,
+      url: env.notificationWsUrl,
+      topic: `${env.notificationTopicPrefix}/${user.id}/notifications`,
       onNotification: prependNotification,
       onConnect: () => undefined,
       onDisconnect: () => undefined,

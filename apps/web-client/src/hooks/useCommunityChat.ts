@@ -30,7 +30,14 @@ export const useCommunityChat = (communityId: number) => {
   useEffect(() => {
     let cancelled = false
 
-    void getCommunityMessages(communityId).then((history) => {
+    if (!user) {
+      setMessages(communityId, [])
+      return () => {
+        cancelled = true
+      }
+    }
+
+    void getCommunityMessages(communityId, user.id).then((history) => {
       if (!cancelled) {
         setMessages(communityId, history)
       }
@@ -39,7 +46,7 @@ export const useCommunityChat = (communityId: number) => {
     return () => {
       cancelled = true
     }
-  }, [communityId, setMessages])
+  }, [communityId, setMessages, user])
 
   useEffect(() => {
     if (!env.enableWebsocket) {
@@ -50,10 +57,11 @@ export const useCommunityChat = (communityId: number) => {
     setConnectionStatus('connecting')
 
     const socket = createCommunityChatSocket({
-      url: env.wsUrl,
+      url: env.communityWsUrl,
       topicPrefix: env.chatTopicPrefix,
       destination: env.chatDestination,
       communityId,
+      currentUserId: user?.id,
       onConnect: () => setConnectionStatus('online'),
       onDisconnect: () => setConnectionStatus('offline'),
       onError: () => setConnectionStatus('offline'),
@@ -71,7 +79,7 @@ export const useCommunityChat = (communityId: number) => {
         socketRef.current = null
       }
     }
-  }, [appendMessage, communityId, setConnectionStatus])
+  }, [appendMessage, communityId, setConnectionStatus, user?.id])
 
   const sendMessage = useCallback(
     (content: string) => {
@@ -107,10 +115,8 @@ export const useCommunityChat = (communityId: number) => {
       }
 
       socket.send({
-        communityId,
-        sender: optimistic.sender,
-        content: optimistic.content,
-        createdAt: optimistic.createdAt,
+        utilisateurId: user.id,
+        contenu: optimistic.content,
       })
     },
     [appendMessage, communityId, setConnectionStatus, user],

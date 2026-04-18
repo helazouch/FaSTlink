@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { env } from '../config/env'
 import { addComment, createPost, getFeedPage, toggleLike, toggleSavedPost } from '../services/social/feedService'
+import { useAuthStore } from '../stores/authStore'
 import { useFeedStore } from '../stores/feedStore'
 import type { CreateCommentInput, CreatePostInput, FeedPage, FeedPost } from '../types/social'
 
@@ -51,9 +52,16 @@ export const useCreatePost = () => {
 
 export const useToggleLike = () => {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.id)
 
   return useMutation({
-    mutationFn: (postId: string) => toggleLike(postId),
+    mutationFn: (postId: string) => {
+      if (!userId) {
+        throw new Error('You must be signed in to react to a post')
+      }
+
+      return toggleLike(postId, userId)
+    },
     onSuccess: (post) => {
       queryClient.setQueriesData(
         {
@@ -68,9 +76,16 @@ export const useToggleLike = () => {
 
 export const useAddComment = () => {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.id)
 
   return useMutation({
-    mutationFn: (input: CreateCommentInput) => addComment(input),
+    mutationFn: (input: CreateCommentInput) => {
+      if (!userId) {
+        throw new Error('You must be signed in to comment on a post')
+      }
+
+      return addComment(input, userId)
+    },
     onSuccess: (post) => {
       queryClient.setQueriesData(
         {
