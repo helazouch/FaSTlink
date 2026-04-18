@@ -1,0 +1,112 @@
+server:
+  port: ${GATEWAY_PORT:8086}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - X-Correlation-Id
+      routes:
+        - id: identity-auth-route
+          uri: ${IDENTITY_SERVICE_URI:http://localhost:8080}
+          predicates:
+            - Path=/api/v1/auth/**
+
+        - id: identity-admin-role-route
+          uri: ${IDENTITY_SERVICE_URI:http://localhost:8080}
+          predicates:
+            - Path=/api/v1/admin/roles/**,/api/v1/admin/users/**
+
+        - id: entity-route
+          uri: ${ENTITY_SERVICE_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/entities/**
+
+        - id: publication-route
+          uri: ${PUBLICATION_SERVICE_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/publications/**
+
+        - id: event-route
+          uri: ${EVENT_SERVICE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/events/**
+
+        - id: community-route
+          uri: ${COMMUNITY_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/communities/**
+
+        - id: request-route
+          uri: ${REQUEST_SERVICE_URI:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/requests/**,/api/v1/rooms/**
+
+        - id: notification-route
+          uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8087}
+          predicates:
+            - Path=/api/v1/notifications/**
+
+        - id: analytics-route
+          uri: ${ANALYTICS_SERVICE_URI:http://localhost:8088}
+          predicates:
+            - Path=/api/v1/analytics/**
+
+        - id: admin-config-route
+          uri: ${ADMIN_SERVICE_URI:http://localhost:8089}
+          predicates:
+            - Path=/api/v1/admin/configs/**,/api/v1/admin/settings/**,/api/v1/admin/stats/**
+
+        - id: community-websocket-route
+          uri: ${COMMUNITY_WS_URI:ws://localhost:8084}
+          predicates:
+            - Path=/ws-community,/ws-community/**
+
+        - id: notification-websocket-route
+          uri: ${NOTIFICATION_WS_URI:ws://localhost:8087}
+          predicates:
+            - Path=/ws-notifications,/ws-notifications/**
+
+security:
+  jwt:
+    secret: ${JWT_SECRET_BASE64:QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=}
+    issuer: ${JWT_ISSUER:fast-link-identity}
+
+gateway:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:false}
+    requests-per-window: ${RATE_LIMIT_REQUESTS_PER_WINDOW:120}
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    org.springframework.security: INFO
+    org.springframework.cloud.gateway: INFO
+    com.fastlink.gateway: INFO

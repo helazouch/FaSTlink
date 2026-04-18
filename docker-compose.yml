@@ -1,0 +1,510 @@
+name: fastlink-platform
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - fastlink-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - fastlink-net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fastlink-net
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - fastlink-net
+
+  identity-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - identity_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  entity-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: entity_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - entity_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d entity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  publication-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: publication_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - publication_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d publication_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  event-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: event_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - event_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d event_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  community-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: community_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - community_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d community_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  request-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: request_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - request_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d request_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  notification-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d notification_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  analytics-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: analytics_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - analytics_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d analytics_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  admin-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: admin_db
+      POSTGRES_USER: fastlink
+      POSTGRES_PASSWORD: fastlink
+    volumes:
+      - admin_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastlink -d admin_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - fastlink-net
+
+  identity-service:
+    build:
+      context: ./services/identity-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      identity-db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://identity-db:5432/identity_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
+      JWT_EXPIRATION_MS: 3600000
+    ports:
+      - "8080:8080"
+    networks:
+      - fastlink-net
+
+  entity-service:
+    build:
+      context: ./services/entity-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      entity-db:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+      kafka:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8081
+      DB_URL: jdbc:postgresql://entity-db:5432/entity_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      IDENTITY_BASE_URL: http://identity-service:8080
+      IDENTITY_USER_EXISTS_PATH: /api/v1/internal/users/{userId}/exists
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ENTITY_TOPIC_CREATED: fastlink.entity.created.v1
+      ENTITY_TOPIC_UPDATED: fastlink.entity.updated.v1
+      ENTITY_TOPIC_DELETED: fastlink.entity.deleted.v1
+      ENTITY_TOPIC_MEMBER_ASSIGNED: fastlink.entity.member.assigned.v1
+    ports:
+      - "8081:8081"
+    networks:
+      - fastlink-net
+
+  publication-service:
+    build:
+      context: ./services/publication-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      publication-db:
+        condition: service_healthy
+      entity-service:
+        condition: service_started
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8082
+      DB_URL: jdbc:postgresql://publication-db:5432/publication_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      ENTITY_BASE_URL: http://entity-service:8081
+      ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PUBLICATION_TOPIC_CREATED: fastlink.publication.created.v1
+    ports:
+      - "8082:8082"
+    networks:
+      - fastlink-net
+
+  event-service:
+    build:
+      context: ./services/event-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      event-db:
+        condition: service_healthy
+      entity-service:
+        condition: service_started
+      kafka:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8083
+      DB_URL: jdbc:postgresql://event-db:5432/event_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      ENTITY_BASE_URL: http://entity-service:8081
+      ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EVENT_TOPIC_CREATED: fastlink.event.created.v1
+    ports:
+      - "8083:8083"
+    networks:
+      - fastlink-net
+
+  community-service:
+    build:
+      context: ./services/community-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      community-db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8084
+      DB_URL: jdbc:postgresql://community-db:5432/community_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      WEBSOCKET_ALLOWED_ORIGINS: "*"
+    ports:
+      - "8084:8084"
+    networks:
+      - fastlink-net
+
+  request-service:
+    build:
+      context: ./services/request-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      request-db:
+        condition: service_healthy
+      entity-service:
+        condition: service_started
+      kafka:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8085
+      DB_URL: jdbc:postgresql://request-db:5432/request_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      ENTITY_BASE_URL: http://entity-service:8081
+      ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REQUEST_TOPIC_SUBMITTED: fastlink.request.submitted.v1
+      REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
+      REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
+    ports:
+      - "8085:8085"
+    networks:
+      - fastlink-net
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8087
+      DB_URL: jdbc:postgresql://notification-db:5432/notification_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: notification-service
+      EVENT_TOPIC_CREATED: fastlink.event.created.v1
+      REQUEST_TOPIC_SUBMITTED: fastlink.request.submitted.v1
+      REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
+      REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
+      WEBSOCKET_ALLOWED_ORIGINS: "*"
+    ports:
+      - "8087:8087"
+    networks:
+      - fastlink-net
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      analytics-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8088
+      DB_URL: jdbc:postgresql://analytics-db:5432/analytics_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: analytics-service
+      PUBLICATION_TOPIC_CREATED: fastlink.publication.created.v1
+      EVENT_TOPIC_CREATED: fastlink.event.created.v1
+      REQUEST_TOPIC_SUBMITTED: fastlink.request.submitted.v1
+      REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
+      REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
+      ENTITY_TOPIC_MEMBER_ASSIGNED: fastlink.entity.member.assigned.v1
+    ports:
+      - "8088:8088"
+    networks:
+      - fastlink-net
+
+  admin-service:
+    build:
+      context: ./services/admin-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      admin-db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8089
+      DB_URL: jdbc:postgresql://admin-db:5432/admin_db
+      DB_USERNAME: fastlink
+      DB_PASSWORD: fastlink
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
+    ports:
+      - "8089:8089"
+    networks:
+      - fastlink-net
+
+  api-gateway:
+    build:
+      context: ./gateway/api-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      identity-service:
+        condition: service_started
+      entity-service:
+        condition: service_started
+      publication-service:
+        condition: service_started
+      event-service:
+        condition: service_started
+      community-service:
+        condition: service_started
+      request-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started
+      admin-service:
+        condition: service_started
+    environment:
+      GATEWAY_PORT: 8086
+      IDENTITY_SERVICE_URI: http://identity-service:8080
+      ENTITY_SERVICE_URI: http://entity-service:8081
+      PUBLICATION_SERVICE_URI: http://publication-service:8082
+      EVENT_SERVICE_URI: http://event-service:8083
+      COMMUNITY_SERVICE_URI: http://community-service:8084
+      REQUEST_SERVICE_URI: http://request-service:8085
+      NOTIFICATION_SERVICE_URI: http://notification-service:8087
+      ANALYTICS_SERVICE_URI: http://analytics-service:8088
+      ADMIN_SERVICE_URI: http://admin-service:8089
+      COMMUNITY_WS_URI: ws://community-service:8084
+      NOTIFICATION_WS_URI: ws://notification-service:8087
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
+      RATE_LIMIT_ENABLED: "false"
+      RATE_LIMIT_REQUESTS_PER_WINDOW: 120
+      RATE_LIMIT_WINDOW_SECONDS: 60
+    ports:
+      - "8086:8086"
+    networks:
+      - fastlink-net
+
+networks:
+  fastlink-net:
+    driver: bridge
+
+volumes:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+  redis_data:
+  minio_data:
+  identity_db_data:
+  entity_db_data:
+  publication_db_data:
+  event_db_data:
+  community_db_data:
+  request_db_data:
+  notification_db_data:
+  analytics_db_data:
+  admin_db_data:

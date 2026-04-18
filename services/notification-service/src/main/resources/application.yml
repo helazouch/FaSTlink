@@ -1,0 +1,55 @@
+server:
+  port: ${SERVER_PORT:8087}
+
+spring:
+  application:
+    name: notification-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/notification_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:notification-service}
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      missing-topics-fatal: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+messaging:
+  topics:
+    event-created: ${EVENT_TOPIC_CREATED:fastlink.event.created.v1}
+    request-submitted: ${REQUEST_TOPIC_SUBMITTED:fastlink.request.submitted.v1}
+    request-approved: ${REQUEST_TOPIC_APPROVED:fastlink.request.approved.v1}
+    request-rejected: ${REQUEST_TOPIC_REJECTED:fastlink.request.rejected.v1}
+
+realtime:
+  websocket:
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:*}
