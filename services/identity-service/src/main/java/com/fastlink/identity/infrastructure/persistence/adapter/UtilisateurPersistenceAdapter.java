@@ -29,6 +29,11 @@ public class UtilisateurPersistenceAdapter implements UtilisateurPort {
     }
 
     @Override
+    public boolean existsById(Long id) {
+        return utilisateurJpaRepository.existsById(id);
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return utilisateurJpaRepository.existsByEmail(email);
     }

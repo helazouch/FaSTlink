@@ -1,6 +1,6 @@
 import { Badge } from '../components/atoms/Badge'
 import { RequestSubmissionPanel } from '../components/organisms/RequestSubmissionPanel'
-import { useRequests, useSubmitRequest, useSuggestedCommunities } from '../hooks/useSocial'
+import { useRequestEntities, useRequests, useSubmitRequest } from '../hooks/useSocial'
 import { formatDateTime } from '../lib/date'
 
 const toneByStatus = {
@@ -10,14 +10,14 @@ const toneByStatus = {
 } as const
 
 export const RequestsPage = () => {
-  const { data: communities = [] } = useSuggestedCommunities()
+  const { data: entities = [] } = useRequestEntities()
   const { data: requests = [] } = useRequests()
   const submitMutation = useSubmitRequest()
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr,1fr]">
       <RequestSubmissionPanel
-        communities={communities}
+        communities={entities}
         onSubmit={(input) => submitMutation.mutateAsync(input)}
         isSubmitting={submitMutation.isPending}
       />

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -13,8 +13,7 @@
 }
 
 body {
-  @apply bg-surface-100 text-slate-900 dark:bg-surface-900 dark:text-slate-100;
-  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  @apply m-0 bg-canvas font-body text-slate-900 antialiased dark:bg-ink dark:text-slate-100;
 }
 
 #root {
@@ -22,7 +21,7 @@ body {
 }
 
 .panel {
-  @apply rounded-xl border border-slate-200 bg-white shadow-panel dark:border-surface-700 dark:bg-surface-800;
+  @apply rounded-2xl border border-slate-200 bg-white shadow-panel backdrop-blur-sm dark:border-white/10 dark:bg-surface-800;
 }
 
 .table-cell {

@@ -47,7 +47,7 @@ export const RequestSubmissionPanel = ({
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-base font-semibold text-slate-800">Submit a new request</h2>
-      <p className="mt-1 text-sm text-slate-500">Share what support you need from FaST Link teams.</p>
+      <p className="mt-1 text-sm text-slate-500">Share what support you need from FaST Link teams and target the right entity.</p>
 
       <div className="mt-4 space-y-3">
         <TextInput
@@ -100,7 +100,7 @@ export const RequestSubmissionPanel = ({
 
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-              Community
+              Entity
             </span>
             <select
               value={communityId}

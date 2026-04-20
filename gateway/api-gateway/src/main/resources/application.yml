@@ -37,27 +37,27 @@ spring:
         - id: entity-route
           uri: ${ENTITY_SERVICE_URI:http://localhost:8081}
           predicates:
-            - Path=/api/v1/entities/**
+            - Path=/api/v1/entities,/api/v1/entities/**
 
         - id: publication-route
           uri: ${PUBLICATION_SERVICE_URI:http://localhost:8082}
           predicates:
-            - Path=/api/v1/publications/**
+            - Path=/api/v1/publications,/api/v1/publications/**
 
         - id: event-route
           uri: ${EVENT_SERVICE_URI:http://localhost:8083}
           predicates:
-            - Path=/api/v1/events/**
+            - Path=/api/v1/events,/api/v1/events/**
 
         - id: community-route
           uri: ${COMMUNITY_SERVICE_URI:http://localhost:8084}
           predicates:
-            - Path=/api/v1/communities/**
+            - Path=/api/v1/communities,/api/v1/communities/**
 
         - id: request-route
           uri: ${REQUEST_SERVICE_URI:http://localhost:8085}
           predicates:
-            - Path=/api/v1/requests/**,/api/v1/rooms/**
+            - Path=/api/v1/requests,/api/v1/requests/**,/api/v1/rooms,/api/v1/rooms/**
 
         - id: notification-route
           uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8087}
@@ -72,7 +72,7 @@ spring:
         - id: admin-config-route
           uri: ${ADMIN_SERVICE_URI:http://localhost:8089}
           predicates:
-            - Path=/api/v1/admin/configs/**,/api/v1/admin/settings/**,/api/v1/admin/stats/**
+            - Path=/api/v1/admin/configs/**,/api/v1/admin/settings/**,/api/v1/admin/stats/**,/api/v1/admin/audit/**
 
         - id: community-websocket-route
           uri: ${COMMUNITY_WS_URI:ws://localhost:8084}

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCommunityById, getSuggestedCommunities } from '../services/social/communityService'
+import { getRequestEntities } from '../services/social/entityService'
 import { getUpcomingEvents, updateEventParticipation } from '../services/social/eventService'
 import { getMyProfile } from '../services/social/profileService'
 import { getMyRequests, submitRequest } from '../services/social/requestService'
@@ -10,6 +11,7 @@ const queryKeys = {
   communities: ['communities', 'suggested'] as const,
   communityById: (communityId: number) => ['communities', communityId] as const,
   events: ['events', 'upcoming'] as const,
+  requestEntities: ['requests', 'entities'] as const,
   requests: ['requests', 'my'] as const,
   profile: ['profile', 'me'] as const,
 }
@@ -31,6 +33,12 @@ export const useEvents = () =>
   useQuery({
     queryKey: queryKeys.events,
     queryFn: getUpcomingEvents,
+  })
+
+export const useRequestEntities = () =>
+  useQuery({
+    queryKey: queryKeys.requestEntities,
+    queryFn: getRequestEntities,
   })
 
 export const useUpdateParticipation = () => {

@@ -9,6 +9,8 @@ import com.fastlink.entity.application.port.in.EntiteUseCase;
 import com.fastlink.entity.application.port.out.EntitePort;
 import com.fastlink.entity.application.port.out.EntityEventPort;
 import com.fastlink.entity.domain.model.Entite;
+import java.util.Comparator;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,16 @@ public class EntiteService implements EntiteUseCase {
     public EntiteService(EntitePort entitePort, EntityEventPort entityEventPort) {
         this.entitePort = entitePort;
         this.entityEventPort = entityEventPort;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EntiteResponse> listEntites() {
+        return entitePort.findAll().stream()
+                .sorted(Comparator.comparing(Entite::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed())
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override

@@ -19,6 +19,7 @@ import com.fastlink.request.domain.model.DemandeMateriel;
 import com.fastlink.request.domain.model.DemandeStatus;
 import com.fastlink.request.domain.model.ReservationSalle;
 import com.fastlink.request.domain.model.SalleDemandee;
+import java.util.Comparator;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +49,26 @@ public class DemandeService implements DemandeUseCase {
         this.salleDemandeePort = salleDemandeePort;
         this.entityPermissionPort = entityPermissionPort;
         this.requestEventPort = requestEventPort;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DemandeResponse> listDemandes(Long utilisateurId, Long entiteId) {
+        List<Demande> demandes;
+
+        if (utilisateurId != null) {
+            demandes = demandePort.findByDemandeurUtilisateurId(utilisateurId);
+        } else if (entiteId != null) {
+            demandes = demandePort.findByEntiteId(entiteId);
+        } else {
+            demandes = demandePort.findAll();
+        }
+
+        return demandes.stream()
+                .sorted(Comparator.comparing(Demande::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed())
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.fastlink.publication.infrastructure.persistence.adapter;
 import com.fastlink.publication.application.port.out.PublicationPort;
 import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.infrastructure.persistence.jpa.PublicationJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -23,5 +24,10 @@ public class PublicationPersistenceAdapter implements PublicationPort {
     @Override
     public Optional<Publication> findById(Long publicationId) {
         return publicationJpaRepository.findById(publicationId);
+    }
+
+    @Override
+    public List<Publication> findAll() {
+        return publicationJpaRepository.findAllByOrderByCreatedAtDesc();
     }
 }

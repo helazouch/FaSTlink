@@ -3,6 +3,7 @@ package com.fastlink.entity.infrastructure.persistence.adapter;
 import com.fastlink.entity.application.port.out.EntitePort;
 import com.fastlink.entity.domain.model.Entite;
 import com.fastlink.entity.infrastructure.persistence.jpa.EntiteJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,11 @@ public class EntitePersistenceAdapter implements EntitePort {
     @Override
     public Entite save(Entite entite) {
         return entiteJpaRepository.save(entite);
+    }
+
+    @Override
+    public List<Entite> findAll() {
+        return entiteJpaRepository.findAll();
     }
 
     @Override

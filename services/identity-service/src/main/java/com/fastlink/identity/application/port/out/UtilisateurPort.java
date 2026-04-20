@@ -11,6 +11,8 @@ public interface UtilisateurPort {
 
     Optional<Utilisateur> findById(Long id);
 
+    boolean existsById(Long id);
+
     boolean existsByEmail(String email);
 
     Page<Utilisateur> searchUsers(String search, String role, Boolean enabled, Pageable pageable);

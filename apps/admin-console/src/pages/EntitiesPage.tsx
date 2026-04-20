@@ -19,6 +19,7 @@ import {
   assignEntityMember,
   createEntity,
   deleteEntity,
+  listEntities,
   listEntityMembers,
   updateEntity,
 } from '../services/domain/operationsService'
@@ -28,7 +29,7 @@ const ENTITY_ROLES = ['OWNER', 'MANAGER', 'MEMBER', 'VIEWER']
 export const EntitiesPage = () => {
   const queryClient = useQueryClient()
 
-  const [entityIdInput, setEntityIdInput] = useState('1')
+  const [entityIdInput, setEntityIdInput] = useState('5')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
@@ -58,6 +59,11 @@ export const EntitiesPage = () => {
     enabled: entityId > 0,
   })
 
+  const entitiesQuery = useQuery({
+    queryKey: ['entities'],
+    queryFn: listEntities,
+  })
+
   const filteredMembers = useMemo(() => {
     const normalized = search.trim().toLowerCase()
     const items = membersQuery.data ?? []
@@ -72,6 +78,8 @@ export const EntitiesPage = () => {
       )
     })
   }, [membersQuery.data, search])
+
+  const entityRecords = entitiesQuery.data ?? []
 
   const pageSize = 8
   const paginatedMembers = filteredMembers.slice(page * pageSize, page * pageSize + pageSize)
@@ -94,12 +102,15 @@ export const EntitiesPage = () => {
 
   const createMutation = useMutation({
     mutationFn: () => createEntity({ nom: createName, description: createDescription }),
-    onSuccess: () => {
-      appendAuditEntry('CREATE_ENTITY', 'entity', 'new', 'SUCCESS', createName)
+    onSuccess: (created) => {
+      appendAuditEntry('CREATE_ENTITY', 'entity', String(created.id), 'SUCCESS', createName)
       setCreateOpen(false)
       setCreateName('')
       setCreateDescription('')
+      setEntityIdInput(String(created.id))
       setErrorMessage(null)
+      void queryClient.invalidateQueries({ queryKey: ['entities'] })
+      void queryClient.invalidateQueries({ queryKey: ['entity-members', created.id] })
     },
     onError: (error) => {
       appendAuditEntry('CREATE_ENTITY', 'entity', 'new', 'FAILED', normalizeApiError(error).message)
@@ -113,6 +124,8 @@ export const EntitiesPage = () => {
       appendAuditEntry('UPDATE_ENTITY', 'entity', String(entityId), 'SUCCESS', updateName)
       setUpdateOpen(false)
       setErrorMessage(null)
+      void queryClient.invalidateQueries({ queryKey: ['entities'] })
+      void queryClient.invalidateQueries({ queryKey: ['entity-members', entityId] })
     },
     onError: (error) => {
       appendAuditEntry('UPDATE_ENTITY', 'entity', String(entityId), 'FAILED', normalizeApiError(error).message)
@@ -127,6 +140,7 @@ export const EntitiesPage = () => {
       setDeleteOpen(false)
       setErrorMessage(null)
       void queryClient.removeQueries({ queryKey: ['entity-members', entityId] })
+      void queryClient.invalidateQueries({ queryKey: ['entities'] })
     },
     onError: (error) => {
       appendAuditEntry('DELETE_ENTITY', 'entity', String(entityId), 'FAILED', normalizeApiError(error).message)
@@ -169,7 +183,7 @@ export const EntitiesPage = () => {
             label="Entity id"
             value={entityIdInput}
             onChange={(event) => setEntityIdInput(event.target.value)}
-            placeholder="1"
+            placeholder="5"
           />
           <TextInput
             label="Filter members"
@@ -184,6 +198,51 @@ export const EntitiesPage = () => {
             <Plus size={14} />
             Assign member
           </Button>
+        </div>
+
+        <div className="border-b border-slate-200 p-4 dark:border-surface-700">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Available entities</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Select an entity to inspect members or continue admin actions.
+              </p>
+            </div>
+            <Badge tone="info">{entityRecords.length} entities</Badge>
+          </div>
+          {entitiesQuery.isLoading ? (
+            <Loader label="Loading entities..." />
+          ) : entitiesQuery.isError ? (
+            <EmptyState title="Unable to load entities" message="The entity list endpoint is not reachable." />
+          ) : entityRecords.length === 0 ? (
+            <EmptyState title="No entities yet" message="Create your first entity to begin assigning members." />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {entityRecords.map((entity) => (
+                <button
+                  key={entity.id}
+                  type="button"
+                  onClick={() => setEntityIdInput(String(entity.id))}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    entity.id === entityId
+                      ? 'border-brand-500 bg-brand-50/80 shadow-sm dark:border-brand-400 dark:bg-brand-500/10'
+                      : 'border-slate-200 bg-white hover:border-brand-300 dark:border-surface-700 dark:bg-surface-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{entity.nom}</p>
+                    <Badge tone={entity.id === entityId ? 'info' : 'neutral'}>#{entity.id}</Badge>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+                    {entity.description ?? 'No description'}
+                  </p>
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                    Updated {formatDateTime(entity.updatedAt)}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {membersQuery.isLoading ? (

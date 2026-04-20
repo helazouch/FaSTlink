@@ -36,7 +36,7 @@ export const GrowthChart = ({ snapshots }: GrowthChartProps) => {
             <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} />
             <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
             <Tooltip />
-            <Bar dataKey="participation" fill="#1249a8" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="participation" fill="#ff8952" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

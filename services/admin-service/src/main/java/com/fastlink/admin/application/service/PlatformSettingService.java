@@ -17,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformSettingService implements PlatformSettingUseCase {
 
     private final PlatformSettingPort platformSettingPort;
+    private final AuditLogService auditLogService;
 
-    public PlatformSettingService(PlatformSettingPort platformSettingPort) {
+    public PlatformSettingService(PlatformSettingPort platformSettingPort, AuditLogService auditLogService) {
         this.platformSettingPort = platformSettingPort;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -36,7 +38,14 @@ public class PlatformSettingService implements PlatformSettingUseCase {
                 normalizeOptional(request.description()),
                 request.updatedByUserId());
 
-        return toResponse(platformSettingPort.save(platformSetting));
+        PlatformSetting saved = platformSettingPort.save(platformSetting);
+        auditLogService.recordSuccess(
+                "CREATE_SETTING",
+                "setting",
+                String.valueOf(saved.getId()),
+                saved.getSettingKey(),
+                saved.getUpdatedByUserId());
+        return toResponse(saved);
     }
 
     @Override
@@ -55,7 +64,14 @@ public class PlatformSettingService implements PlatformSettingUseCase {
         platformSetting.setDescription(normalizeOptional(request.description()));
         platformSetting.setUpdatedByUserId(request.updatedByUserId());
 
-        return toResponse(platformSettingPort.save(platformSetting));
+        PlatformSetting saved = platformSettingPort.save(platformSetting);
+        auditLogService.recordSuccess(
+                "UPDATE_SETTING",
+                "setting",
+                String.valueOf(saved.getId()),
+                saved.getSettingKey(),
+                saved.getUpdatedByUserId());
+        return toResponse(saved);
     }
 
     @Override
@@ -63,6 +79,12 @@ public class PlatformSettingService implements PlatformSettingUseCase {
         PlatformSetting platformSetting = platformSettingPort.findById(requirePositiveId(settingId, "parametre"))
                 .orElseThrow(() -> new ResourceNotFoundException("Parametre plateforme introuvable"));
 
+        auditLogService.recordSuccess(
+                "DELETE_SETTING",
+                "setting",
+                String.valueOf(platformSetting.getId()),
+                platformSetting.getSettingKey(),
+                platformSetting.getUpdatedByUserId());
         platformSettingPort.delete(platformSetting);
     }
 

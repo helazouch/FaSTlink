@@ -17,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class GlobalConfigService implements GlobalConfigUseCase {
 
     private final GlobalConfigPort globalConfigPort;
+    private final AuditLogService auditLogService;
 
-    public GlobalConfigService(GlobalConfigPort globalConfigPort) {
+    public GlobalConfigService(GlobalConfigPort globalConfigPort, AuditLogService auditLogService) {
         this.globalConfigPort = globalConfigPort;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -35,7 +37,14 @@ public class GlobalConfigService implements GlobalConfigUseCase {
                 normalizeOptional(request.description()),
                 request.updatedByUserId());
 
-        return toResponse(globalConfigPort.save(globalConfig));
+        GlobalConfig saved = globalConfigPort.save(globalConfig);
+        auditLogService.recordSuccess(
+                "CREATE_CONFIG",
+                "config",
+                String.valueOf(saved.getId()),
+                saved.getConfigKey(),
+                saved.getUpdatedByUserId());
+        return toResponse(saved);
     }
 
     @Override
@@ -53,7 +62,14 @@ public class GlobalConfigService implements GlobalConfigUseCase {
         globalConfig.setDescription(normalizeOptional(request.description()));
         globalConfig.setUpdatedByUserId(request.updatedByUserId());
 
-        return toResponse(globalConfigPort.save(globalConfig));
+        GlobalConfig saved = globalConfigPort.save(globalConfig);
+        auditLogService.recordSuccess(
+                "UPDATE_CONFIG",
+                "config",
+                String.valueOf(saved.getId()),
+                saved.getConfigKey(),
+                saved.getUpdatedByUserId());
+        return toResponse(saved);
     }
 
     @Override
@@ -61,6 +77,12 @@ public class GlobalConfigService implements GlobalConfigUseCase {
         GlobalConfig globalConfig = globalConfigPort.findById(requirePositiveId(configId, "configuration"))
                 .orElseThrow(() -> new ResourceNotFoundException("Configuration globale introuvable"));
 
+        auditLogService.recordSuccess(
+                "DELETE_CONFIG",
+                "config",
+                String.valueOf(globalConfig.getId()),
+                globalConfig.getConfigKey(),
+                globalConfig.getUpdatedByUserId());
         globalConfigPort.delete(globalConfig);
     }
 

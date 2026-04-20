@@ -3,6 +3,7 @@ package com.fastlink.community.infrastructure.persistence.adapter;
 import com.fastlink.community.application.port.out.CommunautePort;
 import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.infrastructure.persistence.jpa.CommunauteJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,11 @@ public class CommunautePersistenceAdapter implements CommunautePort {
     @Override
     public Optional<Communaute> findById(Long communauteId) {
         return communauteJpaRepository.findById(communauteId);
+    }
+
+    @Override
+    public List<Communaute> findAll() {
+        return communauteJpaRepository.findAllByOrderByCreatedAtDesc();
     }
 
     @Override
