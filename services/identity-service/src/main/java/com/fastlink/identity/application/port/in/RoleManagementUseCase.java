@@ -1,10 +1,13 @@
 package com.fastlink.identity.application.port.in;
 
 import com.fastlink.identity.application.dto.auth.UserResponse;
+import com.fastlink.identity.application.dto.role.UpdateUserStatusRequest;
 import com.fastlink.identity.application.dto.role.AssignRoleRequest;
 import com.fastlink.identity.application.dto.role.CreateRoleRequest;
 import com.fastlink.identity.application.dto.role.RoleResponse;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface RoleManagementUseCase {
 
@@ -12,5 +15,9 @@ public interface RoleManagementUseCase {
 
     List<RoleResponse> getRoles();
 
+    Page<UserResponse> getUsers(String search, String role, String status, Pageable pageable);
+
     UserResponse assignRole(Long userId, AssignRoleRequest request);
+
+    UserResponse updateUserStatus(Long userId, UpdateUserStatusRequest request);
 }
