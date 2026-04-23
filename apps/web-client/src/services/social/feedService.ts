@@ -1,5 +1,6 @@
 import { mockFeedPosts } from '../../data/socialMockData'
 import { httpClient } from '../api/httpClient'
+import { getEntityName, getUserName, hydrateEntityDirectory, hydrateUserDirectory } from '../referenceDataService'
 import { withFallback } from './fallback'
 import type {
   CreateCommentInput,
@@ -115,10 +116,10 @@ const mapPost = (payload: FeedPostDto): FeedPost => ({
   id: String(payload.id),
   author: {
     id: payload.utilisateurId ?? 0,
-    fullName: payload.utilisateurId ? `User #${payload.utilisateurId}` : 'Unknown member',
+    fullName: payload.utilisateurId ? getUserName(payload.utilisateurId) : 'Unknown member',
     headline: 'FaST Link member',
   },
-  entity: payload.entiteIds?.[0] ? `Entity #${payload.entiteIds[0]}` : 'FaST Link',
+  entity: payload.entiteIds?.[0] ? getEntityName(payload.entiteIds[0]) : 'FaST Link',
   communityId: payload.communityId ?? payload.entiteIds?.[0] ?? 1,
   content: payload.content ?? payload.contenu ?? '',
   media: toMedia(payload.media),
@@ -219,6 +220,10 @@ export const getFeedPage = async (
       })
 
       const serverItems = Array.isArray(response.data) ? response.data : response.data.items
+      const userIds = serverItems
+        .map((item) => item.utilisateurId ?? 0)
+        .filter((id) => id > 0)
+      await Promise.all([hydrateUserDirectory(userIds), hydrateEntityDirectory()])
       mergeServerPosts(serverItems.map(mapPost))
 
       return getFallbackPage(cursor, limit, communityId, searchQuery)

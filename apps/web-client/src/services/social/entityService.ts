@@ -1,5 +1,5 @@
 import { mockCommunities } from '../../data/socialMockData'
-import { httpClient } from '../api/httpClient'
+import { hydrateEntityDirectory } from '../referenceDataService'
 import { withFallback } from './fallback'
 import type { CommunitySummary } from '../../types/social'
 
@@ -21,11 +21,13 @@ const mapEntity = (payload: EntityDto): CommunitySummary => ({
   members: entitiesCache.find((item) => item.id === payload.id)?.members ?? 0,
 })
 
-export const getRequestEntities = async (): Promise<CommunitySummary[]> =>
+export const getRequestEntities = async (userId: number): Promise<CommunitySummary[]> =>
   withFallback(
     async () => {
-      const response = await httpClient.get<EntityDto[]>('/v1/entities')
-      const mapped = response.data.map(mapEntity)
+      const directory = await hydrateEntityDirectory(userId)
+      const mapped = Array.from(directory.entries()).map(([id, nom]) =>
+        mapEntity({ id, nom, description: entitiesCache.find((item) => item.id === id)?.description ?? null }),
+      )
 
       if (mapped.length > 0) {
         entitiesCache = mapped

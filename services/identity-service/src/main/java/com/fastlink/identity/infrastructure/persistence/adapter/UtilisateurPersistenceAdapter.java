@@ -4,6 +4,7 @@ import com.fastlink.identity.application.port.out.UtilisateurPort;
 import com.fastlink.identity.domain.model.RoleName;
 import com.fastlink.identity.domain.model.Utilisateur;
 import com.fastlink.identity.infrastructure.persistence.jpa.UtilisateurJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,11 @@ public class UtilisateurPersistenceAdapter implements UtilisateurPort {
     @Override
     public Optional<Utilisateur> findById(Long id) {
         return utilisateurJpaRepository.findById(id);
+    }
+
+    @Override
+    public List<Utilisateur> findByIds(List<Long> ids) {
+        return utilisateurJpaRepository.findAllById(ids);
     }
 
     @Override

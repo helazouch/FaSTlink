@@ -1,6 +1,7 @@
 package com.fastlink.entity.application.service;
 
 import com.fastlink.entity.application.dto.member.AssignUtilisateurRoleRequest;
+import com.fastlink.entity.application.dto.entity.EntiteResponse;
 import com.fastlink.entity.application.dto.member.UtilisateurRoleEntiteResponse;
 import com.fastlink.entity.application.exception.ResourceNotFoundException;
 import com.fastlink.entity.application.port.in.MembershipUseCase;
@@ -10,6 +11,7 @@ import com.fastlink.entity.application.port.out.IdentityValidationPort;
 import com.fastlink.entity.application.port.out.MembershipPort;
 import com.fastlink.entity.domain.model.Entite;
 import com.fastlink.entity.domain.model.UtilisateurRoleEntite;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,6 +68,18 @@ public class MembershipService implements MembershipUseCase {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<EntiteResponse> getAccessibleEntites(Long utilisateurId) {
+        return membershipPort.findByUtilisateurId(utilisateurId).stream()
+                .map(UtilisateurRoleEntite::getEntite)
+                .distinct()
+                .sorted(Comparator.comparing(Entite::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed())
+                .map(this::toEntiteResponse)
+                .toList();
+    }
+
     private UtilisateurRoleEntiteResponse toResponse(UtilisateurRoleEntite membership) {
         return new UtilisateurRoleEntiteResponse(
                 membership.getId(),
@@ -74,5 +88,14 @@ public class MembershipService implements MembershipUseCase {
                 membership.getRole(),
                 membership.getCreatedAt(),
                 membership.getUpdatedAt());
+    }
+
+    private EntiteResponse toEntiteResponse(Entite entite) {
+        return new EntiteResponse(
+                entite.getId(),
+                entite.getNom(),
+                entite.getDescription(),
+                entite.getCreatedAt(),
+                entite.getUpdatedAt());
     }
 }

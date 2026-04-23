@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Button } from '../atoms/Button'
 import { TextInput } from '../atoms/TextInput'
 import type { CommunitySummary, SubmitRequestInput } from '../../types/social'
@@ -20,9 +20,20 @@ export const RequestSubmissionPanel = ({
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [communityId, setCommunityId] = useState<number>(communities[0]?.id ?? 1)
 
+  useEffect(() => {
+    if (communities.length === 0) {
+      return
+    }
+
+    const currentStillExists = communities.some((community) => community.id === communityId)
+    if (!currentStillExists) {
+      setCommunityId(communities[0].id)
+    }
+  }, [communities, communityId])
+
   const isValid = useMemo(
-    () => title.trim().length >= 4 && description.trim().length >= 12,
-    [description, title],
+    () => title.trim().length >= 4 && description.trim().length >= 12 && communities.length > 0,
+    [communities.length, description, title],
   )
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -105,13 +116,18 @@ export const RequestSubmissionPanel = ({
             <select
               value={communityId}
               onChange={(event) => setCommunityId(Number(event.target.value))}
+              disabled={communities.length === 0}
               className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand"
             >
-              {communities.map((community) => (
-                <option key={community.id} value={community.id}>
-                  {community.name}
-                </option>
-              ))}
+              {communities.length > 0 ? (
+                communities.map((community) => (
+                  <option key={community.id} value={community.id}>
+                    {community.name}
+                  </option>
+                ))
+              ) : (
+                <option value="">No accessible entity</option>
+              )}
             </select>
           </label>
         </div>

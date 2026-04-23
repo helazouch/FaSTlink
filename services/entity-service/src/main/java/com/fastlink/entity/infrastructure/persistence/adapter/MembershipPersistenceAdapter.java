@@ -27,6 +27,11 @@ public class MembershipPersistenceAdapter implements MembershipPort {
     }
 
     @Override
+    public List<UtilisateurRoleEntite> findByUtilisateurId(Long utilisateurId) {
+        return membershipJpaRepository.findByUtilisateurId(utilisateurId);
+    }
+
+    @Override
     public UtilisateurRoleEntite save(UtilisateurRoleEntite utilisateurRoleEntite) {
         return membershipJpaRepository.save(utilisateurRoleEntite);
     }

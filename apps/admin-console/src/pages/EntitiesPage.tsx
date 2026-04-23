@@ -24,7 +24,7 @@ import {
   updateEntity,
 } from '../services/domain/operationsService'
 
-const ENTITY_ROLES = ['OWNER', 'MANAGER', 'MEMBER', 'VIEWER']
+const ENTITY_ROLES = ['OWNER', 'COORDINATOR', 'MANAGER', 'MEMBER', 'VIEWER']
 
 export const EntitiesPage = () => {
   const queryClient = useQueryClient()
@@ -279,7 +279,9 @@ export const EntitiesPage = () => {
                     <tr key={member.id} className="border-t border-slate-200 dark:border-surface-700">
                       <td className="table-cell text-slate-700 dark:text-slate-200">#{member.utilisateurId}</td>
                       <td className="table-cell">
-                        <Badge tone={member.role === 'OWNER' ? 'info' : 'neutral'}>{member.role}</Badge>
+                        <Badge tone={member.role === 'OWNER' || member.role === 'COORDINATOR' ? 'info' : 'neutral'}>
+                          {member.role}
+                        </Badge>
                       </td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(member.createdAt)}</td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(member.updatedAt)}</td>

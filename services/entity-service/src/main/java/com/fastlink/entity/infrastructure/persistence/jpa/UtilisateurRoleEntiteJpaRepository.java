@@ -10,4 +10,6 @@ public interface UtilisateurRoleEntiteJpaRepository extends JpaRepository<Utilis
     Optional<UtilisateurRoleEntite> findByEntite_IdAndUtilisateurId(Long entiteId, Long utilisateurId);
 
     List<UtilisateurRoleEntite> findByEntite_Id(Long entiteId);
+
+    List<UtilisateurRoleEntite> findByUtilisateurId(Long utilisateurId);
 }

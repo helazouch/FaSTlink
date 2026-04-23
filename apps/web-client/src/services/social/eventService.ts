@@ -1,5 +1,6 @@
 import { mockEvents } from '../../data/socialMockData'
 import { httpClient } from '../api/httpClient'
+import { getEntityName, hydrateEntityDirectory } from '../referenceDataService'
 import { withFallback } from './fallback'
 import type { EventItem, UpdateParticipationInput } from '../../types/social'
 
@@ -46,13 +47,14 @@ const mapEvent = (payload: EvenementDto): EventItem => ({
   capacity: 0,
   attendees: 0,
   communityId: payload.entiteId,
-  communityName: `Entity #${payload.entiteId}`,
+  communityName: getEntityName(payload.entiteId, `Entity #${payload.entiteId}`),
   participation: 'interested',
 })
 
 export const getUpcomingEvents = async (): Promise<EventItem[]> =>
   withFallback(
     async () => {
+      await hydrateEntityDirectory()
       const response = await httpClient.get<EvenementDto[]>('/v1/events')
       const mapped = response.data.map(mapEvent)
 

@@ -36,10 +36,21 @@ export const useEvents = () =>
   })
 
 export const useRequestEntities = () =>
-  useQuery({
-    queryKey: queryKeys.requestEntities,
-    queryFn: getRequestEntities,
-  })
+  {
+    const userId = useAuthStore((state) => state.user?.id)
+
+    return useQuery({
+      queryKey: [...queryKeys.requestEntities, userId] as const,
+      queryFn: () => {
+        if (!userId) {
+          return Promise.resolve([])
+        }
+
+        return getRequestEntities(userId)
+      },
+      enabled: Boolean(userId),
+    })
+  }
 
 export const useUpdateParticipation = () => {
   const queryClient = useQueryClient()

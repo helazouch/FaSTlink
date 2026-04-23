@@ -4,6 +4,7 @@ import com.fastlink.entity.application.dto.entity.CreateEntiteRequest;
 import com.fastlink.entity.application.dto.entity.EntiteResponse;
 import com.fastlink.entity.application.dto.entity.UpdateEntiteRequest;
 import com.fastlink.entity.application.port.in.EntiteUseCase;
+import com.fastlink.entity.application.port.in.MembershipUseCase;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -23,13 +24,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class EntiteController {
 
     private final EntiteUseCase entiteUseCase;
+    private final MembershipUseCase membershipUseCase;
 
-    public EntiteController(EntiteUseCase entiteUseCase) {
+    public EntiteController(EntiteUseCase entiteUseCase, MembershipUseCase membershipUseCase) {
         this.entiteUseCase = entiteUseCase;
+        this.membershipUseCase = membershipUseCase;
     }
 
     @GetMapping
-    public ResponseEntity<List<EntiteResponse>> list() {
+    public ResponseEntity<List<EntiteResponse>> list(@org.springframework.web.bind.annotation.RequestParam(required = false) Long utilisateurId) {
+        if (utilisateurId != null) {
+            return ResponseEntity.ok(membershipUseCase.getAccessibleEntites(utilisateurId));
+        }
+
         return ResponseEntity.ok(entiteUseCase.listEntites());
     }
 
