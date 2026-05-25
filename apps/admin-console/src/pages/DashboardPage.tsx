@@ -10,7 +10,7 @@ import { TextInput } from '../components/ui/TextInput'
 import { env } from '../config/env'
 import { listLocalAuditEntries } from '../lib/auditTrail'
 import { compactNumber, formatDateTime } from '../lib/format'
-import { getAnalyticsSnapshots, getGlobalStats } from '../services/admin/adminService'
+import { getAnalyticsSnapshots, getGlobalStats, listAuditLogs } from '../services/admin/adminService'
 
 export const DashboardPage = () => {
   const [entityIdInput, setEntityIdInput] = useState(String(env.defaultEntityId))
@@ -30,7 +30,16 @@ export const DashboardPage = () => {
     queryFn: () => getAnalyticsSnapshots(entityId, 30),
   })
 
-  const auditEntries = useMemo(() => listLocalAuditEntries(8), [])
+  const auditQuery = useQuery({
+    queryKey: ['dashboard-audit-logs'],
+    queryFn: () => listAuditLogs(8),
+    retry: false,
+  })
+
+  const auditEntries = useMemo(
+    () => (auditQuery.isError ? listLocalAuditEntries(8) : auditQuery.data ?? []),
+    [auditQuery.data, auditQuery.isError],
+  )
 
   if (statsQuery.isLoading || snapshotsQuery.isLoading) {
     return <Loader label="Loading dashboard metrics..." />

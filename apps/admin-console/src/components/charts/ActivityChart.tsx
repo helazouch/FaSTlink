@@ -37,8 +37,8 @@ export const ActivityChart = ({ snapshots }: ActivityChartProps) => {
             <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} />
             <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
             <Tooltip />
-            <Line type="monotone" dataKey="interactions" stroke="#1d6ff2" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="engagement" stroke="#16a34a" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="interactions" stroke="#6511EF" strokeWidth={2.5} dot={false} />
+            <Line type="monotone" dataKey="engagement" stroke="#10c8b9" strokeWidth={2.5} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>

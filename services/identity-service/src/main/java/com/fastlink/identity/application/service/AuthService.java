@@ -110,7 +110,10 @@ public class AuthService implements AuthUseCase {
                 utilisateur.getId(),
                 utilisateur.getNomComplet(),
                 utilisateur.getEmail(),
-                roles);
+                roles,
+                utilisateur.isEnabled(),
+                utilisateur.getCreatedAt(),
+                utilisateur.getUpdatedAt());
     }
 
     private String normalizeEmail(String email) {

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCommunityById, getSuggestedCommunities } from '../services/social/communityService'
+import { getRequestEntities } from '../services/social/entityService'
 import { getUpcomingEvents, updateEventParticipation } from '../services/social/eventService'
 import { getMyProfile } from '../services/social/profileService'
 import { getMyRequests, submitRequest } from '../services/social/requestService'
@@ -10,6 +11,7 @@ const queryKeys = {
   communities: ['communities', 'suggested'] as const,
   communityById: (communityId: number) => ['communities', communityId] as const,
   events: ['events', 'upcoming'] as const,
+  requestEntities: ['requests', 'entities'] as const,
   requests: ['requests', 'my'] as const,
   profile: ['profile', 'me'] as const,
 }
@@ -32,6 +34,23 @@ export const useEvents = () =>
     queryKey: queryKeys.events,
     queryFn: getUpcomingEvents,
   })
+
+export const useRequestEntities = () =>
+  {
+    const userId = useAuthStore((state) => state.user?.id)
+
+    return useQuery({
+      queryKey: [...queryKeys.requestEntities, userId] as const,
+      queryFn: () => {
+        if (!userId) {
+          return Promise.resolve([])
+        }
+
+        return getRequestEntities(userId)
+      },
+      enabled: Boolean(userId),
+    })
+  }
 
 export const useUpdateParticipation = () => {
   const queryClient = useQueryClient()

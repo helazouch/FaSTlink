@@ -1,6 +1,5 @@
-import { mockRequests } from '../../data/socialMockData'
 import { httpClient } from '../api/httpClient'
-import { withFallback } from './fallback'
+import { getEntityName, hydrateEntityDirectory } from '../referenceDataService'
 import type { ServiceRequest, SubmitRequestInput } from '../../types/social'
 
 interface DemandeDto {
@@ -15,7 +14,7 @@ interface DemandeDto {
   updatedAt: string
 }
 
-let requestsCache: ServiceRequest[] = [...mockRequests]
+let requestsCache: ServiceRequest[] = []
 
 const mapStatus = (status: DemandeDto['status']): ServiceRequest['status'] => {
   if (status === 'APPROVED') {
@@ -39,59 +38,38 @@ const mapRequest = (payload: DemandeDto): ServiceRequest => ({
   createdAt: payload.submittedAt ?? payload.createdAt,
   updatedAt: payload.updatedAt,
   communityId: payload.entiteId,
-  communityName: `Community #${payload.entiteId}`,
+  communityName: getEntityName(payload.entiteId, `Entity #${payload.entiteId}`),
 })
 
-const createRequestId = () => Math.round(Date.now() / 10)
-
 export const getMyRequests = async (userId: number): Promise<ServiceRequest[]> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.get<DemandeDto[]>('/v1/requests', {
-        params: {
-          utilisateurId: userId,
-        },
-      })
+  {
+    await hydrateEntityDirectory()
+    const response = await httpClient.get<DemandeDto[]>('/v1/requests', {
+      params: {
+        utilisateurId: userId,
+      },
+    })
 
-      return response.data.map(mapRequest)
-    },
-    () => requestsCache,
-  )
+    const mapped = response.data.map(mapRequest)
+    requestsCache = mapped
+    return mapped
+  }
 
 export const submitRequest = async (
   input: SubmitRequestInput,
   userId: number,
-): Promise<ServiceRequest> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.post<DemandeDto>('/v1/requests', {
-        utilisateurId: userId,
-        entiteId: input.communityId,
-        objet: input.title,
-        description: input.description,
-        materiels: [],
-        reservations: [],
-      })
+): Promise<ServiceRequest> => {
+  await hydrateEntityDirectory(userId)
+  const response = await httpClient.post<DemandeDto>('/v1/requests', {
+    utilisateurId: userId,
+    entiteId: input.communityId,
+    objet: input.title,
+    description: input.description,
+    materiels: [],
+    reservations: [],
+  })
 
-      const created = mapRequest(response.data)
-      requestsCache = [created, ...requestsCache]
-      return created
-    },
-    () => {
-      const created: ServiceRequest = {
-        id: createRequestId(),
-        title: input.title,
-        category: input.category,
-        description: input.description,
-        priority: input.priority,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        communityId: input.communityId,
-        communityName: `Community #${input.communityId}`,
-      }
-
-      requestsCache = [created, ...requestsCache]
-      return created
-    },
-  )
+  const created = mapRequest(response.data)
+  requestsCache = [created, ...requestsCache]
+  return created
+}

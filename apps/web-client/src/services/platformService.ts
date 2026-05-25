@@ -4,6 +4,7 @@ import {
   mockNotifications,
   mockPublications,
 } from '../data/mockData'
+import { getEntityName, getUserName, hydrateEntityDirectory, hydrateUserDirectory } from './referenceDataService'
 import type {
   CreateEventInput,
   CreatePublicationInput,
@@ -175,10 +176,10 @@ const mapPublication = (payload: PublicationResponse): Publication => {
 
   return {
     id: String(payload.id),
-    author: `User #${payload.utilisateurId}`,
+    author: getUserName(payload.utilisateurId, `User #${payload.utilisateurId}`),
     community:
       payload.entiteIds.length > 0
-        ? `Entity #${payload.entiteIds[0]}`
+        ? getEntityName(payload.entiteIds[0], `Entity #${payload.entiteIds[0]}`)
         : 'General community',
     title,
     excerpt,
@@ -204,7 +205,7 @@ const mapEvent = (payload: EventResponse): EventItem => {
   return {
     id: String(payload.id),
     title: payload.titre,
-    community: `Entity #${payload.entiteId}`,
+    community: getEntityName(payload.entiteId, `Entity #${payload.entiteId}`),
     startsAt: payload.debutAt,
     location: payload.lieu ?? 'Location pending',
     attendees: 0,
@@ -275,6 +276,11 @@ export const getPublications = async (): Promise<Publication[]> =>
       throw new Error('Invalid publication list payload')
     }
 
+    await Promise.all([
+      hydrateUserDirectory(response.data.map((item) => item.utilisateurId)),
+      hydrateEntityDirectory(),
+    ])
+
     return response.data.map(mapPublication)
   }, mockPublications)
 
@@ -297,6 +303,8 @@ export const getEvents = async (): Promise<EventItem[]> =>
     if (!Array.isArray(response.data)) {
       throw new Error('Invalid events payload')
     }
+
+    await hydrateEntityDirectory()
 
     return response.data.map(mapEvent)
   }, mockEvents)

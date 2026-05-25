@@ -18,6 +18,7 @@ import {
   approveRequest,
   createRoom,
   deleteRoom,
+  listRequests,
   listRooms,
   rejectRequest,
   updateRoom,
@@ -28,7 +29,7 @@ export const RequestsPage = () => {
   const queryClient = useQueryClient()
   const actorUserId = useAuthStore((state) => state.user?.id ?? 0)
 
-  const [entiteIdInput, setEntiteIdInput] = useState('1')
+  const [entiteIdInput, setEntiteIdInput] = useState('5')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
@@ -60,6 +61,12 @@ export const RequestsPage = () => {
   const roomsQuery = useQuery({
     queryKey: ['rooms', entiteId],
     queryFn: () => listRooms(entiteId),
+    enabled: entiteId > 0,
+  })
+
+  const requestsQuery = useQuery({
+    queryKey: ['requests', entiteId],
+    queryFn: () => listRequests(entiteId),
     enabled: entiteId > 0,
   })
 
@@ -164,6 +171,7 @@ export const RequestsPage = () => {
       setDecisionComment('')
       setDecisionRequestId('')
       setErrorMessage(null)
+      void queryClient.invalidateQueries({ queryKey: ['requests', entiteId] })
     },
     onError: (error) => {
       appendAuditEntry(
@@ -209,7 +217,7 @@ export const RequestsPage = () => {
             label="Entity id"
             value={entiteIdInput}
             onChange={(event) => setEntiteIdInput(event.target.value)}
-            placeholder="1"
+            placeholder="5"
           />
           <TextInput
             label="Filter rooms"
@@ -424,10 +432,73 @@ export const RequestsPage = () => {
       />
 
       <section className="panel p-4">
-        <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+        <div className="mb-4 flex items-center gap-3 text-slate-600 dark:text-slate-300">
           <Building2 size={16} />
-          <p className="text-sm">Request history endpoint is not exposed; moderation is available by request id.</p>
+          <p className="text-sm">Requests submitted from the web client for this entity now appear below.</p>
         </div>
+
+        {requestsQuery.isLoading ? (
+          <Loader label="Loading requests..." />
+        ) : requestsQuery.isError ? (
+          <EmptyState title="Unable to load requests" message="The request history endpoint is not reachable." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-slate-50 dark:bg-surface-700/60">
+                <tr>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Request</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">User</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Submitted</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Decision</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(requestsQuery.data ?? []).length === 0 ? (
+                  <tr>
+                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={5}>
+                      No requests found for this entity yet.
+                    </td>
+                  </tr>
+                ) : (
+                  (requestsQuery.data ?? []).map((request) => (
+                    <tr key={request.id} className="border-t border-slate-200 dark:border-surface-700">
+                      <td className="table-cell">
+                        <div>
+                          <p className="font-medium text-slate-800 dark:text-slate-100">{request.objet}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">#{request.id}</p>
+                          {request.description ? (
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{request.description}</p>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="table-cell text-slate-700 dark:text-slate-200">#{request.demandeurUtilisateurId}</td>
+                      <td className="table-cell">
+                        <Badge
+                          tone={
+                            request.status === 'APPROVED'
+                              ? 'success'
+                              : request.status === 'REJECTED'
+                                ? 'warning'
+                                : 'info'
+                          }
+                        >
+                          {request.status}
+                        </Badge>
+                      </td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">
+                        {formatDateTime(request.submittedAt ?? request.createdAt)}
+                      </td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">
+                        {request.decisionCommentaire ?? (request.decideurUtilisateurId ? `By #${request.decideurUtilisateurId}` : 'Pending')}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   )

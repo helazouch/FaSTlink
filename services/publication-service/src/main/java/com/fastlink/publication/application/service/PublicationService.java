@@ -8,6 +8,7 @@ import com.fastlink.publication.application.port.out.PublicationEventPort;
 import com.fastlink.publication.application.port.out.PublicationPort;
 import com.fastlink.publication.domain.model.Publication;
 import java.util.HashSet;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,12 @@ public class PublicationService implements PublicationUseCase {
         publicationEventPort.publishPublicationCreated(saved);
 
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicationResponse> listPublications() {
+        return publicationPort.findAll().stream().map(this::toResponse).toList();
     }
 
     private PublicationResponse toResponse(Publication publication) {

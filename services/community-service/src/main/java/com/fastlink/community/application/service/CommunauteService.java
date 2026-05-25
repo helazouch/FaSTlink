@@ -12,6 +12,7 @@ import com.fastlink.community.application.port.out.MembreCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.domain.model.MembreCommunaute;
 import com.fastlink.community.domain.model.MembreRole;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,18 @@ public class CommunauteService implements CommunauteUseCase {
         membreCommunautePort.save(creatorMembership);
 
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommunauteResponse> listCommunautes() {
+        return communautePort.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommunauteResponse getCommunaute(Long communauteId) {
+        return toResponse(findCommunaute(communauteId));
     }
 
     @Override

@@ -36,16 +36,28 @@ public class PermissionCheckService implements PermissionCheckUseCase {
         String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
         return switch (normalizedAction) {
             case "PUBLICATION_CREATE", "PUBLICATION_MEDIA_ADD" ->
-                role == EntityMemberRole.OWNER || role == EntityMemberRole.MANAGER || role == EntityMemberRole.MEMBER;
-            case "PUBLICATION_COMMENT_ADD", "PUBLICATION_REACTION_ADD" -> true;
+                canContribute(role);
+            case "PUBLICATION_COMMENT_ADD", "PUBLICATION_REACTION_ADD" ->
+                canContribute(role);
             case "EVENT_CREATE", "EVENT_UPDATE", "EVENT_DELETE" ->
-                role == EntityMemberRole.OWNER || role == EntityMemberRole.MANAGER;
-            case "EVENT_PARTICIPATE", "EVENT_FEEDBACK" -> true;
+                canCoordinate(role);
+            case "EVENT_PARTICIPATE", "EVENT_FEEDBACK" ->
+                canContribute(role);
             case "REQUEST_APPROVE", "REQUEST_REJECT", "ROOM_MANAGE" ->
-                role == EntityMemberRole.OWNER || role == EntityMemberRole.MANAGER;
+                canCoordinate(role);
             case "REQUEST_SUBMIT" ->
-                role == EntityMemberRole.OWNER || role == EntityMemberRole.MANAGER || role == EntityMemberRole.MEMBER;
+                canContribute(role);
             default -> false;
         };
+    }
+
+    private boolean canCoordinate(EntityMemberRole role) {
+        return role == EntityMemberRole.OWNER
+                || role == EntityMemberRole.COORDINATOR
+                || role == EntityMemberRole.MANAGER;
+    }
+
+    private boolean canContribute(EntityMemberRole role) {
+        return canCoordinate(role) || role == EntityMemberRole.MEMBER;
     }
 }

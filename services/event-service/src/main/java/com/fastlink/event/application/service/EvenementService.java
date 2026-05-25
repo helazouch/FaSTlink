@@ -11,6 +11,7 @@ import com.fastlink.event.application.port.out.EvenementPort;
 import com.fastlink.event.application.port.out.EventEventPort;
 import com.fastlink.event.domain.model.Evenement;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,12 @@ public class EvenementService implements EvenementUseCase {
         eventEventPort.publishEventCreated(saved);
 
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EvenementResponse> listEvenements() {
+        return evenementPort.findAll().stream().map(this::toResponse).toList();
     }
 
     @Override

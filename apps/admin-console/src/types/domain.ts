@@ -86,6 +86,14 @@ export interface EntityMember {
   updatedAt: string
 }
 
+export interface EntityRecord {
+  id: number
+  nom: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CommunityMember {
   id: number
   communauteId: number
@@ -110,6 +118,21 @@ export interface Room {
   capacite: number
   localisation: string | null
   active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RequestRecord {
+  id: number
+  entiteId: number
+  demandeurUtilisateurId: number
+  objet: string
+  description: string | null
+  status: 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+  decisionCommentaire: string | null
+  decideurUtilisateurId: number | null
+  submittedAt: string | null
+  decisionAt: string | null
   createdAt: string
   updatedAt: string
 }

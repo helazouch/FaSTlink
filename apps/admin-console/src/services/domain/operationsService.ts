@@ -4,9 +4,11 @@ import type {
   CommunityMember,
   CommunityMessage,
   EntityMember,
+  EntityRecord,
   EventRecord,
   PagedResult,
   PublicationRecord,
+  RequestRecord,
   Room,
 } from '../../types/domain'
 import { httpClient } from '../api/httpClient'
@@ -18,6 +20,17 @@ const mapEntityMember = (item: unknown): EntityMember => {
     entiteId: toNumber(payload.entiteId),
     utilisateurId: toNumber(payload.utilisateurId),
     role: toStringValue(payload.role),
+    createdAt: toStringValue(payload.createdAt),
+    updatedAt: toStringValue(payload.updatedAt),
+  }
+}
+
+const mapEntity = (item: unknown): EntityRecord => {
+  const payload = asObject(item)
+  return {
+    id: toNumber(payload.id),
+    nom: toStringValue(payload.nom),
+    description: toStringValue(payload.description, '') || null,
     createdAt: toStringValue(payload.createdAt),
     updatedAt: toStringValue(payload.updatedAt),
   }
@@ -88,6 +101,29 @@ const mapEvent = (item: unknown): EventRecord => {
   }
 }
 
+const mapRequest = (item: unknown): RequestRecord => {
+  const payload = asObject(item)
+  return {
+    id: toNumber(payload.id),
+    entiteId: toNumber(payload.entiteId),
+    demandeurUtilisateurId: toNumber(payload.demandeurUtilisateurId),
+    objet: toStringValue(payload.objet),
+    description: toStringValue(payload.description, '') || null,
+    status: toStringValue(payload.status) as RequestRecord['status'],
+    decisionCommentaire: toStringValue(payload.decisionCommentaire, '') || null,
+    decideurUtilisateurId: payload.decideurUtilisateurId == null ? null : toNumber(payload.decideurUtilisateurId),
+    submittedAt: toStringValue(payload.submittedAt, '') || null,
+    decisionAt: toStringValue(payload.decisionAt, '') || null,
+    createdAt: toStringValue(payload.createdAt),
+    updatedAt: toStringValue(payload.updatedAt),
+  }
+}
+
+export const listEntities = async (): Promise<EntityRecord[]> => {
+  const response = await httpClient.get<unknown>('/v1/entities')
+  return asArray(response.data).map(mapEntity)
+}
+
 export const listEntityMembers = async (entiteId: number): Promise<EntityMember[]> => {
   const response = await httpClient.get<unknown>(`/v1/entities/${entiteId}/members`)
   return asArray(response.data).map(mapEntityMember)
@@ -106,8 +142,9 @@ export const assignEntityMember = async (
   return mapEntityMember(response.data)
 }
 
-export const createEntity = async (payload: { nom: string; description: string }): Promise<void> => {
-  await httpClient.post('/v1/entities', payload)
+export const createEntity = async (payload: { nom: string; description: string }): Promise<EntityRecord> => {
+  const response = await httpClient.post<unknown>('/v1/entities', payload)
+  return mapEntity(response.data)
 }
 
 export const updateEntity = async (
@@ -260,6 +297,14 @@ export const listRooms = async (entiteId: number): Promise<Room[]> => {
   })
 
   return asArray(response.data).map(mapRoom)
+}
+
+export const listRequests = async (entiteId: number): Promise<RequestRecord[]> => {
+  const response = await httpClient.get<unknown>('/v1/requests', {
+    params: { entiteId },
+  })
+
+  return asArray(response.data).map(mapRequest)
 }
 
 export const createRoom = async (payload: {

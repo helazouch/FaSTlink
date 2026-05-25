@@ -6,16 +6,16 @@ import {
   MessageSquareText,
   UsersRound,
 } from 'lucide-react'
-import { useAuth } from '../auth/useAuth'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatCard } from '../components/ui/StatCard'
 import { mockDashboardSummary } from '../data/mockData'
+import { useNotifications as useRealtimeNotifications } from '../hooks/useNotifications'
 import {
   useDashboardSummary,
   useEvents,
-  useNotifications,
   usePublications,
 } from '../hooks/usePlatformData'
+import { useNotificationStore } from '../stores/notificationStore'
 
 const fallbackTimeline = [24, 35, 31, 47, 58, 53, 66, 44]
 
@@ -29,17 +29,14 @@ const formatRelativeDate = (value: string): string => {
 }
 
 export const DashboardPage = () => {
-  const { user } = useAuth()
-
   const configuredEntityId = Number(import.meta.env.VITE_DEFAULT_ENTITY_ID ?? '1')
   const entityId = Number.isFinite(configuredEntityId) ? configuredEntityId : 1
 
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary(entityId)
   const { data: publications = [], isLoading: feedLoading } = usePublications()
   const { data: events = [], isLoading: eventsLoading } = useEvents()
-  const { data: notifications = [], isLoading: notificationsLoading } = useNotifications(
-    user?.id ?? null,
-  )
+  const notificationsQuery = useRealtimeNotifications()
+  const notifications = useNotificationStore((state) => state.items)
 
   const dashboard = summary ?? mockDashboardSummary
   const timeline =
@@ -50,7 +47,7 @@ export const DashboardPage = () => {
   const upcomingEvents = events.slice(0, 3)
 
   const isBootstrapping =
-    summaryLoading && feedLoading && eventsLoading && notificationsLoading
+    summaryLoading && feedLoading && eventsLoading && notificationsQuery.isLoading
 
   if (isBootstrapping) {
     return (

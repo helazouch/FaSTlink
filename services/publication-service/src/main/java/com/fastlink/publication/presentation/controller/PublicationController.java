@@ -11,8 +11,10 @@ import com.fastlink.publication.application.dto.reaction.ReactionResponse;
 import com.fastlink.publication.application.port.in.InteractionUseCase;
 import com.fastlink.publication.application.port.in.PublicationUseCase;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,6 +31,11 @@ public class PublicationController {
     public PublicationController(PublicationUseCase publicationUseCase, InteractionUseCase interactionUseCase) {
         this.publicationUseCase = publicationUseCase;
         this.interactionUseCase = interactionUseCase;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PublicationResponse>> list() {
+        return ResponseEntity.ok(publicationUseCase.listPublications());
     }
 
     @PostMapping

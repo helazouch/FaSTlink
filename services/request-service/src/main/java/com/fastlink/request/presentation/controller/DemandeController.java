@@ -5,13 +5,16 @@ import com.fastlink.request.application.dto.demande.DemandeResponse;
 import com.fastlink.request.application.dto.demande.SubmitDemandeRequest;
 import com.fastlink.request.application.port.in.DemandeUseCase;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/requests")
@@ -21,6 +24,13 @@ public class DemandeController {
 
     public DemandeController(DemandeUseCase demandeUseCase) {
         this.demandeUseCase = demandeUseCase;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<DemandeResponse>> list(
+            @RequestParam(required = false) Long utilisateurId,
+            @RequestParam(required = false) Long entiteId) {
+        return ResponseEntity.ok(demandeUseCase.listDemandes(utilisateurId, entiteId));
     }
 
     @PostMapping

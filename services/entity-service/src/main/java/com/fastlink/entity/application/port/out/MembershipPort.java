@@ -10,5 +10,7 @@ public interface MembershipPort {
 
     List<UtilisateurRoleEntite> findByEntiteId(Long entiteId);
 
+    List<UtilisateurRoleEntite> findByUtilisateurId(Long utilisateurId);
+
     UtilisateurRoleEntite save(UtilisateurRoleEntite utilisateurRoleEntite);
 }

@@ -31,7 +31,7 @@ export const CommunitiesPage = () => {
   const queryClient = useQueryClient()
   const actorUserId = useAuthStore((state) => state.user?.id ?? 0)
 
-  const [communityIdInput, setCommunityIdInput] = useState('1')
+  const [communityIdInput, setCommunityIdInput] = useState('2')
   const [memberSearch, setMemberSearch] = useState('')
   const [messageSearch, setMessageSearch] = useState('')
   const [memberPage, setMemberPage] = useState(0)
@@ -219,7 +219,7 @@ export const CommunitiesPage = () => {
             label="Community id"
             value={communityIdInput}
             onChange={(event) => setCommunityIdInput(event.target.value)}
-            placeholder="1"
+            placeholder="2"
           />
           <div className="self-end">
             <Button variant="secondary" onClick={() => {
