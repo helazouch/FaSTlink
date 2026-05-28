@@ -3,8 +3,11 @@ package com.fastlink.event.infrastructure.persistence.adapter;
 import com.fastlink.event.application.port.out.EvenementPort;
 import com.fastlink.event.domain.model.Evenement;
 import com.fastlink.event.infrastructure.persistence.jpa.EvenementJpaRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -29,6 +32,13 @@ public class EvenementPersistenceAdapter implements EvenementPort {
     @Override
     public List<Evenement> findAll() {
         return evenementJpaRepository.findAllByOrderByDebutAtAsc();
+    }
+
+    @Override
+    public Page<Evenement> search(Long entityId, String status, String search, Instant now, Pageable pageable) {
+        String normalizedStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase();
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        return evenementJpaRepository.searchEvenements(entityId, normalizedStatus, normalizedSearch, now, pageable);
     }
 
     @Override

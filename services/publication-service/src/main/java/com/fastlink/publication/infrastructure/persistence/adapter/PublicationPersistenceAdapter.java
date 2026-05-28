@@ -5,6 +5,8 @@ import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.infrastructure.persistence.jpa.PublicationJpaRepository;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -29,5 +31,11 @@ public class PublicationPersistenceAdapter implements PublicationPort {
     @Override
     public List<Publication> findAll() {
         return publicationJpaRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Override
+    public Page<Publication> search(Long entityId, Long authorId, String search, Pageable pageable) {
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        return publicationJpaRepository.searchPublications(entityId, authorId, normalizedSearch, pageable);
     }
 }

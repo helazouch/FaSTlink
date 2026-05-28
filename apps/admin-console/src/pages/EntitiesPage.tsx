@@ -24,7 +24,7 @@ import {
   updateEntity,
 } from '../services/domain/operationsService'
 
-const ENTITY_ROLES = ['OWNER', 'COORDINATOR', 'MANAGER', 'MEMBER', 'VIEWER']
+const ENTITY_ROLES = ['SIMPLE_MEMBER', 'BUREAU_MEMBER', 'COORDINATOR'] as const
 
 export const EntitiesPage = () => {
   const queryClient = useQueryClient()
@@ -35,7 +35,7 @@ export const EntitiesPage = () => {
 
   const [assignOpen, setAssignOpen] = useState(false)
   const [assignUserId, setAssignUserId] = useState('')
-  const [assignRole, setAssignRole] = useState('MEMBER')
+  const [assignRole, setAssignRole] = useState<(typeof ENTITY_ROLES)[number]>('SIMPLE_MEMBER')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
@@ -74,7 +74,11 @@ export const EntitiesPage = () => {
 
     return items.filter((item) => {
       return (
-        String(item.utilisateurId).includes(normalized) || item.role.toLowerCase().includes(normalized)
+        String(item.utilisateurId).includes(normalized) ||
+        item.role.toLowerCase().includes(normalized) ||
+        (item.userName?.toLowerCase().includes(normalized) ?? false) ||
+        (item.userEmail?.toLowerCase().includes(normalized) ?? false) ||
+        (item.status?.toLowerCase().includes(normalized) ?? false)
       )
     })
   }, [membersQuery.data, search])
@@ -192,7 +196,7 @@ export const EntitiesPage = () => {
               setSearch(event.target.value)
               setPage(0)
             }}
-            placeholder="User id or role"
+            placeholder="User, email, role, or status"
           />
           <Button className="self-end" onClick={() => setAssignOpen(true)} disabled={entityId <= 0}>
             <Plus size={14} />
@@ -261,27 +265,39 @@ export const EntitiesPage = () => {
             <table className="min-w-full">
               <thead className="bg-slate-50 dark:bg-surface-700/60">
                 <tr>
-                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">User id</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">User</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Role</th>
-                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Created</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Assigned</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Updated</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedMembers.length === 0 ? (
                   <tr>
-                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={4}>
+                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={5}>
                       No members found for this entity.
                     </td>
                   </tr>
                 ) : (
                   paginatedMembers.map((member) => (
                     <tr key={member.id} className="border-t border-slate-200 dark:border-surface-700">
-                      <td className="table-cell text-slate-700 dark:text-slate-200">#{member.utilisateurId}</td>
+                      <td className="table-cell text-slate-700 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <p className="font-medium">{member.userName ?? `User #${member.utilisateurId}`}</p>
+                          {member.userEmail ? (
+                            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{member.userEmail}</p>
+                          ) : null}
+                          <p className="text-xs text-slate-500 dark:text-slate-400">#{member.utilisateurId}</p>
+                        </div>
+                      </td>
                       <td className="table-cell">
-                        <Badge tone={member.role === 'OWNER' || member.role === 'COORDINATOR' ? 'info' : 'neutral'}>
+                        <Badge tone={member.role === 'COORDINATOR' || member.role === 'BUREAU_MEMBER' ? 'info' : 'neutral'}>
                           {member.role}
                         </Badge>
+                      </td>
+                      <td className="table-cell">
+                        {member.status ? <Badge tone="neutral">{member.status}</Badge> : <span className="text-slate-500">-</span>}
                       </td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(member.createdAt)}</td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(member.updatedAt)}</td>
@@ -331,7 +347,7 @@ export const EntitiesPage = () => {
         <SelectInput
           label="Member role"
           value={assignRole}
-          onChange={(event) => setAssignRole(event.target.value)}
+          onChange={(event) => setAssignRole(event.target.value as (typeof ENTITY_ROLES)[number])}
           options={ENTITY_ROLES.map((role) => ({ label: role, value: role }))}
         />
       </Modal>

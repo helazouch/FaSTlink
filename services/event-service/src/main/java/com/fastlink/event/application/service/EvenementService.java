@@ -12,6 +12,8 @@ import com.fastlink.event.application.port.out.EventEventPort;
 import com.fastlink.event.domain.model.Evenement;
 import java.time.Instant;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +62,13 @@ public class EvenementService implements EvenementUseCase {
     @Transactional(readOnly = true)
     public List<EvenementResponse> listEvenements() {
         return evenementPort.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EvenementResponse> searchEvenements(Long entityId, String status, String search, Pageable pageable) {
+        return evenementPort.search(entityId, normalizeStatus(status), normalizeOptional(search), Instant.now(), pageable)
+                .map(this::toResponse);
     }
 
     @Override
@@ -121,5 +130,10 @@ public class EvenementService implements EvenementUseCase {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeStatus(String status) {
+        String normalized = normalizeOptional(status);
+        return normalized == null ? null : normalized.toUpperCase();
     }
 }

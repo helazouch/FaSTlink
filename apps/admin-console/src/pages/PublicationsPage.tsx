@@ -3,6 +3,7 @@ import { Plus, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { DataTableShell } from '../components/table/DataTableShell'
 import { Pagination } from '../components/table/Pagination'
+import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Loader } from '../components/ui/Loader'
@@ -14,6 +15,7 @@ import { normalizeApiError } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { createPublication, listPublications } from '../services/domain/operationsService'
 import { useAuthStore } from '../stores/authStore'
+import type { PublicationRecord } from '../types/domain'
 
 export const PublicationsPage = () => {
   const queryClient = useQueryClient()
@@ -21,7 +23,10 @@ export const PublicationsPage = () => {
 
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
+  const [filterEntityId, setFilterEntityId] = useState('')
+  const [filterAuthorId, setFilterAuthorId] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [detailTarget, setDetailTarget] = useState<PublicationRecord | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const [userId, setUserId] = useState(String(currentUserId || ''))
@@ -31,8 +36,15 @@ export const PublicationsPage = () => {
   const pageSize = 10
 
   const publicationsQuery = useQuery({
-    queryKey: ['publications', page, pageSize, search],
-    queryFn: () => listPublications({ page, pageSize, search }),
+    queryKey: ['publications', page, pageSize, search, filterEntityId, filterAuthorId],
+    queryFn: () =>
+      listPublications({
+        page,
+        pageSize,
+        search,
+        entityId: Number(filterEntityId) || null,
+        authorId: Number(filterAuthorId) || null,
+      }),
     retry: false,
   })
 
@@ -87,7 +99,7 @@ export const PublicationsPage = () => {
           </>
         }
       >
-        <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-surface-700 md:grid-cols-[1fr,160px]">
+        <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-surface-700 md:grid-cols-[1fr,140px,140px,160px]">
           <TextInput
             label="Search"
             value={search}
@@ -96,6 +108,24 @@ export const PublicationsPage = () => {
               setPage(0)
             }}
             placeholder="Search content"
+          />
+          <TextInput
+            label="Entity id"
+            value={filterEntityId}
+            onChange={(event) => {
+              setFilterEntityId(event.target.value)
+              setPage(0)
+            }}
+            placeholder="Any"
+          />
+          <TextInput
+            label="Author id"
+            value={filterAuthorId}
+            onChange={(event) => {
+              setFilterAuthorId(event.target.value)
+              setPage(0)
+            }}
+            placeholder="Any"
           />
           <Button variant="secondary" className="self-end" onClick={() => setPage(0)}>
             Apply filter
@@ -109,8 +139,8 @@ export const PublicationsPage = () => {
         ) : publicationsQuery.isError ? (
           <div className="p-4">
             <EmptyState
-              title="Publication listing endpoint unavailable"
-              message="POST publication is available, but GET /v1/publications is not exposed in this backend build."
+              title="Unable to load publications"
+              message="The publication listing endpoint returned an error. Check backend logs and admin permissions."
             />
           </div>
         ) : (
@@ -123,12 +153,13 @@ export const PublicationsPage = () => {
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Entities</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Content</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Created</th>
+                  <th className="table-cell text-right font-semibold text-slate-600 dark:text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(publicationsQuery.data?.items ?? []).length === 0 ? (
                   <tr>
-                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={5}>
+                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={6}>
                       No publications in current page.
                     </td>
                   </tr>
@@ -136,14 +167,37 @@ export const PublicationsPage = () => {
                   (publicationsQuery.data?.items ?? []).map((publication) => (
                     <tr key={publication.id} className="border-t border-slate-200 dark:border-surface-700">
                       <td className="table-cell text-slate-700 dark:text-slate-200">#{publication.id}</td>
-                      <td className="table-cell text-slate-600 dark:text-slate-300">#{publication.utilisateurId}</td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">
-                        {publication.entiteIds.length === 0 ? 'None' : publication.entiteIds.join(', ')}
+                        <p className="font-medium text-slate-700 dark:text-slate-200">
+                          {publication.authorName ?? `User #${publication.utilisateurId}`}
+                        </p>
+                        {publication.authorEmail ? (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{publication.authorEmail}</p>
+                        ) : null}
+                        <p className="text-xs text-slate-500 dark:text-slate-400">#{publication.utilisateurId}</p>
+                      </td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">
+                        <div className="flex flex-wrap gap-1">
+                          {publication.entiteIds.length === 0 ? (
+                            <span>None</span>
+                          ) : (
+                            publication.entiteIds.map((entityId, index) => (
+                              <Badge key={entityId} tone="neutral">
+                                {publication.entityNames[index] ?? `Entity #${entityId}`} #{entityId}
+                              </Badge>
+                            ))
+                          )}
+                        </div>
                       </td>
                       <td className="table-cell text-slate-700 dark:text-slate-200">
                         <p className="line-clamp-2 max-w-xl">{publication.contenu}</p>
                       </td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(publication.createdAt)}</td>
+                      <td className="table-cell text-right">
+                        <Button variant="secondary" onClick={() => setDetailTarget(publication)}>
+                          View
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -192,6 +246,47 @@ export const PublicationsPage = () => {
           onChange={(event) => setContent(event.target.value)}
           placeholder="Publication content"
         />
+      </Modal>
+
+      <Modal
+        open={detailTarget !== null}
+        title={detailTarget ? `Publication #${detailTarget.id}` : 'Publication details'}
+        onClose={() => setDetailTarget(null)}
+        footer={
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setDetailTarget(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {detailTarget ? (
+          <div className="space-y-4 text-sm text-slate-700 dark:text-slate-200">
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Author</p>
+              <p>{detailTarget.authorName ?? `User #${detailTarget.utilisateurId}`}</p>
+              {detailTarget.authorEmail ? <p className="text-slate-500">{detailTarget.authorEmail}</p> : null}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Entities</p>
+              <p>
+                {detailTarget.entiteIds.length === 0
+                  ? 'None'
+                  : detailTarget.entiteIds
+                      .map((entityId, index) => `${detailTarget.entityNames[index] ?? `Entity #${entityId}`} (#${entityId})`)
+                      .join(', ')}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Content</p>
+              <p className="whitespace-pre-wrap">{detailTarget.contenu}</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <p>Created: {formatDateTime(detailTarget.createdAt)}</p>
+              <p>Updated: {formatDateTime(detailTarget.updatedAt)}</p>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </div>
   )

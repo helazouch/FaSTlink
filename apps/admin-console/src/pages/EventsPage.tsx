@@ -3,10 +3,12 @@ import { Plus, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { DataTableShell } from '../components/table/DataTableShell'
 import { Pagination } from '../components/table/Pagination'
+import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Loader } from '../components/ui/Loader'
 import { Modal } from '../components/ui/Modal'
+import { SelectInput } from '../components/ui/SelectInput'
 import { TextArea } from '../components/ui/TextArea'
 import { TextInput } from '../components/ui/TextInput'
 import { appendAuditEntry } from '../lib/auditTrail'
@@ -14,6 +16,14 @@ import { normalizeApiError } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { createEvent, listEvents } from '../services/domain/operationsService'
 import { useAuthStore } from '../stores/authStore'
+import type { EventRecord } from '../types/domain'
+
+const EVENT_STATUS_OPTIONS = [
+  { label: 'Any', value: '' },
+  { label: 'UPCOMING', value: 'UPCOMING' },
+  { label: 'ONGOING', value: 'ONGOING' },
+  { label: 'CLOSED', value: 'CLOSED' },
+]
 
 export const EventsPage = () => {
   const queryClient = useQueryClient()
@@ -21,7 +31,10 @@ export const EventsPage = () => {
 
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
+  const [filterEntityId, setFilterEntityId] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [detailTarget, setDetailTarget] = useState<EventRecord | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const [userId, setUserId] = useState(String(currentUserId || ''))
@@ -35,8 +48,15 @@ export const EventsPage = () => {
   const pageSize = 10
 
   const eventsQuery = useQuery({
-    queryKey: ['events', page, pageSize, search],
-    queryFn: () => listEvents({ page, pageSize, search }),
+    queryKey: ['events', page, pageSize, search, filterEntityId, filterStatus],
+    queryFn: () =>
+      listEvents({
+        page,
+        pageSize,
+        search,
+        entityId: Number(filterEntityId) || null,
+        status: filterStatus || null,
+      }),
     retry: false,
   })
 
@@ -87,7 +107,7 @@ export const EventsPage = () => {
           </>
         }
       >
-        <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-surface-700 md:grid-cols-[1fr,160px]">
+        <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-surface-700 md:grid-cols-[1fr,140px,160px,160px]">
           <TextInput
             label="Search"
             value={search}
@@ -96,6 +116,24 @@ export const EventsPage = () => {
               setPage(0)
             }}
             placeholder="Search title"
+          />
+          <TextInput
+            label="Entity id"
+            value={filterEntityId}
+            onChange={(event) => {
+              setFilterEntityId(event.target.value)
+              setPage(0)
+            }}
+            placeholder="Any"
+          />
+          <SelectInput
+            label="Status"
+            value={filterStatus}
+            onChange={(event) => {
+              setFilterStatus(event.target.value)
+              setPage(0)
+            }}
+            options={EVENT_STATUS_OPTIONS}
           />
           <Button className="self-end" variant="secondary" onClick={() => setPage(0)}>
             Apply filter
@@ -109,8 +147,8 @@ export const EventsPage = () => {
         ) : eventsQuery.isError ? (
           <div className="p-4">
             <EmptyState
-              title="Event listing endpoint unavailable"
-              message="GET /v1/events is not exposed by current backend build. You can still create events."
+              title="Unable to load events"
+              message="The event listing endpoint returned an error. Check backend logs and admin permissions."
             />
           </div>
         ) : (
@@ -121,14 +159,17 @@ export const EventsPage = () => {
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Id</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Title</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Entity</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Organizer</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Window</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Location</th>
+                  <th className="table-cell text-right font-semibold text-slate-600 dark:text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(eventsQuery.data?.items ?? []).length === 0 ? (
                   <tr>
-                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={5}>
+                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={8}>
                       No events in current page.
                     </td>
                   </tr>
@@ -137,11 +178,28 @@ export const EventsPage = () => {
                     <tr key={eventItem.id} className="border-t border-slate-200 dark:border-surface-700">
                       <td className="table-cell text-slate-700 dark:text-slate-200">#{eventItem.id}</td>
                       <td className="table-cell text-slate-700 dark:text-slate-200">{eventItem.titre}</td>
-                      <td className="table-cell text-slate-600 dark:text-slate-300">#{eventItem.entiteId}</td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">
+                        <p>{eventItem.entityName ?? `Entity #${eventItem.entiteId}`}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">#{eventItem.entiteId}</p>
+                      </td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">
+                        <p>{eventItem.organizerName ?? `User #${eventItem.createurUtilisateurId}`}</p>
+                        {eventItem.organizerEmail ? (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{eventItem.organizerEmail}</p>
+                        ) : null}
+                      </td>
+                      <td className="table-cell">
+                        <Badge tone={eventItem.status === 'ONGOING' ? 'success' : 'neutral'}>{eventItem.status}</Badge>
+                      </td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">
                         {formatDateTime(eventItem.debutAt)} - {formatDateTime(eventItem.finAt)}
                       </td>
-                      <td className="table-cell text-slate-600 dark:text-slate-300">{eventItem.lieu ?? 'N/A'}</td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">{eventItem.lieu ?? '-'}</td>
+                      <td className="table-cell text-right">
+                        <Button variant="secondary" onClick={() => setDetailTarget(eventItem)}>
+                          View
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -200,6 +258,47 @@ export const EventsPage = () => {
             onChange={(event) => setEndsAt(event.target.value)}
           />
         </div>
+      </Modal>
+
+      <Modal
+        open={detailTarget !== null}
+        title={detailTarget ? `Event #${detailTarget.id}` : 'Event details'}
+        onClose={() => setDetailTarget(null)}
+        footer={
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setDetailTarget(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {detailTarget ? (
+          <div className="space-y-4 text-sm text-slate-700 dark:text-slate-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={detailTarget.status === 'ONGOING' ? 'success' : 'neutral'}>{detailTarget.status}</Badge>
+              <span>{detailTarget.titre}</span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Entity</p>
+              <p>{detailTarget.entityName ?? `Entity #${detailTarget.entiteId}`} #{detailTarget.entiteId}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Organizer</p>
+              <p>{detailTarget.organizerName ?? `User #${detailTarget.createurUtilisateurId}`}</p>
+              {detailTarget.organizerEmail ? <p className="text-slate-500">{detailTarget.organizerEmail}</p> : null}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Description</p>
+              <p className="whitespace-pre-wrap">{detailTarget.description ?? '-'}</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <p>Start: {formatDateTime(detailTarget.debutAt)}</p>
+              <p>End: {formatDateTime(detailTarget.finAt)}</p>
+              <p>Location: {detailTarget.lieu ?? '-'}</p>
+              <p>Updated: {formatDateTime(detailTarget.updatedAt)}</p>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </div>
   )

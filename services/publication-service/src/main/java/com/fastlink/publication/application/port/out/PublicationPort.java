@@ -3,6 +3,8 @@ package com.fastlink.publication.application.port.out;
 import com.fastlink.publication.domain.model.Publication;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface PublicationPort {
 
@@ -11,4 +13,6 @@ public interface PublicationPort {
     Optional<Publication> findById(Long publicationId);
 
     List<Publication> findAll();
+
+    Page<Publication> search(Long entityId, Long authorId, String search, Pageable pageable);
 }

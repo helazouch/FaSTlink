@@ -12,7 +12,10 @@ import com.fastlink.event.application.port.in.EvenementUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,8 +47,55 @@ public class EvenementController {
     }
 
     @GetMapping
-    public ResponseEntity<List<EvenementResponse>> list() {
-        return ResponseEntity.ok(evenementUseCase.listEvenements());
+    public ResponseEntity<?> list(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) Long entityId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "debutAt") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction) {
+        if (page == null && size == null && entityId == null && isBlank(status) && isBlank(search)) {
+            return ResponseEntity.ok(evenementUseCase.listEvenements());
+        }
+
+        Pageable pageable = PageRequest.of(
+                sanitizePage(page),
+                sanitizeSize(size),
+                Sort.by(resolveDirection(direction), resolveEventSort(sortBy)));
+        Page<EvenementResponse> events =
+                evenementUseCase.searchEvenements(entityId, normalizeParam(status), normalizeParam(search), pageable);
+        return ResponseEntity.ok(events);
+    }
+
+    private int sanitizePage(Integer page) {
+        return page == null || page < 0 ? 0 : page;
+    }
+
+    private int sanitizeSize(Integer size) {
+        if (size == null || size < 1) {
+            return 20;
+        }
+        return Math.min(size, 100);
+    }
+
+    private Sort.Direction resolveDirection(String direction) {
+        return "desc".equalsIgnoreCase(direction) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveEventSort(String sortBy) {
+        if ("createdAt".equals(sortBy) || "updatedAt".equals(sortBy) || "id".equals(sortBy)) {
+            return sortBy;
+        }
+        return "debutAt";
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String normalizeParam(String value) {
+        return isBlank(value) ? null : value.trim();
     }
 
     @PostMapping

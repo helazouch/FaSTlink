@@ -81,7 +81,11 @@ export interface EntityMember {
   id: number
   entiteId: number
   utilisateurId: number
+  userName: string | null
+  userEmail: string | null
   role: string
+  status: string | null
+  assignedBy: number | null
   createdAt: string
   updatedAt: string
 }
@@ -140,8 +144,11 @@ export interface RequestRecord {
 export interface PublicationRecord {
   id: number
   utilisateurId: number
+  authorName: string | null
+  authorEmail: string | null
   contenu: string
   entiteIds: number[]
+  entityNames: string[]
   createdAt: string
   updatedAt: string
 }
@@ -149,10 +156,14 @@ export interface PublicationRecord {
 export interface EventRecord {
   id: number
   entiteId: number
+  entityName: string | null
   createurUtilisateurId: number
+  organizerName: string | null
+  organizerEmail: string | null
   titre: string
   description: string | null
   lieu: string | null
+  status: 'UPCOMING' | 'ONGOING' | 'CLOSED'
   debutAt: string
   finAt: string
   createdAt: string

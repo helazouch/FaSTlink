@@ -12,16 +12,80 @@ import type {
   Room,
 } from '../../types/domain'
 import { httpClient } from '../api/httpClient'
+import { getEntityName, getUserEmail, getUserName, hydrateEntityDirectory, hydrateUserDirectory } from '../referenceDataService'
+
+const computeEventStatus = (debutAt: string, finAt: string): EventRecord['status'] => {
+  const now = Date.now()
+  const start = Date.parse(debutAt)
+  const end = Date.parse(finAt)
+
+  if (Number.isFinite(start) && start > now) {
+    return 'UPCOMING'
+  }
+
+  if (Number.isFinite(end) && end < now) {
+    return 'CLOSED'
+  }
+
+  return 'ONGOING'
+}
+
+const enrichEntityMembers = async (members: EntityMember[]): Promise<EntityMember[]> => {
+  await hydrateUserDirectory(members.map((member) => member.utilisateurId))
+
+  return members.map((member) => ({
+    ...member,
+    userName: getUserName(member.utilisateurId),
+    userEmail: getUserEmail(member.utilisateurId),
+  }))
+}
+
+const enrichPublications = async (publications: PublicationRecord[]): Promise<PublicationRecord[]> => {
+  await Promise.all([
+    hydrateUserDirectory(publications.map((publication) => publication.utilisateurId)),
+    hydrateEntityDirectory(),
+  ])
+
+  return publications.map((publication) => ({
+    ...publication,
+    authorName: getUserName(publication.utilisateurId),
+    authorEmail: getUserEmail(publication.utilisateurId),
+    entityNames: publication.entiteIds.map((entityId) => getEntityName(entityId)),
+  }))
+}
+
+const enrichEvents = async (events: EventRecord[]): Promise<EventRecord[]> => {
+  await Promise.all([
+    hydrateUserDirectory(events.map((eventItem) => eventItem.createurUtilisateurId)),
+    hydrateEntityDirectory(),
+  ])
+
+  return events.map((eventItem) => ({
+    ...eventItem,
+    entityName: getEntityName(eventItem.entiteId),
+    organizerName: getUserName(eventItem.createurUtilisateurId),
+    organizerEmail: getUserEmail(eventItem.createurUtilisateurId),
+  }))
+}
 
 const mapEntityMember = (item: unknown): EntityMember => {
   const payload = asObject(item)
+  const utilisateurId = toNumber(payload.utilisateurId ?? payload.userId)
+  const entiteId = toNumber(payload.entiteId ?? payload.entityId)
+  const assignedAt = toStringValue(payload.assignedAt ?? payload.createdAt)
+  const updatedAt = toStringValue(payload.updatedAt ?? payload.modifiedAt ?? assignedAt)
+
   return {
     id: toNumber(payload.id),
-    entiteId: toNumber(payload.entiteId),
-    utilisateurId: toNumber(payload.utilisateurId),
+    entiteId,
+    utilisateurId,
+    userName: null,
+    userEmail: null,
     role: toStringValue(payload.role),
-    createdAt: toStringValue(payload.createdAt),
-    updatedAt: toStringValue(payload.updatedAt),
+    status: toStringValue(payload.status, '') || null,
+    assignedBy: payload.assignedBy == null ? null : toNumber(payload.assignedBy),
+    createdAt: assignedAt,
+    updatedAt,
   }
 }
 
@@ -78,8 +142,11 @@ const mapPublication = (item: unknown): PublicationRecord => {
   return {
     id: toNumber(payload.id),
     utilisateurId: toNumber(payload.utilisateurId),
+    authorName: null,
+    authorEmail: null,
     contenu: toStringValue(payload.contenu),
     entiteIds: asArray<number>(payload.entiteIds),
+    entityNames: [],
     createdAt: toStringValue(payload.createdAt),
     updatedAt: toStringValue(payload.updatedAt),
   }
@@ -90,10 +157,14 @@ const mapEvent = (item: unknown): EventRecord => {
   return {
     id: toNumber(payload.id),
     entiteId: toNumber(payload.entiteId),
+    entityName: null,
     createurUtilisateurId: toNumber(payload.createurUtilisateurId),
+    organizerName: null,
+    organizerEmail: null,
     titre: toStringValue(payload.titre),
     description: toStringValue(payload.description, '') || null,
     lieu: toStringValue(payload.lieu, '') || null,
+    status: computeEventStatus(toStringValue(payload.debutAt), toStringValue(payload.finAt)),
     debutAt: toStringValue(payload.debutAt),
     finAt: toStringValue(payload.finAt),
     createdAt: toStringValue(payload.createdAt),
@@ -126,7 +197,7 @@ export const listEntities = async (): Promise<EntityRecord[]> => {
 
 export const listEntityMembers = async (entiteId: number): Promise<EntityMember[]> => {
   const response = await httpClient.get<unknown>(`/v1/entities/${entiteId}/members`)
-  return asArray(response.data).map(mapEntityMember)
+  return enrichEntityMembers(asArray(response.data).map(mapEntityMember))
 }
 
 export const assignEntityMember = async (
@@ -139,7 +210,7 @@ export const assignEntityMember = async (
     role,
   })
 
-  return mapEntityMember(response.data)
+  return (await enrichEntityMembers([mapEntityMember(response.data)]))[0]
 }
 
 export const createEntity = async (payload: { nom: string; description: string }): Promise<EntityRecord> => {
@@ -162,16 +233,26 @@ export const listPublications = async (query: {
   page: number
   pageSize: number
   search: string
+  entityId?: number | null
+  authorId?: number | null
 }): Promise<PagedResult<PublicationRecord>> => {
   const response = await httpClient.get<unknown>('/v1/publications', {
     params: {
       page: query.page,
       size: query.pageSize,
       search: query.search || undefined,
+      entityId: query.entityId || undefined,
+      authorId: query.authorId || undefined,
+      sortBy: 'createdAt',
+      direction: 'desc',
     },
   })
 
-  return normalizePagedResult<unknown, PublicationRecord>(response.data, query.page, query.pageSize, mapPublication)
+  const result = normalizePagedResult<unknown, PublicationRecord>(response.data, query.page, query.pageSize, mapPublication)
+  return {
+    ...result,
+    items: await enrichPublications(result.items),
+  }
 }
 
 export const createPublication = async (payload: {
@@ -180,23 +261,33 @@ export const createPublication = async (payload: {
   contenu: string
 }): Promise<PublicationRecord> => {
   const response = await httpClient.post<unknown>('/v1/publications', payload)
-  return mapPublication(response.data)
+  return (await enrichPublications([mapPublication(response.data)]))[0]
 }
 
 export const listEvents = async (query: {
   page: number
   pageSize: number
   search: string
+  entityId?: number | null
+  status?: string | null
 }): Promise<PagedResult<EventRecord>> => {
   const response = await httpClient.get<unknown>('/v1/events', {
     params: {
       page: query.page,
       size: query.pageSize,
       search: query.search || undefined,
+      entityId: query.entityId || undefined,
+      status: query.status || undefined,
+      sortBy: 'debutAt',
+      direction: 'asc',
     },
   })
 
-  return normalizePagedResult<unknown, EventRecord>(response.data, query.page, query.pageSize, mapEvent)
+  const result = normalizePagedResult<unknown, EventRecord>(response.data, query.page, query.pageSize, mapEvent)
+  return {
+    ...result,
+    items: await enrichEvents(result.items),
+  }
 }
 
 export const createEvent = async (payload: {
@@ -209,7 +300,7 @@ export const createEvent = async (payload: {
   finAt: string
 }): Promise<EventRecord> => {
   const response = await httpClient.post<unknown>('/v1/events', payload)
-  return mapEvent(response.data)
+  return (await enrichEvents([mapEvent(response.data)]))[0]
 }
 
 export const createCommunity = async (payload: {

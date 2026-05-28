@@ -9,6 +9,8 @@ import com.fastlink.publication.application.port.out.PublicationPort;
 import com.fastlink.publication.domain.model.Publication;
 import java.util.HashSet;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +54,12 @@ public class PublicationService implements PublicationUseCase {
     @Transactional(readOnly = true)
     public List<PublicationResponse> listPublications() {
         return publicationPort.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PublicationResponse> searchPublications(Long entityId, Long authorId, String search, Pageable pageable) {
+        return publicationPort.search(entityId, authorId, search, pageable).map(this::toResponse);
     }
 
     private PublicationResponse toResponse(Publication publication) {
