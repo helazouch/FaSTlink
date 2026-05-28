@@ -76,8 +76,8 @@ public class AccessTokenRevocationGlobalFilter implements GlobalFilter, Ordered 
                 .flatMap(revoked -> revoked ? deny(exchange, tokenId) : chain.filter(exchange))
                 .onErrorResume(ex -> {
                     LOGGER.error("security.revocation_check_failed tokenId={} reason={}", tokenId, ex.getClass().getSimpleName());
-                    exchange.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
-                    return exchange.getResponse().setComplete();
+                    cache.put(tokenId, new CacheEntry(false, now + CACHE_TTL.toMillis()));
+                    return chain.filter(exchange);
                 });
     }
 
