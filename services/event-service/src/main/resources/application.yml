@@ -22,9 +22,14 @@ spring:
         format_sql: false
 
   flyway:
-    enabled: true
-    baseline-on-migrate: true
+    # On réutilise les mêmes variables d'environnement que le datasource
+    url: ${DB_URL}
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    # Emplacement par défaut, mais c'est bien de le préciser
     locations: classpath:db/migration
+    # Optionnel : Si votre BDD n'est pas vide et que vous voulez que Flyway ignore l'existant
+    # baseline-on-migrate: true
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

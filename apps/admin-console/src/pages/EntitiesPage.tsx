@@ -29,7 +29,7 @@ const ENTITY_ROLES = ['OWNER', 'COORDINATOR', 'MANAGER', 'MEMBER', 'VIEWER']
 export const EntitiesPage = () => {
   const queryClient = useQueryClient()
 
-  const [entityIdInput, setEntityIdInput] = useState('5')
+  const [entityIdInput, setEntityIdInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
@@ -183,7 +183,7 @@ export const EntitiesPage = () => {
             label="Entity id"
             value={entityIdInput}
             onChange={(event) => setEntityIdInput(event.target.value)}
-            placeholder="5"
+            placeholder="Entity id"
           />
           <TextInput
             label="Filter members"

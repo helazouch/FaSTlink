@@ -31,7 +31,7 @@ export const CommunitiesPage = () => {
   const queryClient = useQueryClient()
   const actorUserId = useAuthStore((state) => state.user?.id ?? 0)
 
-  const [communityIdInput, setCommunityIdInput] = useState('2')
+  const [communityIdInput, setCommunityIdInput] = useState('')
   const [memberSearch, setMemberSearch] = useState('')
   const [messageSearch, setMessageSearch] = useState('')
   const [memberPage, setMemberPage] = useState(0)
