@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,16 +32,19 @@ public class PlatformSettingAdminController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PlatformSettingResponse> create(@Valid @RequestBody CreatePlatformSettingRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(platformSettingUseCase.create(request));
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<PlatformSettingResponse> list() {
         return platformSettingUseCase.list();
     }
 
     @PutMapping("/{settingId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public PlatformSettingResponse update(
             @PathVariable @Positive Long settingId,
             @Valid @RequestBody UpdatePlatformSettingRequest request) {
@@ -48,6 +52,7 @@ public class PlatformSettingAdminController {
     }
 
     @DeleteMapping("/{settingId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable @Positive Long settingId) {
         platformSettingUseCase.delete(settingId);
         return ResponseEntity.noContent().build();

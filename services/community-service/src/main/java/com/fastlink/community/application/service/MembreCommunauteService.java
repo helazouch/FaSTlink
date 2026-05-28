@@ -7,6 +7,7 @@ import com.fastlink.community.application.exception.ForbiddenOperationException;
 import com.fastlink.community.application.exception.ResourceNotFoundException;
 import com.fastlink.community.application.port.in.MembreCommunauteUseCase;
 import com.fastlink.community.application.port.out.CommunautePort;
+import com.fastlink.community.application.port.out.EntityPermissionPort;
 import com.fastlink.community.application.port.out.MembreCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.domain.model.MembreCommunaute;
@@ -19,17 +20,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class MembreCommunauteService implements MembreCommunauteUseCase {
 
+    private static final String ACTION_COMMUNITY_MANAGE = "COMMUNITY_MANAGE";
+
     private final CommunautePort communautePort;
     private final MembreCommunautePort membreCommunautePort;
+    private final EntityPermissionPort entityPermissionPort;
 
-    public MembreCommunauteService(CommunautePort communautePort, MembreCommunautePort membreCommunautePort) {
+    public MembreCommunauteService(
+            CommunautePort communautePort,
+            MembreCommunautePort membreCommunautePort,
+            EntityPermissionPort entityPermissionPort) {
         this.communautePort = communautePort;
         this.membreCommunautePort = membreCommunautePort;
+        this.entityPermissionPort = entityPermissionPort;
     }
 
     @Override
     public MembreCommunauteResponse addMembre(Long communauteId, AddMembreRequest request) {
         Communaute communaute = findCommunaute(communauteId);
+        entityPermissionPort.checkPermission(
+                request.acteurUtilisateurId(), communaute.getEntiteId(), ACTION_COMMUNITY_MANAGE);
         requireAdmin(communauteId, request.acteurUtilisateurId());
 
         MembreCommunaute membre = membreCommunautePort
@@ -46,7 +56,8 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
 
     @Override
     public void removeMembre(Long communauteId, Long utilisateurId, Long acteurUtilisateurId) {
-        findCommunaute(communauteId);
+        Communaute communaute = findCommunaute(communauteId);
+        entityPermissionPort.checkPermission(acteurUtilisateurId, communaute.getEntiteId(), ACTION_COMMUNITY_MANAGE);
         requireAdmin(communauteId, acteurUtilisateurId);
 
         MembreCommunaute membre = membreCommunautePort.findByCommunauteIdAndUtilisateurId(communauteId, utilisateurId)

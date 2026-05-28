@@ -1,6 +1,7 @@
 package com.fastlink.analytics.presentation.exception;
 
 import com.fastlink.analytics.application.exception.IntegrationException;
+import com.fastlink.analytics.application.exception.ForbiddenOperationException;
 import com.fastlink.analytics.application.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -53,6 +54,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(ForbiddenOperationException.class)
+    public ResponseEntity<ApiErrorResponse> handleForbidden(
+            ForbiddenOperationException ex,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

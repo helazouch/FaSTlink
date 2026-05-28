@@ -70,6 +70,7 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
+      ENTITY_SERVICE_BASE_URL: http://entity-service:8081
       DB_URL: jdbc:postgresql://ep-summer-field-amn2wvfd-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_9eR8pasqoIyJ
@@ -174,6 +175,8 @@ services:
       DB_URL: jdbc:postgresql://ep-jolly-mouse-amjbwuxz-pooler.c-5.us-east-1.aws.neon.tech/community_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_4m9cXlpZqEeU
+      ENTITY_BASE_URL: http://entity-service:8081
+      ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
       WEBSOCKET_ALLOWED_ORIGINS: "*"
     ports:
       - "8084:8084"
@@ -244,6 +247,8 @@ services:
       DB_URL: jdbc:postgresql://ep-misty-credit-andnetfk-pooler.c-6.us-east-1.aws.neon.tech/analytics_db?sslmode=require&channel_binding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_Hp7oP9zrslfa
+      ENTITY_BASE_URL: http://entity-service:8081
+      ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_GROUP_ID: analytics-service
       PUBLICATION_TOPIC_CREATED: fastlink.publication.created.v1

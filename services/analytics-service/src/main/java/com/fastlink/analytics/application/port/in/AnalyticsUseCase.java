@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface AnalyticsUseCase {
 
-    StatistiquesEntiteResponse getLatestSnapshot(Long entiteId);
+    StatistiquesEntiteResponse getLatestSnapshot(Long entiteId, Long utilisateurId);
 
-    List<StatistiquesEntiteResponse> listSnapshots(Long entiteId, Integer limit);
+    List<StatistiquesEntiteResponse> listSnapshots(Long entiteId, Integer limit, Long utilisateurId);
 }

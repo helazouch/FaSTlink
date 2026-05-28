@@ -66,6 +66,11 @@ messaging:
     request-approved: ${REQUEST_TOPIC_APPROVED:fastlink.request.approved.v1}
     request-rejected: ${REQUEST_TOPIC_REJECTED:fastlink.request.rejected.v1}
 
+security:
+  jwt:
+    secret: ${JWT_SECRET_BASE64}
+    issuer: ${JWT_ISSUER:fast-link-identity}
+
 logging:
   level:
     org.springframework.web: INFO

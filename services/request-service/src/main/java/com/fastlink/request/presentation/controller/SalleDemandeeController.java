@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,12 +34,14 @@ public class SalleDemandeeController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<SalleDemandeeResponse> create(@Valid @RequestBody CreateSalleDemandeeRequest request) {
         SalleDemandeeResponse created = salleDemandeeUseCase.createSalle(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{salleId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<SalleDemandeeResponse> update(
             @PathVariable Long salleId,
             @Valid @RequestBody UpdateSalleDemandeeRequest request) {
@@ -46,6 +49,7 @@ public class SalleDemandeeController {
     }
 
     @DeleteMapping("/{salleId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<Void> delete(
             @PathVariable Long salleId,
             @RequestParam @NotNull @Positive Long utilisateurId) {

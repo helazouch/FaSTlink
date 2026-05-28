@@ -64,6 +64,11 @@ messaging:
   topics:
     event-created: ${EVENT_TOPIC_CREATED:fastlink.event.created.v1}
 
+security:
+  jwt:
+    secret: ${JWT_SECRET_BASE64}
+    issuer: ${JWT_ISSUER:fast-link-identity}
+
 logging:
   level:
     org.springframework.web: INFO

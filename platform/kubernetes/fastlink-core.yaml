@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fastlink
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fastlink-secrets
+  namespace: fastlink
+type: Opaque
+stringData:
+  JWT_SECRET_BASE64: "REPLACE_WITH_STRONG_BASE64_HMAC_SECRET"
+  IDENTITY_DB_URL: "jdbc:postgresql://identity-db:5432/fastlink_identity"
+  IDENTITY_DB_USERNAME: "fastlink"
+  IDENTITY_DB_PASSWORD: "REPLACE_WITH_DATABASE_PASSWORD"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastlink-config
+  namespace: fastlink
+data:
+  JWT_ISSUER: "fast-link-identity"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_WINDOW: "120"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+  IDENTITY_SERVICE_URI: "http://identity-service:8080"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+  namespace: fastlink
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: identity-service
+  template:
+    metadata:
+      labels:
+        app: identity-service
+    spec:
+      containers:
+        - name: identity-service
+          image: fastlink/identity-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: JWT_SECRET_BASE64
+              valueFrom:
+                secretKeyRef:
+                  name: fastlink-secrets
+                  key: JWT_SECRET_BASE64
+            - name: JWT_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: fastlink-config
+                  key: JWT_ISSUER
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fastlink-secrets
+                  key: IDENTITY_DB_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fastlink-secrets
+                  key: IDENTITY_DB_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fastlink-secrets
+                  key: IDENTITY_DB_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-service
+  namespace: fastlink
+spec:
+  selector:
+    app: identity-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: fastlink
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: fastlink/api-gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: fastlink-config
+          env:
+            - name: JWT_SECRET_BASE64
+              valueFrom:
+                secretKeyRef:
+                  name: fastlink-secrets
+                  key: JWT_SECRET_BASE64
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: fastlink
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - name: http
+      port: 8086
+      targetPort: 8086

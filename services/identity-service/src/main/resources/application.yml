@@ -43,10 +43,13 @@ management:
 
 security:
   jwt:
-    secret: ${JWT_SECRET_BASE64:QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=}
+    secret: ${JWT_SECRET_BASE64}
     expiration-ms: ${JWT_EXPIRATION_MS:3600000}
     issuer: ${JWT_ISSUER:fast-link-identity}
 
 logging:
   level:
     org.springframework.security: INFO
+integration:
+  entity:
+    base-url: ${ENTITY_SERVICE_BASE_URL:http://localhost:8081}

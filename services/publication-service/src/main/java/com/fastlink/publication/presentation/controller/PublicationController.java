@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,12 +40,14 @@ public class PublicationController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<PublicationResponse> create(@Valid @RequestBody CreatePublicationRequest request) {
         PublicationResponse created = publicationUseCase.createPublication(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PostMapping("/{publicationId}/medias")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<MediaResponse> addMedia(
             @PathVariable Long publicationId,
             @Valid @RequestBody AddMediaRequest request) {
@@ -53,6 +56,7 @@ public class PublicationController {
     }
 
     @PostMapping("/{publicationId}/commentaires")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<CommentaireResponse> addCommentaire(
             @PathVariable Long publicationId,
             @Valid @RequestBody AddCommentaireRequest request) {
@@ -61,6 +65,7 @@ public class PublicationController {
     }
 
     @PostMapping("/{publicationId}/reactions")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ReactionResponse> addReaction(
             @PathVariable Long publicationId,
             @Valid @RequestBody AddReactionRequest request) {

@@ -2,6 +2,7 @@ package com.fastlink.identity.presentation.exception;
 
 import com.fastlink.identity.application.exception.ConflictException;
 import com.fastlink.identity.application.exception.ResourceNotFoundException;
+import com.fastlink.identity.application.exception.TokenReuseDetectedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
@@ -68,6 +69,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(TokenReuseDetectedException.class)
+    public ResponseEntity<ApiErrorResponse> handleTokenReuse(
+            TokenReuseDetectedException ex,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Session revoked for security reasons", request, Map.of());
     }
 
     @ExceptionHandler(BadCredentialsException.class)

@@ -6,6 +6,7 @@ public record CommunauteResponse(
         Long id,
         String nom,
         String description,
+        Long entiteId,
         Long createurUtilisateurId,
         Instant createdAt,
         Instant updatedAt) {

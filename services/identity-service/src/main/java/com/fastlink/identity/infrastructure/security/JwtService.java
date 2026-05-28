@@ -8,10 +8,12 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.security.Key;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -26,7 +28,11 @@ public class JwtService {
     }
 
     public String generateToken(Utilisateur utilisateur) {
-        Map<String, Object> claims = new HashMap<>();
+        return generateToken(utilisateur, new HashMap<>());
+    }
+
+    public String generateToken(Utilisateur utilisateur, Map<String, Object> extraClaims) {
+        Map<String, Object> claims = new HashMap<>(extraClaims);
         List<String> roles = utilisateur.getRoles().stream()
                 .map(role -> role.getName().name())
                 .toList();
@@ -38,6 +44,7 @@ public class JwtService {
                 .setClaims(claims)
                 .setSubject(utilisateur.getEmail())
                 .setIssuer(jwtProperties.getIssuer())
+                .setId(UUID.randomUUID().toString())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtProperties.getExpirationMs()))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -50,6 +57,14 @@ public class JwtService {
 
     public long getExpirationMs() {
         return jwtProperties.getExpirationMs();
+    }
+
+    public String extractTokenId(String token) {
+        return extractClaim(token, Claims::getId);
+    }
+
+    public Instant extractExpirationInstant(String token) {
+        return extractExpiration(token).toInstant();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

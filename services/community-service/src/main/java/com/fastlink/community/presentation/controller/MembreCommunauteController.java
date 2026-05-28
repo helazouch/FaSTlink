@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +31,7 @@ public class MembreCommunauteController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<MembreCommunauteResponse> addMember(
             @PathVariable Long communauteId,
             @Valid @RequestBody AddMembreRequest request) {
@@ -37,6 +39,7 @@ public class MembreCommunauteController {
     }
 
     @DeleteMapping("/{utilisateurId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<Void> removeMember(
             @PathVariable Long communauteId,
             @PathVariable Long utilisateurId,

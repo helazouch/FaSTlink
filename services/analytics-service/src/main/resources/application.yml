@@ -60,6 +60,18 @@ messaging:
     request-rejected: ${REQUEST_TOPIC_REJECTED:fastlink.request.rejected.v1}
     member-assigned: ${ENTITY_TOPIC_MEMBER_ASSIGNED:fastlink.entity.member.assigned.v1}
 
+integration:
+  entity:
+    base-url: ${ENTITY_BASE_URL:http://localhost:8081}
+    permission-check-path: ${ENTITY_PERMISSION_CHECK_PATH:/api/v1/internal/entities/{entiteId}/permissions/check}
+    connect-timeout-ms: ${ENTITY_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${ENTITY_READ_TIMEOUT_MS:5000}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET_BASE64}
+    issuer: ${JWT_ISSUER:fast-link-identity}
+
 logging:
   level:
     org.springframework.web: INFO

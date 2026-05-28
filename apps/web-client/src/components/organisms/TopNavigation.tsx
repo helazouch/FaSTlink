@@ -1,6 +1,7 @@
 import { Bell, MessageCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { IconButton } from '../atoms/IconButton'
+import { EntityContextSwitcher } from './EntityContextSwitcher'
 import { SearchField } from '../molecules/SearchField'
 import { UserDropdown } from '../molecules/UserDropdown'
 import { useFeedStore } from '../../stores/feedStore'
@@ -37,6 +38,8 @@ export const TopNavigation = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <EntityContextSwitcher />
+
           <Link to="/notifications" className="relative">
             <IconButton icon={<Bell size={18} />} label="Notifications" />
             {unreadNotifications > 0 ? (

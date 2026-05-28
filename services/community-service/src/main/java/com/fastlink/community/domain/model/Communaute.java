@@ -25,6 +25,9 @@ public class Communaute {
     @Column(name = "description", length = 1200)
     private String description;
 
+    @Column(name = "entite_id", nullable = false)
+    private Long entiteId;
+
     @Column(name = "createur_utilisateur_id", nullable = false)
     private Long createurUtilisateurId;
 
@@ -37,9 +40,10 @@ public class Communaute {
     protected Communaute() {
     }
 
-    public Communaute(String nom, String description, Long createurUtilisateurId) {
+    public Communaute(String nom, String description, Long entiteId, Long createurUtilisateurId) {
         this.nom = nom;
         this.description = description;
+        this.entiteId = entiteId;
         this.createurUtilisateurId = createurUtilisateurId;
     }
 
@@ -73,6 +77,14 @@ public class Communaute {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Long getEntiteId() {
+        return entiteId;
+    }
+
+    public void setEntiteId(Long entiteId) {
+        this.entiteId = entiteId;
     }
 
     public Long getCreateurUtilisateurId() {

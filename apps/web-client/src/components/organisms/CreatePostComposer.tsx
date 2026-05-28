@@ -1,12 +1,13 @@
 import { ImagePlus, X } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Avatar } from '../atoms/Avatar'
-import { Button } from '../atoms/Button'
+import { PermissionAwareButton } from '../auth/PermissionAwareButton'
 import type { CreatePostInput, LocalMediaInput, UserSummary } from '../../types/social'
 
 interface CreatePostComposerProps {
   currentUser: UserSummary
   defaultCommunityId: number
+  entityName: string
   onSubmit: (input: CreatePostInput) => Promise<unknown>
   isSubmitting: boolean
 }
@@ -22,6 +23,7 @@ const createMediaId = (): string => {
 export const CreatePostComposer = ({
   currentUser,
   defaultCommunityId,
+  entityName,
   onSubmit,
   isSubmitting,
 }: CreatePostComposerProps) => {
@@ -67,7 +69,7 @@ export const CreatePostComposer = ({
     await onSubmit({
       content: sanitized,
       communityId: defaultCommunityId,
-      entity: 'FaST Link',
+      entity: entityName,
       author: currentUser,
       media,
     })
@@ -134,9 +136,15 @@ export const CreatePostComposer = ({
           </button>
         </div>
 
-        <Button type="submit" disabled={isSubmitting || content.trim().length === 0}>
+        <PermissionAwareButton
+          type="submit"
+          permission="PUBLICATION_CREATE"
+          entityId={defaultCommunityId}
+          disabled={isSubmitting || content.trim().length === 0}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
           {isSubmitting ? 'Publishing...' : 'Post'}
-        </Button>
+        </PermissionAwareButton>
       </div>
     </form>
   )

@@ -7,6 +7,7 @@ import com.fastlink.request.application.port.out.EntityPermissionPort;
 import com.fastlink.request.config.EntityClientProperties;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
@@ -26,6 +27,10 @@ public class EntityPermissionClientAdapter implements EntityPermissionPort {
 
     @Override
     public void checkPermission(Long utilisateurId, Long entiteId, String action) {
+        if (isAdmin()) {
+            return;
+        }
+
         String uri = UriComponentsBuilder.fromHttpUrl(properties.getBaseUrl())
                 .path(properties.getPermissionCheckPath())
                 .queryParam("utilisateurId", utilisateurId)
@@ -59,5 +64,11 @@ public class EntityPermissionClientAdapter implements EntityPermissionPort {
         } catch (RestClientException ex) {
             throw new IntegrationException("Entity Service indisponible", ex);
         }
+    }
+
+    private boolean isAdmin() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 }

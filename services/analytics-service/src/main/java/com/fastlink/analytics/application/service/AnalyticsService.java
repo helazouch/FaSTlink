@@ -4,6 +4,7 @@ import com.fastlink.analytics.application.dto.statistiques.StatistiquesEntiteRes
 import com.fastlink.analytics.application.exception.ResourceNotFoundException;
 import com.fastlink.analytics.application.port.in.AnalyticsUseCase;
 import com.fastlink.analytics.application.port.in.EventAnalyticsUseCase;
+import com.fastlink.analytics.application.port.out.EntityPermissionPort;
 import com.fastlink.analytics.application.port.out.StatistiquesEntitePort;
 import com.fastlink.analytics.domain.model.StatistiquesEntite;
 import java.time.Instant;
@@ -17,24 +18,31 @@ public class AnalyticsService implements AnalyticsUseCase, EventAnalyticsUseCase
 
     private static final int DEFAULT_LIMIT = 30;
     private static final int MAX_LIMIT = 200;
+    private static final String ACTION_ANALYTICS_VIEW = "ANALYTICS_VIEW";
 
     private final StatistiquesEntitePort statistiquesEntitePort;
+    private final EntityPermissionPort entityPermissionPort;
 
-    public AnalyticsService(StatistiquesEntitePort statistiquesEntitePort) {
+    public AnalyticsService(StatistiquesEntitePort statistiquesEntitePort, EntityPermissionPort entityPermissionPort) {
         this.statistiquesEntitePort = statistiquesEntitePort;
+        this.entityPermissionPort = entityPermissionPort;
     }
 
     @Override
-    public StatistiquesEntiteResponse getLatestSnapshot(Long entiteId) {
-        return statistiquesEntitePort.findLatestByEntiteId(requirePositiveEntiteId(entiteId))
+    public StatistiquesEntiteResponse getLatestSnapshot(Long entiteId, Long utilisateurId) {
+        Long validatedEntiteId = requirePositiveEntiteId(entiteId);
+        entityPermissionPort.checkPermission(requirePositiveUtilisateurId(utilisateurId), validatedEntiteId, ACTION_ANALYTICS_VIEW);
+        return statistiquesEntitePort.findLatestByEntiteId(validatedEntiteId)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Aucun snapshot trouve pour l'entite " + entiteId));
     }
 
     @Override
-    public List<StatistiquesEntiteResponse> listSnapshots(Long entiteId, Integer limit) {
+    public List<StatistiquesEntiteResponse> listSnapshots(Long entiteId, Integer limit, Long utilisateurId) {
+        Long validatedEntiteId = requirePositiveEntiteId(entiteId);
+        entityPermissionPort.checkPermission(requirePositiveUtilisateurId(utilisateurId), validatedEntiteId, ACTION_ANALYTICS_VIEW);
         int resolvedLimit = resolveLimit(limit);
-        return statistiquesEntitePort.findLatestByEntiteId(requirePositiveEntiteId(entiteId), resolvedLimit)
+        return statistiquesEntitePort.findLatestByEntiteId(validatedEntiteId, resolvedLimit)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -99,6 +107,13 @@ public class AnalyticsService implements AnalyticsUseCase, EventAnalyticsUseCase
             throw new IllegalArgumentException("L'identifiant d'entite doit etre positif");
         }
         return entiteId;
+    }
+
+    private Long requirePositiveUtilisateurId(Long utilisateurId) {
+        if (utilisateurId == null || utilisateurId <= 0) {
+            throw new IllegalArgumentException("L'identifiant utilisateur doit etre positif");
+        }
+        return utilisateurId;
     }
 
     private String normalizeRequired(String value, String fieldName) {

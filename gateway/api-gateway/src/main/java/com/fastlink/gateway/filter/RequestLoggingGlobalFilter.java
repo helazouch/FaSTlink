@@ -6,6 +6,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -24,19 +25,24 @@ public class RequestLoggingGlobalFilter implements GlobalFilter, Ordered {
         String correlationId = exchange.getRequest().getHeaders()
                 .getFirst(CorrelationIdGlobalFilter.CORRELATION_ID_HEADER);
 
-        return chain.filter(exchange)
+        return exchange.getPrincipal()
+                .cast(Authentication.class)
+                .map(Authentication::getName)
+                .defaultIfEmpty("anonymous")
+                .flatMap(principal -> chain.filter(exchange)
                 .doFinally(signalType -> {
                     long durationMs = System.currentTimeMillis() - startedAt;
                     HttpStatusCode statusCode = exchange.getResponse().getStatusCode();
                     int status = statusCode == null ? 0 : statusCode.value();
                     LOGGER.info(
-                            "gateway request method={} path={} status={} durationMs={} correlationId={}",
+                            "gateway request method={} path={} status={} durationMs={} principal={} correlationId={}",
                             method,
                             path,
                             status,
                             durationMs,
+                            principal,
                             correlationId);
-                });
+                }));
     }
 
     @Override

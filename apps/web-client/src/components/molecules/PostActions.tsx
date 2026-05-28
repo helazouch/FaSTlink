@@ -1,5 +1,6 @@
 import { Bookmark, Heart, MessageCircle, Share2 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { PermissionAwareButton } from '../auth/PermissionAwareButton'
 import { cn } from '../../lib/cn'
 
 interface PostActionsProps {
@@ -8,6 +9,7 @@ interface PostActionsProps {
   likeCount: number
   commentCount: number
   shareCount: number
+  entityId: number
   onToggleLike: () => void
   onToggleComments: () => void
   onShare: () => void
@@ -19,13 +21,19 @@ const ActionButton = ({
   label,
   onClick,
   icon,
+  entityId,
+  permission,
 }: {
   active?: boolean
   label: string
   onClick: () => void
   icon: ReactNode
+  entityId?: number
+  permission?: string
 }) => (
-  <button
+  <PermissionAwareButton
+    permission={permission}
+    entityId={entityId}
     onClick={onClick}
     className={cn(
       'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition',
@@ -34,7 +42,7 @@ const ActionButton = ({
   >
     {icon}
     <span>{label}</span>
-  </button>
+  </PermissionAwareButton>
 )
 
 export const PostActions = ({
@@ -43,6 +51,7 @@ export const PostActions = ({
   likeCount,
   commentCount,
   shareCount,
+  entityId,
   onToggleLike,
   onToggleComments,
   onShare,
@@ -52,14 +61,18 @@ export const PostActions = ({
     <ActionButton
       active={liked}
       label={`Like (${likeCount})`}
-      onClick={onToggleLike}
-      icon={<Heart size={16} className={liked ? 'fill-current' : ''} />}
-    />
+    onClick={onToggleLike}
+    entityId={entityId}
+    permission="PUBLICATION_REACTION_ADD"
+    icon={<Heart size={16} className={liked ? 'fill-current' : ''} />}
+  />
     <ActionButton
-      label={`Comment (${commentCount})`}
-      onClick={onToggleComments}
-      icon={<MessageCircle size={16} />}
-    />
+    label={`Comment (${commentCount})`}
+    onClick={onToggleComments}
+    entityId={entityId}
+    permission="PUBLICATION_COMMENT_ADD"
+    icon={<MessageCircle size={16} />}
+  />
     <ActionButton
       label={`Share (${shareCount})`}
       onClick={onShare}

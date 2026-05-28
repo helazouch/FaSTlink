@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { PermissionAwareButton } from '../components/auth/PermissionAwareButton'
 import { EventParticipationCard } from '../components/organisms/EventParticipationCard'
+import { EmptyState } from '../components/role/EmptyState'
 import { useEvents, useUpdateParticipation } from '../hooks/useSocial'
+import { useCurrentEntityContext } from '../hooks/useCurrentEntityContext'
+import { CalendarPlus } from 'lucide-react'
 
 export const EventsPage = () => {
   const navigate = useNavigate()
@@ -10,6 +14,7 @@ export const EventsPage = () => {
 
   const { data: events = [], isLoading } = useEvents()
   const updateParticipationMutation = useUpdateParticipation()
+  const { currentEntityId } = useCurrentEntityContext()
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId),
@@ -19,10 +24,22 @@ export const EventsPage = () => {
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-800">Events</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Discover upcoming events and confirm your participation in one click.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Events</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Discover upcoming events and confirm your participation in one click.
+            </p>
+          </div>
+          <PermissionAwareButton
+            permission="EVENT_CREATE"
+            entityId={currentEntityId}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+          >
+            <CalendarPlus size={16} />
+            Create event
+          </PermissionAwareButton>
+        </div>
       </section>
 
       {selectedEvent ? (
@@ -40,7 +57,7 @@ export const EventsPage = () => {
       ) : null}
 
       <section className="grid gap-3">
-        {events.map((event) => (
+        {events.length > 0 ? events.map((event) => (
           <div key={event.id} className="space-y-2">
             <button
               onClick={() => navigate(`/events/${event.id}`)}
@@ -55,7 +72,13 @@ export const EventsPage = () => {
               }}
             />
           </div>
-        ))}
+        )) : (
+          <EmptyState
+            icon={CalendarPlus}
+            title="No events yet"
+            description="Events you can consult will appear here. Bureau creation controls only show in eligible entity contexts."
+          />
+        )}
       </section>
     </div>
   )

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,12 +45,14 @@ public class CommunauteController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<CommunauteResponse> create(@Valid @RequestBody CreateCommunauteRequest request) {
         CommunauteResponse created = communauteUseCase.createCommunaute(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{communauteId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<CommunauteResponse> update(
             @PathVariable Long communauteId,
             @Valid @RequestBody UpdateCommunauteRequest request) {
@@ -57,6 +60,7 @@ public class CommunauteController {
     }
 
     @DeleteMapping("/{communauteId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @PathVariable Long communauteId,

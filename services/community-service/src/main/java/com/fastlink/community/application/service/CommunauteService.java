@@ -8,6 +8,7 @@ import com.fastlink.community.application.exception.ForbiddenOperationException;
 import com.fastlink.community.application.exception.ResourceNotFoundException;
 import com.fastlink.community.application.port.in.CommunauteUseCase;
 import com.fastlink.community.application.port.out.CommunautePort;
+import com.fastlink.community.application.port.out.EntityPermissionPort;
 import com.fastlink.community.application.port.out.MembreCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.domain.model.MembreCommunaute;
@@ -20,16 +21,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CommunauteService implements CommunauteUseCase {
 
+    private static final String ACTION_COMMUNITY_MANAGE = "COMMUNITY_MANAGE";
+
     private final CommunautePort communautePort;
     private final MembreCommunautePort membreCommunautePort;
+    private final EntityPermissionPort entityPermissionPort;
 
-    public CommunauteService(CommunautePort communautePort, MembreCommunautePort membreCommunautePort) {
+    public CommunauteService(
+            CommunautePort communautePort,
+            MembreCommunautePort membreCommunautePort,
+            EntityPermissionPort entityPermissionPort) {
         this.communautePort = communautePort;
         this.membreCommunautePort = membreCommunautePort;
+        this.entityPermissionPort = entityPermissionPort;
     }
 
     @Override
     public CommunauteResponse createCommunaute(CreateCommunauteRequest request) {
+        entityPermissionPort.checkPermission(request.utilisateurId(), request.entiteId(), ACTION_COMMUNITY_MANAGE);
+
         String nom = normalizeRequired(request.nom());
         if (communautePort.existsByNomIgnoreCase(nom)) {
             throw new ConflictException("Une communaute avec ce nom existe deja");
@@ -38,6 +48,7 @@ public class CommunauteService implements CommunauteUseCase {
         Communaute communaute = new Communaute(
                 nom,
                 normalizeOptional(request.description()),
+                request.entiteId(),
                 request.utilisateurId());
 
         Communaute saved = communautePort.save(communaute);
@@ -63,6 +74,7 @@ public class CommunauteService implements CommunauteUseCase {
     @Override
     public CommunauteResponse updateCommunaute(Long communauteId, UpdateCommunauteRequest request) {
         Communaute communaute = findCommunaute(communauteId);
+        entityPermissionPort.checkPermission(request.utilisateurId(), communaute.getEntiteId(), ACTION_COMMUNITY_MANAGE);
         requireAdmin(communauteId, request.utilisateurId());
 
         String nom = normalizeRequired(request.nom());
@@ -80,6 +92,7 @@ public class CommunauteService implements CommunauteUseCase {
     @Override
     public void deleteCommunaute(Long communauteId, Long utilisateurId) {
         Communaute communaute = findCommunaute(communauteId);
+        entityPermissionPort.checkPermission(utilisateurId, communaute.getEntiteId(), ACTION_COMMUNITY_MANAGE);
         requireAdmin(communauteId, utilisateurId);
         communautePort.delete(communaute);
     }
@@ -103,6 +116,7 @@ public class CommunauteService implements CommunauteUseCase {
                 communaute.getId(),
                 communaute.getNom(),
                 communaute.getDescription(),
+                communaute.getEntiteId(),
                 communaute.getCreateurUtilisateurId(),
                 communaute.getCreatedAt(),
                 communaute.getUpdatedAt());

@@ -5,6 +5,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -17,6 +19,8 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class RateLimitingGlobalFilter implements GlobalFilter, Ordered {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RateLimitingGlobalFilter.class);
 
     private final RateLimitProperties rateLimitProperties;
     private final Map<String, WindowCounter> counters;
@@ -61,6 +65,14 @@ public class RateLimitingGlobalFilter implements GlobalFilter, Ordered {
         response.getHeaders().set("X-RateLimit-Reset", String.valueOf(resetSeconds));
 
         if (currentCount > limit) {
+            LOGGER.warn(
+                    "security.rate_limit_exceeded clientKey={} path={} count={} limit={} resetSeconds={} correlationId={}",
+                    key,
+                    path,
+                    currentCount,
+                    limit,
+                    resetSeconds,
+                    exchange.getRequest().getHeaders().getFirst(CorrelationIdGlobalFilter.CORRELATION_ID_HEADER));
             response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
             return response.setComplete();
         }

@@ -35,29 +35,41 @@ public class PermissionCheckService implements PermissionCheckUseCase {
     private boolean isActionAllowed(EntityMemberRole role, String action) {
         String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
         return switch (normalizedAction) {
-            case "PUBLICATION_CREATE", "PUBLICATION_MEDIA_ADD" ->
-                canContribute(role);
+            case "PUBLICATION_CREATE", "PUBLICATION_UPDATE", "PUBLICATION_DELETE", "PUBLICATION_MEDIA_ADD" ->
+                canBureauManage(role);
+            case "PUBLICATION_MODERATE" ->
+                canBureauManage(role) || canCoordinate(role);
             case "PUBLICATION_COMMENT_ADD", "PUBLICATION_REACTION_ADD" ->
                 canContribute(role);
             case "EVENT_CREATE", "EVENT_UPDATE", "EVENT_DELETE" ->
-                canCoordinate(role);
+                canBureauManage(role) || canCoordinate(role);
             case "EVENT_PARTICIPATE", "EVENT_FEEDBACK" ->
                 canContribute(role);
+            case "COMMUNITY_MANAGE" ->
+                canBureauManage(role);
+            case "COMMUNITY_MODERATE" ->
+                canBureauManage(role) || canCoordinate(role);
+            case "COMMUNITY_MESSAGE" ->
+                canContribute(role);
+            case "ANALYTICS_VIEW" ->
+                canBureauManage(role) || canCoordinate(role);
             case "REQUEST_APPROVE", "REQUEST_REJECT", "ROOM_MANAGE" ->
                 canCoordinate(role);
             case "REQUEST_SUBMIT" ->
-                canContribute(role);
+                canBureauManage(role);
             default -> false;
         };
     }
 
     private boolean canCoordinate(EntityMemberRole role) {
-        return role == EntityMemberRole.OWNER
-                || role == EntityMemberRole.COORDINATOR
-                || role == EntityMemberRole.MANAGER;
+        return role == EntityMemberRole.COORDINATOR;
+    }
+
+    private boolean canBureauManage(EntityMemberRole role) {
+        return role == EntityMemberRole.BUREAU_MEMBER;
     }
 
     private boolean canContribute(EntityMemberRole role) {
-        return canCoordinate(role) || role == EntityMemberRole.MEMBER;
+        return role == EntityMemberRole.SIMPLE_MEMBER || role == EntityMemberRole.BUREAU_MEMBER;
     }
 }

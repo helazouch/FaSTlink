@@ -11,57 +11,58 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.Objects;
 
 @Entity
-@Table(name = "utilisateur_role_entite", uniqueConstraints = @UniqueConstraint(columnNames = { "entite_id",
-        "utilisateur_id" }))
-public class UtilisateurRoleEntite {
+@Table(name = "entity_memberships", uniqueConstraints = @UniqueConstraint(columnNames = { "entity_id", "user_id" }))
+public class EntityMembership {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "entite_id", nullable = false)
+    @JoinColumn(name = "entity_id", nullable = false)
     private Entite entite;
 
-    @Column(name = "utilisateur_id", nullable = false)
-    private Long utilisateurId;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 30)
+    @Column(name = "entity_role", nullable = false, length = 30)
     private EntityMemberRole role;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    @Column(name = "assigned_at", nullable = false, updatable = false)
+    private Instant assignedAt;
 
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    @Column(name = "assigned_by")
+    private Long assignedBy;
 
-    protected UtilisateurRoleEntite() {
+    @Column(name = "status", nullable = false, length = 30)
+    private String status;
+
+    protected EntityMembership() {
     }
 
-    public UtilisateurRoleEntite(Entite entite, Long utilisateurId, EntityMemberRole role) {
+    public EntityMembership(Entite entite, Long userId, EntityMemberRole role, Long assignedBy) {
         this.entite = entite;
-        this.utilisateurId = utilisateurId;
+        this.userId = userId;
         this.role = role;
+        this.assignedBy = assignedBy;
+        this.status = "ACTIVE";
     }
 
     @PrePersist
     void onCreate() {
-        Instant now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = Instant.now();
+        if (assignedAt == null) {
+            assignedAt = Instant.now();
+        }
+        if (status == null || status.isBlank()) {
+            status = "ACTIVE";
+        }
     }
 
     public Long getId() {
@@ -72,16 +73,8 @@ public class UtilisateurRoleEntite {
         return entite;
     }
 
-    public void setEntite(Entite entite) {
-        this.entite = entite;
-    }
-
-    public Long getUtilisateurId() {
-        return utilisateurId;
-    }
-
-    public void setUtilisateurId(Long utilisateurId) {
-        this.utilisateurId = utilisateurId;
+    public Long getUserId() {
+        return userId;
     }
 
     public EntityMemberRole getRole() {
@@ -92,12 +85,21 @@ public class UtilisateurRoleEntite {
         this.role = role;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    public Instant getAssignedAt() {
+        return assignedAt;
     }
 
-    public Instant getUpdatedAt() {
-        return updatedAt;
+    public Long getAssignedBy() {
+        return assignedBy;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void revoke(Long revokedBy) {
+        this.status = "REVOKED";
+        this.assignedBy = revokedBy;
     }
 
     @Override
@@ -105,7 +107,7 @@ public class UtilisateurRoleEntite {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof UtilisateurRoleEntite that)) {
+        if (!(o instanceof EntityMembership that)) {
             return false;
         }
         return Objects.equals(id, that.id);

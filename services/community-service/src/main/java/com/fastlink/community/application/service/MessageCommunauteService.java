@@ -7,6 +7,7 @@ import com.fastlink.community.application.exception.ResourceNotFoundException;
 import com.fastlink.community.application.port.in.MessageCommunauteUseCase;
 import com.fastlink.community.application.port.out.CommunautePort;
 import com.fastlink.community.application.port.out.CommunityRealtimePort;
+import com.fastlink.community.application.port.out.EntityPermissionPort;
 import com.fastlink.community.application.port.out.MembreCommunautePort;
 import com.fastlink.community.application.port.out.MessageCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
@@ -19,25 +20,31 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class MessageCommunauteService implements MessageCommunauteUseCase {
 
+    private static final String ACTION_COMMUNITY_MESSAGE = "COMMUNITY_MESSAGE";
+
     private final CommunautePort communautePort;
     private final MembreCommunautePort membreCommunautePort;
     private final MessageCommunautePort messageCommunautePort;
     private final CommunityRealtimePort communityRealtimePort;
+    private final EntityPermissionPort entityPermissionPort;
 
     public MessageCommunauteService(
             CommunautePort communautePort,
             MembreCommunautePort membreCommunautePort,
             MessageCommunautePort messageCommunautePort,
-            CommunityRealtimePort communityRealtimePort) {
+            CommunityRealtimePort communityRealtimePort,
+            EntityPermissionPort entityPermissionPort) {
         this.communautePort = communautePort;
         this.membreCommunautePort = membreCommunautePort;
         this.messageCommunautePort = messageCommunautePort;
         this.communityRealtimePort = communityRealtimePort;
+        this.entityPermissionPort = entityPermissionPort;
     }
 
     @Override
     public MessageCommunauteResponse sendMessage(Long communauteId, SendMessageRequest request) {
         Communaute communaute = findCommunaute(communauteId);
+        entityPermissionPort.checkPermission(request.utilisateurId(), communaute.getEntiteId(), ACTION_COMMUNITY_MESSAGE);
         requireMembre(communauteId, request.utilisateurId());
 
         MessageCommunaute message = new MessageCommunaute(

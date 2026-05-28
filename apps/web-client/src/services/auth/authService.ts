@@ -1,5 +1,13 @@
 import { httpClient } from '../api/httpClient'
-import type { AuthSession, AuthUser, LoginPayload, RegisterPayload } from '../../types/auth'
+import { decodeJwtPayload } from '../../lib/jwt'
+import type {
+  AuthSession,
+  AuthUser,
+  EntityMembershipClaim,
+  EntityRole,
+  LoginPayload,
+  RegisterPayload,
+} from '../../types/auth'
 
 interface AuthUserDto {
   id: number
@@ -9,6 +17,8 @@ interface AuthUserDto {
   roles?: string[]
   headline?: string
   avatarUrl?: string
+  entityMemberships?: EntityMembershipClaim[]
+  entityPermissions?: Record<string, string[]>
 }
 
 interface AuthResponseDto {
@@ -18,6 +28,14 @@ interface AuthResponseDto {
   expiresInSeconds?: number
   utilisateur?: AuthUserDto
   user?: AuthUserDto
+  refreshToken?: string
+}
+
+interface AccessTokenClaims extends Record<string, unknown> {
+  roles?: unknown
+  uid?: unknown
+  entityMemberships?: unknown
+  entityPermissions?: unknown
 }
 
 const AUTH_BASE_PATH = '/v1/auth'
@@ -34,17 +52,67 @@ const buildExpiry = (expiresAt?: string, expiresInSeconds?: number): string => {
   return new Date(Date.now() + 60 * 60 * 1_000).toISOString()
 }
 
-const toAuthUser = (payload: AuthUserDto): AuthUser => ({
-  id: payload.id,
+const isEntityRole = (role: string): role is EntityRole =>
+  role === 'SIMPLE_MEMBER' || role === 'BUREAU_MEMBER' || role === 'COORDINATOR'
+
+const toMemberships = (value: unknown): EntityMembershipClaim[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') {
+      return []
+    }
+
+    const record = item as Record<string, unknown>
+    const entityId = Number(record.entityId)
+    const role = String(record.role ?? '').toUpperCase()
+    if (!Number.isFinite(entityId) || !isEntityRole(role)) {
+      return []
+    }
+
+    const entityName = typeof record.entityName === 'string' ? record.entityName : undefined
+    const status = typeof record.status === 'string' ? record.status : 'ACTIVE'
+    return [{ entityId, entityName, role, status }]
+  })
+}
+
+const toEntityPermissions = (value: unknown): Record<string, string[]> => {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, string[]>>(
+    (accumulator, [entityId, permissions]) => {
+      if (Array.isArray(permissions)) {
+        accumulator[entityId] = permissions.map(String)
+      }
+      return accumulator
+    },
+    {},
+  )
+}
+
+const toRoles = (payloadRoles: unknown, claimRoles: unknown): string[] => {
+  const roles = Array.isArray(payloadRoles) ? payloadRoles : Array.isArray(claimRoles) ? claimRoles : ['USER']
+  return roles.map(String)
+}
+
+const toAuthUser = (payload: AuthUserDto, claims: Partial<AccessTokenClaims>): AuthUser => ({
+  id: payload.id || Number(claims.uid) || 0,
   fullName: payload.nomComplet ?? payload.fullName ?? 'FaST Link User',
   email: payload.email,
-  roles: Array.isArray(payload.roles) ? payload.roles : ['USER'],
+  roles: toRoles(payload.roles, claims.roles),
+  entityMemberships: payload.entityMemberships ?? toMemberships(claims.entityMemberships),
+  entityPermissions: payload.entityPermissions ?? toEntityPermissions(claims.entityPermissions),
   headline: payload.headline,
   avatarUrl: payload.avatarUrl,
 })
 
 const toSession = (payload: AuthResponseDto): AuthSession => {
   const rawUser = payload.user ?? payload.utilisateur
+  const claims = decodeJwtPayload<AccessTokenClaims>(payload.accessToken)
 
   if (!rawUser) {
     throw new Error('Authentication response does not contain user information')
@@ -52,9 +120,10 @@ const toSession = (payload: AuthResponseDto): AuthSession => {
 
   return {
     accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
     tokenType: payload.tokenType ?? 'Bearer',
     expiresAt: buildExpiry(payload.expiresAt, payload.expiresInSeconds),
-    user: toAuthUser(rawUser),
+    user: toAuthUser(rawUser, claims),
   }
 }
 
@@ -79,5 +148,5 @@ export const registerAccount = async (payload: RegisterPayload): Promise<AuthSes
 
 export const validateCurrentUser = async (): Promise<AuthUser> => {
   const response = await httpClient.get<AuthUserDto>(`${AUTH_BASE_PATH}/validate`)
-  return toAuthUser(response.data)
+  return toAuthUser(response.data, {})
 }

@@ -68,6 +68,7 @@ export const PostCard = ({
         likeCount={post.likeCount}
         commentCount={post.commentCount}
         shareCount={post.shareCount}
+        entityId={post.communityId}
         onToggleLike={() => onToggleLike(post.id)}
         onToggleComments={() => toggleComments(post.id)}
         onShare={() => {

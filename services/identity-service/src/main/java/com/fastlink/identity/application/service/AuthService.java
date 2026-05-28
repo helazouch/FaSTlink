@@ -2,8 +2,10 @@ package com.fastlink.identity.application.service;
 
 import com.fastlink.identity.application.dto.auth.AuthResponse;
 import com.fastlink.identity.application.dto.auth.LoginRequest;
+import com.fastlink.identity.application.dto.auth.RefreshTokenRequest;
 import com.fastlink.identity.application.dto.auth.RegisterRequest;
 import com.fastlink.identity.application.dto.auth.UserResponse;
+import com.fastlink.identity.application.dto.membership.EntityMembershipClaim;
 import com.fastlink.identity.application.exception.ConflictException;
 import com.fastlink.identity.application.exception.ResourceNotFoundException;
 import com.fastlink.identity.application.port.in.AuthUseCase;
@@ -12,8 +14,12 @@ import com.fastlink.identity.application.port.out.UtilisateurPort;
 import com.fastlink.identity.domain.model.Role;
 import com.fastlink.identity.domain.model.RoleName;
 import com.fastlink.identity.domain.model.Utilisateur;
+import com.fastlink.identity.infrastructure.client.entity.EntityServiceClientAdapter;
 import com.fastlink.identity.infrastructure.security.JwtService;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,18 +37,24 @@ public class AuthService implements AuthUseCase {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
+    private final EntityServiceClientAdapter entityServiceClient;
 
     public AuthService(
             UtilisateurPort utilisateurPort,
             RolePort rolePort,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
-            JwtService jwtService) {
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService,
+            EntityServiceClientAdapter entityServiceClient) {
         this.utilisateurPort = utilisateurPort;
         this.rolePort = rolePort;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
+        this.entityServiceClient = entityServiceClient;
     }
 
     @Override
@@ -63,9 +75,10 @@ public class AuthService implements AuthUseCase {
         utilisateur.addRole(defaultRole);
 
         Utilisateur savedUser = utilisateurPort.save(utilisateur);
-        String token = jwtService.generateToken(savedUser);
+        RefreshTokenService.TokenPair refreshToken = refreshTokenService.create(savedUser);
+        String token = jwtService.generateToken(savedUser, buildClaims(savedUser));
 
-        return buildAuthResponse(savedUser, token);
+        return buildAuthResponse(savedUser, token, refreshToken.rawToken());
     }
 
     @Override
@@ -78,8 +91,22 @@ public class AuthService implements AuthUseCase {
         Utilisateur utilisateur = utilisateurPort.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
 
-        String token = jwtService.generateToken(utilisateur);
-        return buildAuthResponse(utilisateur, token);
+        RefreshTokenService.TokenPair refreshToken = refreshTokenService.create(utilisateur);
+        String token = jwtService.generateToken(utilisateur, buildClaims(utilisateur));
+        return buildAuthResponse(utilisateur, token, refreshToken.rawToken());
+    }
+
+    @Override
+    public AuthResponse refresh(RefreshTokenRequest request) {
+        RefreshTokenService.TokenPair rotated = refreshTokenService.rotate(request.refreshToken());
+        Utilisateur utilisateur = rotated.refreshToken().getUtilisateur();
+        String token = jwtService.generateToken(utilisateur, buildClaims(utilisateur));
+        return buildAuthResponse(utilisateur, token, rotated.rawToken());
+    }
+
+    @Override
+    public void logout(RefreshTokenRequest request) {
+        refreshTokenService.revoke(request.refreshToken());
     }
 
     @Override
@@ -91,14 +118,50 @@ public class AuthService implements AuthUseCase {
         return toUserResponse(utilisateur);
     }
 
-    private AuthResponse buildAuthResponse(Utilisateur utilisateur, String token) {
+    private AuthResponse buildAuthResponse(Utilisateur utilisateur, String token, String refreshToken) {
         Instant expiresAt = Instant.now().plusMillis(jwtService.getExpirationMs());
 
         return new AuthResponse(
                 token,
                 "Bearer",
                 expiresAt,
-                toUserResponse(utilisateur));
+                toUserResponse(utilisateur),
+                refreshToken);
+    }
+
+    private Map<String, Object> buildClaims(Utilisateur utilisateur) {
+        List<EntityMembershipClaim> memberships = entityServiceClient.getMemberships(utilisateur.getId());
+        Set<String> permissions = PermissionCatalog.globalPermissions(utilisateur);
+        Map<Long, Set<String>> entityPermissions = PermissionCatalog.entityPermissions(memberships);
+        Map<String, Set<String>> serializableEntityPermissions = entityPermissions.entrySet().stream()
+                .collect(Collectors.toMap(
+                        entry -> String.valueOf(entry.getKey()),
+                        Map.Entry::getValue,
+                        (first, second) -> first,
+                        LinkedHashMap::new));
+
+        return Map.of(
+                "permissions", permissions,
+                "entityMemberships", toSerializableMembershipClaims(memberships),
+                "entityPermissions", serializableEntityPermissions);
+    }
+
+    private List<Map<String, Object>> toSerializableMembershipClaims(List<EntityMembershipClaim> memberships) {
+        return memberships.stream()
+                .map(membership -> {
+                    Map<String, Object> claim = new LinkedHashMap<>();
+                    claim.put("entityId", membership.entityId());
+                    claim.put("role", membership.role());
+                    claim.put("status", membership.status());
+                    if (membership.assignedAt() != null) {
+                        claim.put("assignedAt", membership.assignedAt().toString());
+                    }
+                    if (membership.assignedBy() != null) {
+                        claim.put("assignedBy", membership.assignedBy());
+                    }
+                    return claim;
+                })
+                .toList();
     }
 
     private UserResponse toUserResponse(Utilisateur utilisateur) {

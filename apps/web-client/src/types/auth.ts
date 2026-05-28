@@ -3,8 +3,19 @@ export interface AuthUser {
   fullName: string
   email: string
   roles: string[]
+  entityMemberships: EntityMembershipClaim[]
+  entityPermissions: Record<string, string[]>
   headline?: string
   avatarUrl?: string
+}
+
+export type EntityRole = 'SIMPLE_MEMBER' | 'BUREAU_MEMBER' | 'COORDINATOR'
+
+export interface EntityMembershipClaim {
+  entityId: number
+  entityName?: string
+  role: EntityRole
+  status: string
 }
 
 export interface AuthSession {

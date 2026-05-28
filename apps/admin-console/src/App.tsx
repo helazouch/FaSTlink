@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedAdminRoute } from './auth/ProtectedAdminRoute'
 import { AdminLayout } from './layouts/AdminLayout'
 import { AnalyticsPage } from './pages/AnalyticsPage'
+import { AuditLogsPage } from './pages/AuditLogsPage'
 import { CommunitiesPage } from './pages/CommunitiesPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EntitiesPage } from './pages/EntitiesPage'
@@ -11,6 +12,7 @@ import { LoginPage } from './pages/LoginPage'
 import { ModerationPage } from './pages/ModerationPage'
 import { PublicationsPage } from './pages/PublicationsPage'
 import { RequestsPage } from './pages/RequestsPage'
+import { RolesPage } from './pages/RolesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { UnauthorizedPage } from './pages/UnauthorizedPage'
 import { UsersPage } from './pages/UsersPage'
@@ -38,6 +40,7 @@ export default function App() {
         <Route path="/" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="roles" element={<RolesPage />} />
           <Route path="entities" element={<EntitiesPage />} />
           <Route path="publications" element={<PublicationsPage />} />
           <Route path="events" element={<EventsPage />} />
@@ -45,7 +48,8 @@ export default function App() {
           <Route path="requests" element={<RequestsPage />} />
           <Route path="moderation" element={<ModerationPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="configs" element={<SettingsPage />} />
+          <Route path="audit-logs" element={<AuditLogsPage />} />
         </Route>
       </Route>
 

@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from 'react'
 import { env } from '../config/env'
 import { createNotificationSocket } from '../services/websocket/notificationSocket'
+import { EntityProvider } from '../context/EntityContext'
+import { PermissionProvider } from '../context/PermissionContext'
 import { useAuthStore } from '../stores/authStore'
 import { useNotificationStore } from '../stores/notificationStore'
 
@@ -52,5 +54,9 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
     }
   }, [prependNotification, status, user])
 
-  return <>{children}</>
+  return (
+    <PermissionProvider>
+      <EntityProvider>{children}</EntityProvider>
+    </PermissionProvider>
+  )
 }

@@ -16,6 +16,8 @@ export const fallbackSession: AuthSession = {
     fullName: 'Test User',
     email: 'test@fastlink.dev',
     roles: ['USER'],
+    entityMemberships: [],
+    entityPermissions: {},
   },
 }
 

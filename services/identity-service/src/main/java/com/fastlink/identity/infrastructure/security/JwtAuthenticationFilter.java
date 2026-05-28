@@ -1,5 +1,6 @@
 package com.fastlink.identity.infrastructure.security;
 
+import com.fastlink.identity.application.service.AccessTokenRevocationService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,10 +21,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final AccessTokenRevocationService accessTokenRevocationService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(
+            JwtService jwtService,
+            UserDetailsService userDetailsService,
+            AccessTokenRevocationService accessTokenRevocationService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.accessTokenRevocationService = accessTokenRevocationService;
     }
 
     @Override
@@ -42,6 +48,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String userEmail;
 
         try {
+            if (accessTokenRevocationService.isRevoked(jwtService.extractTokenId(jwt))) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             userEmail = jwtService.extractUsername(jwt);
         } catch (JwtException | IllegalArgumentException ex) {
             filterChain.doFilter(request, response);

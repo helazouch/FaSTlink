@@ -3,6 +3,7 @@ import {
   BarChart3,
   BellDot,
   CalendarDays,
+  ClipboardList,
   Flag,
   LayoutDashboard,
   Newspaper,
@@ -21,6 +22,7 @@ export interface NavItem {
 export const navigationItems: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/users', label: 'Users', icon: Users },
+  { path: '/roles', label: 'Roles', icon: Shield },
   { path: '/entities', label: 'Entities', icon: SquareStack },
   { path: '/publications', label: 'Publications', icon: Newspaper },
   { path: '/events', label: 'Events', icon: CalendarDays },
@@ -28,7 +30,8 @@ export const navigationItems: NavItem[] = [
   { path: '/requests', label: 'Requests', icon: BellDot },
   { path: '/moderation', label: 'Moderation', icon: Flag },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/configs', label: 'Configs', icon: Settings },
+  { path: '/audit-logs', label: 'Audit logs', icon: ClipboardList },
 ]
 
 export const getPageLabel = (pathname: string): string => {

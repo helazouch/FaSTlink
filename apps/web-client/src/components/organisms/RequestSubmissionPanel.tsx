@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Button } from '../atoms/Button'
+import { useMemo, useState, type FormEvent } from 'react'
+import { PermissionAwareButton } from '../auth/PermissionAwareButton'
 import { TextInput } from '../atoms/TextInput'
 import type { CommunitySummary, SubmitRequestInput } from '../../types/social'
 
@@ -19,17 +19,9 @@ export const RequestSubmissionPanel = ({
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [communityId, setCommunityId] = useState<number>(communities[0]?.id ?? 1)
-
-  useEffect(() => {
-    if (communities.length === 0) {
-      return
-    }
-
-    const currentStillExists = communities.some((community) => community.id === communityId)
-    if (!currentStillExists) {
-      setCommunityId(communities[0].id)
-    }
-  }, [communities, communityId])
+  const selectedCommunityId = communities.some((community) => community.id === communityId)
+    ? communityId
+    : communities[0]?.id
 
   const isValid = useMemo(
     () => title.trim().length >= 4 && description.trim().length >= 12 && communities.length > 0,
@@ -47,7 +39,7 @@ export const RequestSubmissionPanel = ({
       category,
       description: description.trim(),
       priority,
-      communityId,
+      communityId: selectedCommunityId,
     })
 
     setTitle('')
@@ -114,7 +106,7 @@ export const RequestSubmissionPanel = ({
               Entity
             </span>
             <select
-              value={communityId}
+              value={selectedCommunityId ?? ''}
               onChange={(event) => setCommunityId(Number(event.target.value))}
               disabled={communities.length === 0}
               className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand"
@@ -134,9 +126,15 @@ export const RequestSubmissionPanel = ({
       </div>
 
       <div className="mt-4 flex justify-end">
-        <Button type="submit" disabled={!isValid || isSubmitting}>
+        <PermissionAwareButton
+          type="submit"
+          permission="REQUEST_SUBMIT"
+          entityId={selectedCommunityId}
+          disabled={!isValid || isSubmitting}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
           {isSubmitting ? 'Submitting...' : 'Submit request'}
-        </Button>
+        </PermissionAwareButton>
       </div>
     </form>
   )

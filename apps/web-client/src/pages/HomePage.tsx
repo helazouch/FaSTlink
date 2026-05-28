@@ -5,6 +5,8 @@ import { PostCard } from '../components/organisms/PostCard'
 import { useAddComment, useCreatePost, useInfiniteFeed, useToggleLike, useToggleSavedPost } from '../hooks/useFeed'
 import { useAuthStore } from '../stores/authStore'
 import { env } from '../config/env'
+import { useCurrentEntityContext } from '../hooks/useCurrentEntityContext'
+import { usePermissions } from '../hooks/usePermissions'
 import type { UserSummary } from '../types/social'
 
 const toUserSummary = (
@@ -23,6 +25,8 @@ export const HomePage = () => {
   const likeMutation = useToggleLike()
   const addCommentMutation = useAddComment()
   const toggleSavedMutation = useToggleSavedPost()
+  const permissions = usePermissions()
+  const { currentEntityId, currentMembership } = useCurrentEntityContext()
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -60,12 +64,19 @@ export const HomePage = () => {
 
   return (
     <div className="space-y-4">
-      <CreatePostComposer
-        currentUser={currentUser}
-        defaultCommunityId={env.defaultCommunityId}
-        onSubmit={(input) => createPostMutation.mutateAsync(input)}
-        isSubmitting={createPostMutation.isPending}
-      />
+      {currentEntityId !== null && permissions.canPublishInEntity(currentEntityId) ? (
+        <CreatePostComposer
+          currentUser={currentUser}
+          defaultCommunityId={currentEntityId || env.defaultCommunityId}
+          entityName={currentMembership?.entityName ?? `Entity ${currentEntityId}`}
+          onSubmit={(input) => createPostMutation.mutateAsync(input)}
+          isSubmitting={createPostMutation.isPending}
+        />
+      ) : (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+          Browse, react, and comment across your communities. Publishing tools appear only for entities where you are a bureau member.
+        </section>
+      )}
 
       {posts.map((post) => (
         <PostCard
