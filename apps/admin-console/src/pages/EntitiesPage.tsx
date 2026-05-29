@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { DataTableShell } from '../components/table/DataTableShell'
 import { Pagination } from '../components/table/Pagination'
 import { Badge } from '../components/ui/Badge'
@@ -12,6 +12,7 @@ import { Modal } from '../components/ui/Modal'
 import { SelectInput } from '../components/ui/SelectInput'
 import { TextArea } from '../components/ui/TextArea'
 import { TextInput } from '../components/ui/TextInput'
+import { env } from '../config/env'
 import { appendAuditEntry } from '../lib/auditTrail'
 import { normalizeApiError } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
@@ -29,7 +30,7 @@ const ENTITY_ROLES = ['OWNER', 'COORDINATOR', 'MANAGER', 'MEMBER', 'VIEWER']
 export const EntitiesPage = () => {
   const queryClient = useQueryClient()
 
-  const [entityIdInput, setEntityIdInput] = useState('5')
+  const [entityIdInput, setEntityIdInput] = useState(String(env.defaultEntityId))
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
@@ -80,6 +81,18 @@ export const EntitiesPage = () => {
   }, [membersQuery.data, search])
 
   const entityRecords = entitiesQuery.data ?? []
+
+  useEffect(() => {
+    if (entityRecords.length === 0) {
+      return
+    }
+
+    const currentEntityId = Number(entityIdInput)
+    const selectedEntityExists = entityRecords.some((entity) => entity.id === currentEntityId)
+    if (!selectedEntityExists) {
+      setEntityIdInput(String(entityRecords[0].id))
+    }
+  }, [entityIdInput, entityRecords])
 
   const pageSize = 8
   const paginatedMembers = filteredMembers.slice(page * pageSize, page * pageSize + pageSize)

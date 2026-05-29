@@ -5,10 +5,12 @@ import com.fastlink.identity.domain.model.Role;
 import com.fastlink.identity.domain.model.RoleName;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Order(1)
 public class RoleDataInitializer implements ApplicationRunner {
 
     private final RolePort rolePort;

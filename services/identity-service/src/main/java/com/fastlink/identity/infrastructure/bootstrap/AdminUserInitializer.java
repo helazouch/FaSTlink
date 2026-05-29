@@ -5,14 +5,17 @@ import com.fastlink.identity.application.port.out.UtilisateurPort;
 import com.fastlink.identity.domain.model.Role;
 import com.fastlink.identity.domain.model.RoleName;
 import com.fastlink.identity.domain.model.Utilisateur;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Order(2)
 public class AdminUserInitializer implements ApplicationRunner {
 
     private final UtilisateurPort utilisateurPort;
@@ -52,12 +55,20 @@ public class AdminUserInitializer implements ApplicationRunner {
             return;
         }
 
-        if (utilisateurPort.existsByEmail(normalizedEmail)) {
+        Role adminRole = rolePort.findByName(RoleName.ADMIN).orElse(null);
+        if (adminRole == null) {
             return;
         }
 
-        Role adminRole = rolePort.findByName(RoleName.ADMIN).orElse(null);
-        if (adminRole == null) {
+        Optional<Utilisateur> existingAdmin = utilisateurPort.findByEmail(normalizedEmail);
+        if (existingAdmin.isPresent()) {
+            Utilisateur utilisateur = existingAdmin.get();
+            boolean hasAdminRole = utilisateur.getRoles().stream()
+                    .anyMatch(role -> role.getName() == RoleName.ADMIN);
+            if (!hasAdminRole) {
+                utilisateur.addRole(adminRole);
+                utilisateurPort.save(utilisateur);
+            }
             return;
         }
 
