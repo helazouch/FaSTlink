@@ -411,6 +411,7 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
                       <input
                         type="checkbox"
                         checked={selectedEntityIds.includes(entity.id)}
+                        disabled={Boolean(editTarget)}
                         onChange={() => toggleTargetEntity(entity.id)}
                         className="h-4 w-4 accent-brand"
                       />
