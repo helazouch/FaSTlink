@@ -20,6 +20,7 @@ import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.domain.model.PublicationScope;
 import com.fastlink.publication.domain.model.Reaction;
 import com.fastlink.publication.domain.model.ReactionType;
+import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,6 +67,16 @@ public class InteractionService implements InteractionUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<CommentaireResponse> listCommentaires(Long publicationId, boolean admin, Set<Long> activeEntityIds) {
+        Publication publication = findPublication(publicationId);
+        checkVisiblePublication(publication, admin, activeEntityIds);
+        return commentairePort.findByPublicationIdOrderByCreatedAtAsc(publicationId).stream()
+                .map(this::toCommentaireResponse)
+                .toList();
+    }
+
+    @Override
     public CommentaireResponse addCommentaire(
             Long publicationId,
             Long authenticatedUserId,
@@ -82,13 +93,7 @@ public class InteractionService implements InteractionUseCase {
 
         Commentaire saved = commentairePort.save(commentaire);
 
-        return new CommentaireResponse(
-                saved.getId(),
-                saved.getPublication().getId(),
-                saved.getUtilisateurId(),
-                saved.getContenu(),
-                saved.getCreatedAt(),
-                saved.getUpdatedAt());
+        return toCommentaireResponse(saved);
     }
 
     @Override
@@ -138,6 +143,16 @@ public class InteractionService implements InteractionUseCase {
     private Publication findPublication(Long publicationId) {
         return publicationPort.findById(publicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Publication introuvable: " + publicationId));
+    }
+
+    private CommentaireResponse toCommentaireResponse(Commentaire commentaire) {
+        return new CommentaireResponse(
+                commentaire.getId(),
+                commentaire.getPublication().getId(),
+                commentaire.getUtilisateurId(),
+                commentaire.getContenu(),
+                commentaire.getCreatedAt(),
+                commentaire.getUpdatedAt());
     }
 
     private void checkPermissionForPublication(Long utilisateurId, Publication publication, String action) {

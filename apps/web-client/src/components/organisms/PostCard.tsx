@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Avatar } from '../atoms/Avatar'
 import { CommentComposer } from '../molecules/CommentComposer'
 import { PostActions } from '../molecules/PostActions'
+import { usePostComments } from '../../hooks/useFeed'
 import { formatRelativeTime } from '../../lib/date'
 import { useFeedStore } from '../../stores/feedStore'
 import type { FeedPost, UserSummary } from '../../types/social'
@@ -25,6 +26,8 @@ export const PostCard = ({
   const toggleComments = useFeedStore((state) => state.toggleComments)
 
   const commentsOpen = Boolean(expandedCommentsByPostId[post.id])
+  const commentsQuery = usePostComments(post.id, commentsOpen)
+  const comments = commentsQuery.data ?? post.comments
 
   const mediaGridClassName = useMemo(() => {
     if (post.media.length <= 1) {
@@ -79,8 +82,12 @@ export const PostCard = ({
       {commentsOpen ? (
         <section className="mt-2 rounded-xl bg-slate-50/80 p-3">
           <div className="space-y-2">
-            {post.comments.length > 0 ? (
-              post.comments.map((comment) => (
+            {commentsQuery.isLoading ? (
+              <p className="text-sm text-slate-500">Loading comments...</p>
+            ) : commentsQuery.isError ? (
+              <p className="text-sm text-red-600">Comments could not be loaded.</p>
+            ) : comments.length > 0 ? (
+              comments.map((comment) => (
                 <div key={comment.id} className="rounded-xl bg-white px-3 py-2">
                   <div className="flex items-center gap-2">
                     <Avatar name={comment.author.fullName} size="sm" />
@@ -91,7 +98,9 @@ export const PostCard = ({
                 </div>
               ))
             ) : (
-              <p className="text-sm text-slate-500">No comments yet. Start the conversation.</p>
+              <p className="text-sm text-slate-500">
+                {post.commentCount > 0 ? 'Comments could not be loaded yet.' : 'No comments yet. Start the conversation.'}
+              </p>
             )}
           </div>
 

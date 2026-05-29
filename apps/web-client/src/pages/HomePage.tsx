@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { CreatePostComposer } from '../components/organisms/CreatePostComposer'
 import { PostCard } from '../components/organisms/PostCard'
@@ -27,6 +27,7 @@ export const HomePage = () => {
   const toggleSavedMutation = useToggleSavedPost()
   const permissions = usePermissions()
   const { currentEntityId } = useCurrentEntityContext()
+  const [allEntities, setAllEntities] = useState<Array<{ id: number; name: string }>>([])
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -48,15 +49,6 @@ export const HomePage = () => {
     },
     [currentEntityId, permissions.memberships],
   )
-  const allEntities = useMemo(
-    () =>
-      permissions.memberships.map((membership) => ({
-        id: membership.entityId,
-        name: membership.entityName ?? getEntityName(membership.entityId),
-      })),
-    [permissions.memberships],
-  )
-
   const posts = useMemo(
     () => feedQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [feedQuery.data?.pages],
@@ -88,7 +80,21 @@ export const HomePage = () => {
   }, [feedQuery])
 
   useEffect(() => {
-    void hydrateEntityDirectory()
+    let cancelled = false
+    void hydrateEntityDirectory().then((directory) => {
+      if (cancelled) {
+        return
+      }
+      setAllEntities(
+        Array.from(directory.entries())
+          .map(([id, name]) => ({ id, name }))
+          .sort((left, right) => left.name.localeCompare(right.name)),
+      )
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return (
@@ -130,6 +136,18 @@ export const HomePage = () => {
         <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">
           <LoaderCircle className="animate-spin" size={16} />
           <span className="ml-2 text-sm font-medium">Loading feed...</span>
+        </div>
+      ) : null}
+
+      {feedQuery.isError ? (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          Feed could not be loaded. Please try again when the backend is available.
+        </div>
+      ) : null}
+
+      {!feedQuery.isLoading && !feedQuery.isError && posts.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+          No publications yet.
         </div>
       ) : null}
 

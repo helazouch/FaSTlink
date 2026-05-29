@@ -12,6 +12,7 @@ import com.fastlink.publication.application.port.in.InteractionUseCase;
 import com.fastlink.publication.application.port.in.PublicationUseCase;
 import com.fastlink.publication.domain.model.ReactionType;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -194,6 +195,27 @@ public class PublicationController {
                 activeEntityIds(jwt),
                 request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/{publicationId}/comments")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<List<CommentaireResponse>> listComments(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long publicationId) {
+        return ResponseEntity.ok(interactionUseCase.listCommentaires(
+                publicationId,
+                isAdmin(authentication),
+                activeEntityIds(jwt)));
+    }
+
+    @GetMapping("/{publicationId}/commentaires")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<List<CommentaireResponse>> listCommentaires(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long publicationId) {
+        return listComments(jwt, authentication, publicationId);
     }
 
     @PostMapping("/{publicationId}/reactions")

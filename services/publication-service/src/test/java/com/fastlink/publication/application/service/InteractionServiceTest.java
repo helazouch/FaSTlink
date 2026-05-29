@@ -17,6 +17,9 @@ import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.domain.model.PublicationScope;
 import com.fastlink.publication.domain.model.Reaction;
 import com.fastlink.publication.domain.model.ReactionType;
+import com.fastlink.publication.domain.model.Commentaire;
+import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -65,5 +68,36 @@ class InteractionServiceTest {
                 Set.of(2L),
                 new AddReactionRequest(null, ReactionType.LIKE)))
                 .isInstanceOf(ForbiddenOperationException.class);
+    }
+
+    @Test
+    void visibleUserCanListPersistedComments() throws Exception {
+        PublicationPort publicationPort = mock(PublicationPort.class);
+        CommentairePort commentairePort = mock(CommentairePort.class);
+        InteractionService service = new InteractionService(
+                publicationPort,
+                mock(MediaPort.class),
+                commentairePort,
+                mock(ReactionPort.class),
+                mock(EntityPermissionPort.class));
+
+        Publication publication = new Publication(4L, "Hello", 1L, PublicationScope.MY_ENTITY, Set.of(1L));
+        setId(publication, 10L);
+        Commentaire commentaire = new Commentaire(publication, 8L, "Persisted comment");
+        setId(commentaire, 22L);
+        when(publicationPort.findById(10L)).thenReturn(Optional.of(publication));
+        when(commentairePort.findByPublicationIdOrderByCreatedAtAsc(10L)).thenReturn(List.of(commentaire));
+
+        var comments = service.listCommentaires(10L, false, Set.of(1L));
+
+        org.assertj.core.api.Assertions.assertThat(comments).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(comments.get(0).contenu()).isEqualTo("Persisted comment");
+        org.assertj.core.api.Assertions.assertThat(comments.get(0).utilisateurId()).isEqualTo(8L);
+    }
+
+    private static void setId(Object target, Long id) throws Exception {
+        Field idField = target.getClass().getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(target, id);
     }
 }
