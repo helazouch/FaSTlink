@@ -12,7 +12,7 @@ public interface CommunauteUseCase {
 
     List<CommunauteResponse> listCommunautes();
 
-    List<CommunauteResponse> listVisibleCommunautes(Set<Long> activeEntityIds, boolean admin);
+    List<CommunauteResponse> listVisibleCommunautes(Long utilisateurId);
 
     List<CommunauteResponse> listCommunautesByEntite(Long entiteId);
 
@@ -20,7 +20,7 @@ public interface CommunauteUseCase {
 
     CommunauteResponse getCommunaute(Long communauteId);
 
-    CommunauteResponse getVisibleCommunaute(Long communauteId, Set<Long> activeEntityIds, boolean admin);
+    CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId);
 
     CommunauteResponse updateCommunaute(Long communauteId, UpdateCommunauteRequest request);
 

@@ -54,7 +54,7 @@ public class CommunauteController {
                     activeEntityIds(jwt),
                     isAdmin(authentication)));
         }
-        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(activeEntityIds(jwt), isAdmin(authentication)));
+        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(resolveUserId(jwt)));
     }
 
     @GetMapping("/{communauteId}")
@@ -63,10 +63,7 @@ public class CommunauteController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication,
             @PathVariable Long communauteId) {
-        return ResponseEntity.ok(communauteUseCase.getVisibleCommunaute(
-                communauteId,
-                activeEntityIds(jwt),
-                isAdmin(authentication)));
+        return ResponseEntity.ok(communauteUseCase.getVisibleCommunaute(communauteId, resolveUserId(jwt)));
     }
 
     @PostMapping
@@ -97,6 +94,20 @@ public class CommunauteController {
         return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private Long resolveUserId(Jwt jwt) {
+        Object uid = jwt.getClaims().get("uid");
+        if (uid == null) {
+            uid = jwt.getClaims().get("userId");
+        }
+        if (uid == null) {
+            uid = jwt.getClaims().get("utilisateurId");
+        }
+        if (uid != null) {
+            return Long.parseLong(uid.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
     }
 
     private Set<Long> activeEntityIds(Jwt jwt) {

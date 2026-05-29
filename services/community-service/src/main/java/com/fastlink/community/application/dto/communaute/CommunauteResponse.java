@@ -8,6 +8,7 @@ public record CommunauteResponse(
         String description,
         Long entiteId,
         Long createurUtilisateurId,
+        long memberCount,
         Instant createdAt,
         Instant updatedAt) {
 }

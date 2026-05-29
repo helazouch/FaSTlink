@@ -17,6 +17,8 @@ public interface CommunautePort {
 
     List<Communaute> findByEntiteId(Long entiteId);
 
+    List<Communaute> findVisibleForUtilisateur(Long utilisateurId);
+
     boolean existsByNomIgnoreCase(String nom);
 
     boolean existsByNomIgnoreCaseAndIdNot(String nom, Long communauteId);

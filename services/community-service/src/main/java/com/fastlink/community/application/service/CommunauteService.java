@@ -68,14 +68,11 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommunauteResponse> listVisibleCommunautes(Set<Long> activeEntityIds, boolean admin) {
-        if (admin) {
-            return listCommunautes();
-        }
-        if (activeEntityIds == null || activeEntityIds.isEmpty()) {
+    public List<CommunauteResponse> listVisibleCommunautes(Long utilisateurId) {
+        if (utilisateurId == null || utilisateurId <= 0) {
             return List.of();
         }
-        return communautePort.findByEntiteIdIn(activeEntityIds).stream().map(this::toResponse).toList();
+        return communautePort.findVisibleForUtilisateur(utilisateurId).stream().map(this::toResponse).toList();
     }
 
     @Override
@@ -101,9 +98,9 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CommunauteResponse getVisibleCommunaute(Long communauteId, Set<Long> activeEntityIds, boolean admin) {
+    public CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId) {
         Communaute communaute = findCommunaute(communauteId);
-        if (!admin && (activeEntityIds == null || !activeEntityIds.contains(communaute.getEntiteId()))) {
+        if (!isAccessibleToUser(communaute, utilisateurId)) {
             throw new ForbiddenOperationException("Communaute non accessible pour cet utilisateur");
         }
         return toResponse(communaute);
@@ -149,6 +146,16 @@ public class CommunauteService implements CommunauteUseCase {
         }
     }
 
+    private boolean isAccessibleToUser(Communaute communaute, Long utilisateurId) {
+        if (utilisateurId == null || utilisateurId <= 0) {
+            return false;
+        }
+        if (utilisateurId.equals(communaute.getCreateurUtilisateurId())) {
+            return true;
+        }
+        return membreCommunautePort.existsByCommunauteIdAndUtilisateurId(communaute.getId(), utilisateurId);
+    }
+
     private CommunauteResponse toResponse(Communaute communaute) {
         return new CommunauteResponse(
                 communaute.getId(),
@@ -156,6 +163,7 @@ public class CommunauteService implements CommunauteUseCase {
                 communaute.getDescription(),
                 communaute.getEntiteId(),
                 communaute.getCreateurUtilisateurId(),
+                membreCommunautePort.countByCommunauteId(communaute.getId()),
                 communaute.getCreatedAt(),
                 communaute.getUpdatedAt());
     }

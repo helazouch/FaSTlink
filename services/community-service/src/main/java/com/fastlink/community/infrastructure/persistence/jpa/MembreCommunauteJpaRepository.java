@@ -10,4 +10,8 @@ public interface MembreCommunauteJpaRepository extends JpaRepository<MembreCommu
     Optional<MembreCommunaute> findByCommunaute_IdAndUtilisateurId(Long communauteId, Long utilisateurId);
 
     List<MembreCommunaute> findByCommunaute_Id(Long communauteId);
+
+    long countByCommunaute_Id(Long communauteId);
+
+    boolean existsByCommunaute_IdAndUtilisateurId(Long communauteId, Long utilisateurId);
 }

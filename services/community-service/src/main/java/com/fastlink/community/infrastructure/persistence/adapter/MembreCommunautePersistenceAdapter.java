@@ -27,6 +27,16 @@ public class MembreCommunautePersistenceAdapter implements MembreCommunautePort 
     }
 
     @Override
+    public long countByCommunauteId(Long communauteId) {
+        return membreCommunauteJpaRepository.countByCommunaute_Id(communauteId);
+    }
+
+    @Override
+    public boolean existsByCommunauteIdAndUtilisateurId(Long communauteId, Long utilisateurId) {
+        return membreCommunauteJpaRepository.existsByCommunaute_IdAndUtilisateurId(communauteId, utilisateurId);
+    }
+
+    @Override
     public MembreCommunaute save(MembreCommunaute membreCommunaute) {
         return membreCommunauteJpaRepository.save(membreCommunaute);
     }

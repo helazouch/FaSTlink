@@ -6,13 +6,15 @@ interface CommunityDto {
   nom: string
   description: string
   createurUtilisateurId: number
+  memberCount?: number
+  nombreMembres?: number
 }
 
 const mapCommunity = (payload: CommunityDto): CommunitySummary => ({
   id: payload.id,
   name: payload.nom,
   description: payload.description,
-  members: 0,
+  members: payload.memberCount ?? payload.nombreMembres ?? 0,
 })
 
 export const getSuggestedCommunities = async (): Promise<CommunitySummary[]> => {

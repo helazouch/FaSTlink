@@ -40,6 +40,7 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
     resetFeedCache()
     void queryClient.removeQueries({ queryKey: ['social-feed'] })
     void queryClient.removeQueries({ queryKey: ['saved-publications'] })
+    void queryClient.removeQueries({ queryKey: ['communities'] })
   }, [userId])
 
   useEffect(() => {

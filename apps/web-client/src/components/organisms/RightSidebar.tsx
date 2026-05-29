@@ -1,4 +1,4 @@
-import { Flame, Sparkles, Users2 } from 'lucide-react'
+import { AlertCircle, Flame, LoaderCircle, Sparkles, Users2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '../atoms/Avatar'
 import { useEvents, useSuggestedCommunities } from '../../hooks/useSocial'
@@ -6,7 +6,12 @@ import { mockUsers } from '../../data/socialMockData'
 import { formatDateTime } from '../../lib/date'
 
 export const RightSidebar = () => {
-  const { data: communities = [] } = useSuggestedCommunities()
+  const {
+    data: communities = [],
+    isError: communitiesError,
+    isLoading: communitiesLoading,
+    refetch: refetchCommunities,
+  } = useSuggestedCommunities()
   const { data: events = [] } = useEvents()
   const activeUsers = mockUsers.filter((item) => item.online)
 
@@ -18,7 +23,26 @@ export const RightSidebar = () => {
           Suggested communities
         </h3>
         <div className="mt-3 space-y-3">
-          {communities.length > 0 ? (
+          {communitiesLoading ? (
+            <div className="flex items-center gap-2 rounded-xl bg-slate-50/70 p-3 text-xs text-slate-500">
+              <LoaderCircle className="h-4 w-4 animate-spin text-slate-400" />
+              Loading communities...
+            </div>
+          ) : communitiesError ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">
+              <p className="inline-flex items-center gap-1 font-medium">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Unable to load communities
+              </p>
+              <button
+                type="button"
+                className="mt-2 font-semibold underline"
+                onClick={() => void refetchCommunities()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : communities.length > 0 ? (
             communities.slice(0, 3).map((community) => (
               <Link
                 to={`/communities/${community.id}`}

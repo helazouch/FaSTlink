@@ -43,6 +43,11 @@ public class CommunautePersistenceAdapter implements CommunautePort {
     }
 
     @Override
+    public List<Communaute> findVisibleForUtilisateur(Long utilisateurId) {
+        return communauteJpaRepository.findVisibleForUtilisateur(utilisateurId);
+    }
+
+    @Override
     public boolean existsByNomIgnoreCase(String nom) {
         return communauteJpaRepository.existsByNomIgnoreCase(nom);
     }
