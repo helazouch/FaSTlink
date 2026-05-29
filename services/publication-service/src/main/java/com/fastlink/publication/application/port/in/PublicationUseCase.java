@@ -17,4 +17,6 @@ public interface PublicationUseCase {
     Page<PublicationResponse> searchPublications(Long entityId, Long authorId, String search, Pageable pageable);
 
     Page<PublicationResponse> feedForUser(Long userId, boolean admin, java.util.Set<Long> activeEntityIds, Pageable pageable);
+
+    Page<PublicationResponse> savedForUser(Long userId, boolean admin, java.util.Set<Long> activeEntityIds, Pageable pageable);
 }

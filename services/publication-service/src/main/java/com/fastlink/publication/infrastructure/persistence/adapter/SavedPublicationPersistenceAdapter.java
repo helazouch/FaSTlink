@@ -4,6 +4,8 @@ import com.fastlink.publication.application.port.out.SavedPublicationPort;
 import com.fastlink.publication.domain.model.SavedPublication;
 import com.fastlink.publication.infrastructure.persistence.jpa.SavedPublicationJpaRepository;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,6 +30,11 @@ public class SavedPublicationPersistenceAdapter implements SavedPublicationPort 
     @Override
     public boolean existsByPublicationIdAndUtilisateurId(Long publicationId, Long utilisateurId) {
         return savedPublicationJpaRepository.existsByPublication_IdAndUtilisateurId(publicationId, utilisateurId);
+    }
+
+    @Override
+    public Page<SavedPublication> findByUtilisateurId(Long utilisateurId, Pageable pageable) {
+        return savedPublicationJpaRepository.findByUtilisateurIdOrderByCreatedAtDesc(utilisateurId, pageable);
     }
 
     @Override

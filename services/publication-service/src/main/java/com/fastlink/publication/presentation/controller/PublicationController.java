@@ -172,6 +172,24 @@ public class PublicationController {
                 pageable));
     }
 
+    @GetMapping("/saved")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Page<PublicationResponse>> saved(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        Pageable pageable = PageRequest.of(
+                sanitizePage(page),
+                sanitizeSize(size),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(publicationUseCase.savedForUser(
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt),
+                pageable));
+    }
+
     @PostMapping("/{publicationId}/medias")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<MediaResponse> addMedia(

@@ -2,6 +2,8 @@ package com.fastlink.publication.application.port.out;
 
 import com.fastlink.publication.domain.model.SavedPublication;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface SavedPublicationPort {
 
@@ -10,6 +12,8 @@ public interface SavedPublicationPort {
     long countByPublicationId(Long publicationId);
 
     boolean existsByPublicationIdAndUtilisateurId(Long publicationId, Long utilisateurId);
+
+    Page<SavedPublication> findByUtilisateurId(Long utilisateurId, Pageable pageable);
 
     SavedPublication save(SavedPublication savedPublication);
 

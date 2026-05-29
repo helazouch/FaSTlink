@@ -189,6 +189,38 @@ export const getFeedPage = async (
   }
 }
 
+export const getSavedPublicationsPage = async (
+  cursor: string | null,
+  limit: number,
+): Promise<FeedPage> => {
+  const pageNumber = cursor ? Number(cursor) : 0
+  const response = await httpClient.get<FeedPageDto | FeedPostDto[]>('/v1/publications/saved', {
+    params: {
+      page: pageNumber,
+      size: limit,
+    },
+  })
+
+  const serverItems = Array.isArray(response.data)
+    ? response.data
+    : response.data.items ?? response.data.content ?? []
+  const userIds = serverItems.map((item) => item.utilisateurId ?? 0).filter((id) => id > 0)
+  await Promise.all([hydrateUserDirectory(userIds), hydrateEntityDirectory()])
+
+  const items = serverItems.map((item) =>
+    mapPost({
+      ...item,
+      savedByCurrentUser: true,
+      savedByMe: true,
+    }),
+  )
+
+  return {
+    items,
+    nextCursor: !Array.isArray(response.data) && response.data.last === false ? String(pageNumber + 1) : null,
+  }
+}
+
 export const createPost = async (input: CreatePostInput): Promise<FeedPost> => {
   const publicationResponse = await httpClient.post<PublicationResponseDto>('/v1/publications', {
     contenu: input.content,

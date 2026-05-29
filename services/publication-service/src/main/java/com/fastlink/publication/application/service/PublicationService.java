@@ -18,6 +18,7 @@ import com.fastlink.publication.domain.model.Media;
 import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.domain.model.PublicationScope;
 import com.fastlink.publication.domain.model.ReactionType;
+import com.fastlink.publication.domain.model.SavedPublication;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -123,6 +124,18 @@ public class PublicationService implements PublicationUseCase {
     public Page<PublicationResponse> feedForUser(Long userId, boolean admin, Set<Long> activeEntityIds, Pageable pageable) {
         Page<Publication> page = publicationPort.findAll(pageable);
         List<PublicationResponse> visible = page.getContent().stream()
+                .filter(publication -> isVisibleToUser(publication, admin, activeEntityIds))
+                .map(publication -> toResponse(publication, userId))
+                .toList();
+        return new PageImpl<>(visible, pageable, page.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PublicationResponse> savedForUser(Long userId, boolean admin, Set<Long> activeEntityIds, Pageable pageable) {
+        Page<SavedPublication> page = savedPublicationPort.findByUtilisateurId(userId, pageable);
+        List<PublicationResponse> visible = page.getContent().stream()
+                .map(SavedPublication::getPublication)
                 .filter(publication -> isVisibleToUser(publication, admin, activeEntityIds))
                 .map(publication -> toResponse(publication, userId))
                 .toList();

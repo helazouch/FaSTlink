@@ -3,15 +3,15 @@ import { env } from '../config/env'
 import { addComment, createPost, getComments, getFeedPage, toggleLike, toggleSavedPost } from '../services/social/feedService'
 import { useAuthStore } from '../stores/authStore'
 import { useFeedStore } from '../stores/feedStore'
+import { SAVED_PUBLICATIONS_QUERY_KEY } from './useSavedPosts'
 import type { CommentItem, CreateCommentInput, CreatePostInput, FeedPage, FeedPost } from '../types/social'
 
 const FEED_QUERY_KEY = 'social-feed'
 const POST_COMMENTS_QUERY_KEY = 'post-comments'
 
-const patchPostInPages = (
-  current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined,
-  nextPost: FeedPost,
-) => {
+type InfiniteFeedData = { pages: FeedPage[]; pageParams: Array<string | null> }
+
+const patchPostInPages = (current: InfiniteFeedData | undefined, nextPost: FeedPost) => {
   if (!current) {
     return current
   }
@@ -26,7 +26,7 @@ const patchPostInPages = (
 }
 
 const findPostInPages = (
-  snapshots: Array<[readonly unknown[], { pages: FeedPage[]; pageParams: Array<string | null> } | undefined]>,
+  snapshots: Array<[readonly unknown[], InfiniteFeedData | undefined]>,
   postId: string,
 ): FeedPost | null => {
   for (const [, data] of snapshots) {
@@ -39,6 +39,44 @@ const findPostInPages = (
   }
 
   return null
+}
+
+const findPostInCaches = (queryClient: ReturnType<typeof useQueryClient>, postId: string): FeedPost | null => {
+  const feedSnapshots = queryClient.getQueriesData<InfiniteFeedData>({
+    queryKey: [FEED_QUERY_KEY],
+  })
+  const feedPost = findPostInPages(feedSnapshots, postId)
+  if (feedPost) {
+    return feedPost
+  }
+
+  const savedSnapshots = queryClient.getQueriesData<InfiniteFeedData>({
+    queryKey: [SAVED_PUBLICATIONS_QUERY_KEY],
+  })
+  return findPostInPages(savedSnapshots, postId)
+}
+
+const patchPostInQueryCaches = (queryClient: ReturnType<typeof useQueryClient>, nextPost: FeedPost) => {
+  queryClient.setQueriesData({ queryKey: [FEED_QUERY_KEY] }, (current: InfiniteFeedData | undefined) =>
+    patchPostInPages(current, nextPost),
+  )
+  queryClient.setQueriesData({ queryKey: [SAVED_PUBLICATIONS_QUERY_KEY] }, (current: InfiniteFeedData | undefined) => {
+    if (!nextPost.savedByMe) {
+      if (!current) {
+        return current
+      }
+
+      return {
+        ...current,
+        pages: current.pages.map((page) => ({
+          ...page,
+          items: page.items.filter((item) => item.id !== nextPost.id),
+        })),
+      }
+    }
+
+    return patchPostInPages(current, nextPost)
+  })
 }
 
 export const useInfiniteFeed = () => {
@@ -78,10 +116,7 @@ export const useToggleLike = () => {
         throw new Error('You must be signed in to react to a post')
       }
 
-      const snapshots = queryClient.getQueriesData<{ pages: FeedPage[]; pageParams: Array<string | null> }>({
-        queryKey: [FEED_QUERY_KEY],
-      })
-      const post = findPostInPages(snapshots, postId)
+      const post = findPostInCaches(queryClient, postId)
       if (!post) {
         throw new Error('Post not found')
       }
@@ -92,14 +127,9 @@ export const useToggleLike = () => {
       console.error('Unable to update publication reaction.', error)
     },
     onSuccess: (post) => {
-      queryClient.setQueriesData(
-        {
-          queryKey: [FEED_QUERY_KEY],
-        },
-        (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) =>
-          patchPostInPages(current, post),
-      )
+      patchPostInQueryCaches(queryClient, post)
       void queryClient.invalidateQueries({ queryKey: [FEED_QUERY_KEY] })
+      void queryClient.invalidateQueries({ queryKey: [SAVED_PUBLICATIONS_QUERY_KEY] })
     },
   })
 }
@@ -121,32 +151,30 @@ export const useAddComment = () => {
         [POST_COMMENTS_QUERY_KEY, userId, input.postId],
         (current) => (current ? [...current, comment] : [comment]),
       )
-      queryClient.setQueriesData(
-        {
-          queryKey: [FEED_QUERY_KEY],
-        },
-        (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) => {
-          if (!current) {
-            return current
-          }
+      const patchComments = (current: InfiniteFeedData | undefined) => {
+        if (!current) {
+          return current
+        }
 
-          return {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) =>
-                item.id === input.postId
-                  ? {
-                      ...item,
-                      comments: [...item.comments, comment],
-                      commentCount: item.commentCount + 1,
-                    }
-                  : item,
-              ),
-            })),
-          }
-        },
-      )
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.id === input.postId
+                ? {
+                    ...item,
+                    comments: [...item.comments, comment],
+                    commentCount: item.commentCount + 1,
+                  }
+                : item,
+            ),
+          })),
+        }
+      }
+
+      queryClient.setQueriesData({ queryKey: [FEED_QUERY_KEY] }, patchComments)
+      queryClient.setQueriesData({ queryKey: [SAVED_PUBLICATIONS_QUERY_KEY] }, patchComments)
       void queryClient.invalidateQueries({ queryKey: [POST_COMMENTS_QUERY_KEY, userId, input.postId] })
     },
   })
@@ -173,10 +201,7 @@ export const useToggleSavedPost = () => {
         throw new Error('You must be signed in to save a post')
       }
 
-      const snapshots = queryClient.getQueriesData<{ pages: FeedPage[]; pageParams: Array<string | null> }>({
-        queryKey: [FEED_QUERY_KEY],
-      })
-      const post = findPostInPages(snapshots, postId)
+      const post = findPostInCaches(queryClient, postId)
       if (!post) {
         throw new Error('Post not found')
       }
@@ -187,14 +212,9 @@ export const useToggleSavedPost = () => {
       console.error('Unable to update saved publication.', error)
     },
     onSuccess: (post) => {
-      queryClient.setQueriesData(
-        {
-          queryKey: [FEED_QUERY_KEY],
-        },
-        (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) =>
-          patchPostInPages(current, post),
-      )
+      patchPostInQueryCaches(queryClient, post)
       void queryClient.invalidateQueries({ queryKey: [FEED_QUERY_KEY] })
+      void queryClient.invalidateQueries({ queryKey: [SAVED_PUBLICATIONS_QUERY_KEY] })
     },
   })
 }
