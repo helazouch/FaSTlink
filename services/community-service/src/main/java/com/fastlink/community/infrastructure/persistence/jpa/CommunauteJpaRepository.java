@@ -8,6 +8,8 @@ public interface CommunauteJpaRepository extends JpaRepository<Communaute, Long>
 
     List<Communaute> findAllByOrderByCreatedAtDesc();
 
+    List<Communaute> findByEntiteIdOrderByCreatedAtDesc(Long entiteId);
+
     boolean existsByNomIgnoreCase(String nom);
 
     boolean existsByNomIgnoreCaseAndIdNot(String nom, Long id);

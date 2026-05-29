@@ -4,6 +4,8 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,6 +33,13 @@ public class Publication {
     @Column(name = "contenu", nullable = false, length = 2000)
     private String contenu;
 
+    @Column(name = "publishing_entity_id")
+    private Long publishingEntityId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scope", nullable = false, length = 32)
+    private PublicationScope scope = PublicationScope.MY_ENTITY;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "publication_entites_cibles", joinColumns = @JoinColumn(name = "publication_id"))
     @Column(name = "entite_id", nullable = false)
@@ -45,10 +54,16 @@ public class Publication {
     protected Publication() {
     }
 
-    public Publication(Long utilisateurId, String contenu, Set<Long> entiteIds) {
+    public Publication(Long utilisateurId, String contenu, Long publishingEntityId, PublicationScope scope, Set<Long> entiteIds) {
         this.utilisateurId = utilisateurId;
         this.contenu = contenu;
+        this.publishingEntityId = publishingEntityId;
+        this.scope = scope;
         this.entiteIds = entiteIds;
+    }
+
+    public Publication(Long utilisateurId, String contenu, Set<Long> entiteIds) {
+        this(utilisateurId, contenu, entiteIds == null || entiteIds.isEmpty() ? null : entiteIds.iterator().next(), PublicationScope.MY_ENTITY, entiteIds);
     }
 
     @PrePersist
@@ -89,6 +104,22 @@ public class Publication {
 
     public void setEntiteIds(Set<Long> entiteIds) {
         this.entiteIds = entiteIds;
+    }
+
+    public Long getPublishingEntityId() {
+        return publishingEntityId;
+    }
+
+    public void setPublishingEntityId(Long publishingEntityId) {
+        this.publishingEntityId = publishingEntityId;
+    }
+
+    public PublicationScope getScope() {
+        return scope;
+    }
+
+    public void setScope(PublicationScope scope) {
+        this.scope = scope;
     }
 
     public Instant getCreatedAt() {

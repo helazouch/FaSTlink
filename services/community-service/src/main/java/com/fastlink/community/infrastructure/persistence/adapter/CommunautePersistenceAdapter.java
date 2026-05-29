@@ -32,6 +32,11 @@ public class CommunautePersistenceAdapter implements CommunautePort {
     }
 
     @Override
+    public List<Communaute> findByEntiteId(Long entiteId) {
+        return communauteJpaRepository.findByEntiteIdOrderByCreatedAtDesc(entiteId);
+    }
+
+    @Override
     public boolean existsByNomIgnoreCase(String nom) {
         return communauteJpaRepository.existsByNomIgnoreCase(nom);
     }

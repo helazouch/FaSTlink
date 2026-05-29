@@ -2,12 +2,13 @@ package com.fastlink.community;
 
 import com.fastlink.community.config.EntityClientProperties;
 import com.fastlink.community.config.JwtProperties;
+import com.fastlink.community.config.NotificationClientProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({EntityClientProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({EntityClientProperties.class, JwtProperties.class, NotificationClientProperties.class})
 public class CommunityServiceApplication {
 
     public static void main(String[] args) {

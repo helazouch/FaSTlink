@@ -85,6 +85,11 @@ public class EntityMembership {
         this.role = role;
     }
 
+    public void activate(Long assignedBy) {
+        this.status = "ACTIVE";
+        this.assignedBy = assignedBy;
+    }
+
     public Instant getAssignedAt() {
         return assignedAt;
     }

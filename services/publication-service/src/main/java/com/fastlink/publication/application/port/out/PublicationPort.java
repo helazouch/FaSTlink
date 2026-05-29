@@ -15,4 +15,6 @@ public interface PublicationPort {
     List<Publication> findAll();
 
     Page<Publication> search(Long entityId, Long authorId, String search, Pageable pageable);
+
+    Page<Publication> findAll(Pageable pageable);
 }

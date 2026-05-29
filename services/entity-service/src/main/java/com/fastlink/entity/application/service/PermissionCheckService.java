@@ -28,6 +28,7 @@ public class PermissionCheckService implements PermissionCheckUseCase {
         }
 
         return membershipPort.findByEntiteIdAndUtilisateurId(entiteId, utilisateurId)
+                .filter(membership -> "ACTIVE".equalsIgnoreCase(membership.getStatus()))
                 .map(membership -> isActionAllowed(membership.getRole(), action))
                 .orElse(false);
     }
@@ -45,7 +46,7 @@ public class PermissionCheckService implements PermissionCheckUseCase {
                 canBureauManage(role) || canCoordinate(role);
             case "EVENT_PARTICIPATE", "EVENT_FEEDBACK" ->
                 canContribute(role);
-            case "COMMUNITY_MANAGE" ->
+            case "COMMUNITY_MANAGE", "ENTITY_MEMBER_MANAGE" ->
                 canBureauManage(role);
             case "COMMUNITY_MODERATE" ->
                 canBureauManage(role) || canCoordinate(role);

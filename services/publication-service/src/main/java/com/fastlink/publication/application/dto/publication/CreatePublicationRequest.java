@@ -1,16 +1,25 @@
 package com.fastlink.publication.application.dto.publication;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import com.fastlink.publication.domain.model.PublicationScope;
+import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Set;
 
 public record CreatePublicationRequest(
-        @NotNull(message = "L'utilisateur est obligatoire") @Positive(message = "L'utilisateur doit etre positif") Long utilisateurId,
+        @Positive(message = "L'utilisateur doit etre positif") Long utilisateurId,
 
-        @NotBlank(message = "Le contenu est obligatoire") @Size(max = 2000, message = "Le contenu ne doit pas depasser 2000 caracteres") String contenu,
+        @Size(max = 2000, message = "Le contenu ne doit pas depasser 2000 caracteres") String contenu,
 
-        @NotEmpty(message = "Au moins une entite cible est requise") Set<@NotNull @Positive Long> entiteIds) {
+        @NotNull(message = "L'entite de publication est obligatoire") @Positive(message = "L'entite de publication doit etre positive") Long publishingEntityId,
+
+        @NotNull(message = "Le scope est obligatoire") PublicationScope scope,
+
+        Set<@NotNull @Positive Long> selectedEntityIds,
+
+        Set<@NotNull @Positive Long> entiteIds,
+
+        List<@Valid PublicationMediaRequest> media) {
 }

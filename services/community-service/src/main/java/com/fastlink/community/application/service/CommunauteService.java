@@ -67,6 +67,12 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public List<CommunauteResponse> listCommunautesByEntite(Long entiteId) {
+        return communautePort.findByEntiteId(entiteId).stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CommunauteResponse getCommunaute(Long communauteId) {
         return toResponse(findCommunaute(communauteId));
     }

@@ -48,6 +48,7 @@ public class MembershipService implements MembershipUseCase {
                 .findByEntiteIdAndUtilisateurId(entiteId, request.utilisateurId())
                 .map(existing -> {
                     existing.setRole(request.role());
+                    existing.activate(null);
                     return existing;
                 })
                 .orElseGet(() -> new EntityMembership(entite, request.utilisateurId(), request.role(), null));

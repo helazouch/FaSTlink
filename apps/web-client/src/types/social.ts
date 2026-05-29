@@ -54,7 +54,10 @@ export interface LocalMediaInput {
   name: string
   mimeType: string
   previewUrl: string
+  dataUrl?: string
 }
+
+export type PublicationScope = 'MY_ENTITY' | 'ALL_ENTITIES' | 'ALL_USERS' | 'SELECTED_ENTITIES'
 
 export interface CreatePostInput {
   content: string
@@ -62,6 +65,9 @@ export interface CreatePostInput {
   entity: string
   author: UserSummary
   media: LocalMediaInput[]
+  publishingEntityId: number
+  scope: PublicationScope
+  selectedEntityIds: number[]
 }
 
 export interface CreateCommentInput {

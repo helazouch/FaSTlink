@@ -10,7 +10,11 @@ public interface PublicationUseCase {
 
     PublicationResponse createPublication(CreatePublicationRequest request);
 
+    PublicationResponse createPublication(Long authenticatedUserId, CreatePublicationRequest request);
+
     List<PublicationResponse> listPublications();
 
     Page<PublicationResponse> searchPublications(Long entityId, Long authorId, String search, Pageable pageable);
+
+    Page<PublicationResponse> feedForUser(Long userId, boolean admin, java.util.Set<Long> activeEntityIds, Pageable pageable);
 }

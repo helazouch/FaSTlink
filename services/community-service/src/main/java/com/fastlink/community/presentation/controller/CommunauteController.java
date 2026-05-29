@@ -35,7 +35,13 @@ public class CommunauteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CommunauteResponse>> list() {
+    public ResponseEntity<List<CommunauteResponse>> list(
+            @RequestParam(required = false) @Positive Long entityId,
+            @RequestParam(required = false) @Positive Long entiteId) {
+        Long scopedEntityId = entityId != null ? entityId : entiteId;
+        if (scopedEntityId != null) {
+            return ResponseEntity.ok(communauteUseCase.listCommunautesByEntite(scopedEntityId));
+        }
         return ResponseEntity.ok(communauteUseCase.listCommunautes());
     }
 

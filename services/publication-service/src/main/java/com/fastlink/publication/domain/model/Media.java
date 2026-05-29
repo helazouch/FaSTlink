@@ -27,7 +27,7 @@ public class Media {
     @JoinColumn(name = "publication_id", nullable = false)
     private Publication publication;
 
-    @Column(name = "url", nullable = false, length = 500)
+    @Column(name = "url", nullable = false, columnDefinition = "TEXT")
     private String url;
 
     @Enumerated(EnumType.STRING)

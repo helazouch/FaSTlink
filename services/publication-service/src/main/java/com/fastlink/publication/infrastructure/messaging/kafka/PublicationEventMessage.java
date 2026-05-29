@@ -10,6 +10,8 @@ public record PublicationEventMessage(
         Instant occurredAt,
         Long publicationId,
         Long utilisateurId,
+        Long publishingEntityId,
+        String scope,
         Set<Long> entiteIds,
         String contenu) {
 }

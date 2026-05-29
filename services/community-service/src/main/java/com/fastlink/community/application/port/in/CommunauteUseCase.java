@@ -11,6 +11,8 @@ public interface CommunauteUseCase {
 
     List<CommunauteResponse> listCommunautes();
 
+    List<CommunauteResponse> listCommunautesByEntite(Long entiteId);
+
     CommunauteResponse getCommunaute(Long communauteId);
 
     CommunauteResponse updateCommunaute(Long communauteId, UpdateCommunauteRequest request);

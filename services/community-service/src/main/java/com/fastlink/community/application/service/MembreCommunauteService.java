@@ -6,7 +6,9 @@ import com.fastlink.community.application.exception.ConflictException;
 import com.fastlink.community.application.exception.ForbiddenOperationException;
 import com.fastlink.community.application.exception.ResourceNotFoundException;
 import com.fastlink.community.application.port.in.MembreCommunauteUseCase;
+import com.fastlink.community.application.port.out.CommunityNotificationPort;
 import com.fastlink.community.application.port.out.CommunautePort;
+import com.fastlink.community.application.port.out.EntityMembershipLookupPort;
 import com.fastlink.community.application.port.out.EntityPermissionPort;
 import com.fastlink.community.application.port.out.MembreCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
@@ -25,14 +27,20 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
     private final CommunautePort communautePort;
     private final MembreCommunautePort membreCommunautePort;
     private final EntityPermissionPort entityPermissionPort;
+    private final EntityMembershipLookupPort entityMembershipLookupPort;
+    private final CommunityNotificationPort communityNotificationPort;
 
     public MembreCommunauteService(
             CommunautePort communautePort,
             MembreCommunautePort membreCommunautePort,
-            EntityPermissionPort entityPermissionPort) {
+            EntityPermissionPort entityPermissionPort,
+            EntityMembershipLookupPort entityMembershipLookupPort,
+            CommunityNotificationPort communityNotificationPort) {
         this.communautePort = communautePort;
         this.membreCommunautePort = membreCommunautePort;
         this.entityPermissionPort = entityPermissionPort;
+        this.entityMembershipLookupPort = entityMembershipLookupPort;
+        this.communityNotificationPort = communityNotificationPort;
     }
 
     @Override
@@ -41,7 +49,13 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
         entityPermissionPort.checkPermission(
                 request.acteurUtilisateurId(), communaute.getEntiteId(), ACTION_COMMUNITY_MANAGE);
         requireAdmin(communauteId, request.acteurUtilisateurId());
+        if (!entityMembershipLookupPort.isActiveMember(communaute.getEntiteId(), request.utilisateurId())) {
+            throw new ForbiddenOperationException("L'utilisateur cible n'est pas membre actif de cette entite");
+        }
 
+        boolean alreadyMember = membreCommunautePort
+                .findByCommunauteIdAndUtilisateurId(communauteId, request.utilisateurId())
+                .isPresent();
         MembreCommunaute membre = membreCommunautePort
                 .findByCommunauteIdAndUtilisateurId(communauteId, request.utilisateurId())
                 .map(existing -> {
@@ -51,6 +65,13 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
                 .orElseGet(() -> new MembreCommunaute(communaute, request.utilisateurId(), request.role()));
 
         MembreCommunaute saved = membreCommunautePort.save(membre);
+        if (!alreadyMember) {
+            communityNotificationPort.notifyMemberAdded(
+                    request.utilisateurId(),
+                    communaute.getId(),
+                    communaute.getNom(),
+                    communaute.getEntiteId());
+        }
         return toResponse(saved);
     }
 

@@ -43,7 +43,11 @@ export const hasEntityPermission = (
   }
 
   const permissions = user?.entityPermissions[String(resolvedEntityId)] ?? []
-  return permissions.some((item) => normalizeRole(item) === normalizeRole(permission))
+  if (permissions.some((item) => normalizeRole(item) === normalizeRole(permission))) {
+    return true
+  }
+
+  return hasEntityPermissionFromMembership(user, resolvedEntityId, permission)
 }
 
 export const hasAnyEntityPermission = (
@@ -55,10 +59,27 @@ export const hasAnyEntityPermission = (
   }
 
   const entries = Object.values(user?.entityPermissions ?? {})
-  return entries.some((permissions) =>
+  if (entries.some((permissions) =>
     permissions.some((item) => normalizeRole(item) === normalizeRole(permission)),
+  )) {
+    return true
+  }
+
+  return activeMemberships(user).some((membership) =>
+    membership.role === 'BUREAU_MEMBER' &&
+    ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE'].includes(normalizeRole(permission)),
   )
 }
+
+const hasEntityPermissionFromMembership = (
+  user: AuthUser | null | undefined,
+  entityId: number,
+  permission: string,
+): boolean => activeMemberships(user).some((membership) =>
+  membership.entityId === entityId &&
+  membership.role === 'BUREAU_MEMBER' &&
+  ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE'].includes(normalizeRole(permission)),
+)
 
 export const bureauEntityIds = (user: AuthUser | null | undefined): number[] =>
   activeMemberships(user)

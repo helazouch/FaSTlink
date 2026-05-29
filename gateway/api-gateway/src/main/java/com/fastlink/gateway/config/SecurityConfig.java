@@ -5,7 +5,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -51,12 +50,20 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST, "/api/v1/entities").access(adminOrCoordinator())
                         .pathMatchers(HttpMethod.PUT, "/api/v1/entities/*").access(adminOrCoordinator())
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/entities/*").access(adminOrCoordinator())
-                        .pathMatchers(HttpMethod.POST, "/api/v1/entities/*/members/**")
+                        .pathMatchers(HttpMethod.POST, "/api/v1/entities/*/members", "/api/v1/entities/*/members/**")
                         .access(entityPermission("ENTITY_MEMBER_MANAGE"))
                         .pathMatchers(HttpMethod.PATCH, "/api/v1/entities/*/members/**")
                         .access(entityPermission("ENTITY_MEMBER_MANAGE"))
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/entities/*/members/**")
                         .access(entityPermission("ENTITY_MEMBER_MANAGE"))
+                        .pathMatchers(HttpMethod.POST, "/api/v1/communities", "/api/v1/communities/**")
+                        .access(entityPermission("COMMUNITY_MANAGE"))
+                        .pathMatchers(HttpMethod.PUT, "/api/v1/communities/**")
+                        .access(entityPermission("COMMUNITY_MANAGE"))
+                        .pathMatchers(HttpMethod.PATCH, "/api/v1/communities/**")
+                        .access(entityPermission("COMMUNITY_MANAGE"))
+                        .pathMatchers(HttpMethod.DELETE, "/api/v1/communities/**")
+                        .access(entityPermission("COMMUNITY_MANAGE"))
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
                         .jwtAuthenticationConverter(jwtAuthenticationConverter)))
@@ -118,6 +125,15 @@ public class SecurityConfig {
     }
 
     private Long extractEntityId(ServerWebExchange exchange) {
+        String queryEntityId = exchange.getRequest().getQueryParams().getFirst("entityId");
+        if (queryEntityId != null) {
+            try {
+                return Long.parseLong(queryEntityId);
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+
         String queryEntiteId = exchange.getRequest().getQueryParams().getFirst("entiteId");
         if (queryEntiteId != null) {
             try {
@@ -127,19 +143,21 @@ public class SecurityConfig {
             }
         }
 
-        List<String> segments = exchange.getRequest().getPath().elements().stream()
-                .map(element -> element.value())
-                .collect(Collectors.toList());
-        for (int i = 0; i < segments.size(); i++) {
-            if ("entities".equals(segments.get(i)) && i + 1 < segments.size()) {
-                try {
-                    return Long.parseLong(segments.get(i + 1));
-                } catch (NumberFormatException ex) {
-                    return null;
-                }
+        String[] segments = exchange.getRequest().getPath().pathWithinApplication().value().split("/");
+        for (int i = 0; i < segments.length; i++) {
+            if ("entities".equals(segments[i]) && i + 1 < segments.length) {
+                return parseLongOrNull(segments[i + 1]);
             }
         }
         return null;
+    }
+
+    private Long parseLongOrNull(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private boolean hasCoordinatorMembership(Map<String, Object> claims) {
@@ -162,7 +180,7 @@ public class SecurityConfig {
     private boolean hasEntityPermission(Map<String, Object> claims, Long entityId, String permission) {
         Object permissions = claims.get("entityPermissions");
         if (!(permissions instanceof Map<?, ?> permissionsMap)) {
-            return false;
+            return hasPermissionFromMembershipRole(claims, entityId, permission);
         }
         Object entityPermissions = permissionsMap.get(entityId.toString());
         if (entityPermissions == null) {
@@ -171,6 +189,41 @@ public class SecurityConfig {
         if (entityPermissions instanceof Collection<?> collection) {
             return collection.stream().anyMatch(item -> permission.equals(item.toString()));
         }
+        return hasPermissionFromMembershipRole(claims, entityId, permission);
+    }
+
+    private boolean hasPermissionFromMembershipRole(Map<String, Object> claims, Long entityId, String permission) {
+        Object memberships = claims.get("entityMemberships");
+        if (!(memberships instanceof List<?> list)) {
+            return false;
+        }
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> membership && isMembershipForEntity(membership, entityId)) {
+                Object status = membership.get("status");
+                Object role = membership.get("role");
+                if (status != null && !"ACTIVE".equalsIgnoreCase(status.toString())) {
+                    continue;
+                }
+                if (role != null && roleAllowsPermission(role.toString(), permission)) {
+                    return true;
+                }
+            }
+        }
         return false;
+    }
+
+    private boolean isMembershipForEntity(Map<?, ?> membership, Long entityId) {
+        Object claimEntityId = membership.get("entityId");
+        if (claimEntityId == null) {
+            claimEntityId = membership.get("entiteId");
+        }
+        return claimEntityId != null && entityId.toString().equals(claimEntityId.toString());
+    }
+
+    private boolean roleAllowsPermission(String role, String permission) {
+        if (!"BUREAU_MEMBER".equals(role)) {
+            return false;
+        }
+        return "ENTITY_MEMBER_MANAGE".equals(permission) || "COMMUNITY_MANAGE".equals(permission);
     }
 }

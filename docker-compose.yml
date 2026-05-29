@@ -134,8 +134,11 @@ services:
       DB_PASSWORD: npg_fFWkqSbs53BU
       ENTITY_BASE_URL: http://entity-service:8081
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
+      NOTIFICATION_BASE_URL: http://notification-service:8087
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       PUBLICATION_TOPIC_CREATED: fastlink.publication.created.v1
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
     ports:
       - "8082:8082"
     networks:
@@ -177,6 +180,9 @@ services:
       DB_PASSWORD: npg_4m9cXlpZqEeU
       ENTITY_BASE_URL: http://entity-service:8081
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
+      NOTIFICATION_BASE_URL: http://notification-service:8087
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
       WEBSOCKET_ALLOWED_ORIGINS: "*"
     ports:
       - "8084:8084"
@@ -249,6 +255,7 @@ services:
       DB_PASSWORD: npg_Hp7oP9zrslfa
       ENTITY_BASE_URL: http://entity-service:8081
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
+      NOTIFICATION_BASE_URL: http://notification-service:8087
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_GROUP_ID: analytics-service
       PUBLICATION_TOPIC_CREATED: fastlink.publication.created.v1

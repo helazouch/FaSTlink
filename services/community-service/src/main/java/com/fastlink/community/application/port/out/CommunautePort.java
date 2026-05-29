@@ -12,6 +12,8 @@ public interface CommunautePort {
 
     List<Communaute> findAll();
 
+    List<Communaute> findByEntiteId(Long entiteId);
+
     boolean existsByNomIgnoreCase(String nom);
 
     boolean existsByNomIgnoreCaseAndIdNot(String nom, Long communauteId);

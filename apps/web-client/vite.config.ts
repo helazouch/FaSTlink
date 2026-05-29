@@ -18,6 +18,11 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      '/ws-notifications': {
+        target: 'http://localhost:8086',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 })

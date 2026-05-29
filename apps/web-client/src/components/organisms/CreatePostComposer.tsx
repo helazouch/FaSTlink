@@ -2,14 +2,16 @@ import { ImagePlus, X } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Avatar } from '../atoms/Avatar'
 import { PermissionAwareButton } from '../auth/PermissionAwareButton'
-import type { CreatePostInput, LocalMediaInput, UserSummary } from '../../types/social'
+import type { CreatePostInput, LocalMediaInput, PublicationScope, UserSummary } from '../../types/social'
 
 interface CreatePostComposerProps {
   currentUser: UserSummary
-  defaultCommunityId: number
-  entityName: string
+  publishingEntities: Array<{ id: number; name: string }>
+  allEntities: Array<{ id: number; name: string }>
   onSubmit: (input: CreatePostInput) => Promise<unknown>
   isSubmitting: boolean
+  errorMessage?: string | null
+  successMessage?: string | null
 }
 
 const createMediaId = (): string => {
@@ -22,29 +24,36 @@ const createMediaId = (): string => {
 
 export const CreatePostComposer = ({
   currentUser,
-  defaultCommunityId,
-  entityName,
+  publishingEntities,
+  allEntities,
   onSubmit,
   isSubmitting,
+  errorMessage,
+  successMessage,
 }: CreatePostComposerProps) => {
   const [content, setContent] = useState('')
   const [media, setMedia] = useState<LocalMediaInput[]>([])
+  const [publishingEntityId, setPublishingEntityId] = useState(publishingEntities[0]?.id ?? 0)
+  const [scope, setScope] = useState<PublicationScope>('MY_ENTITY')
+  const [selectedEntityIds, setSelectedEntityIds] = useState<number[]>([])
+  const [localError, setLocalError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const handleMediaChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleMediaChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files || files.length === 0) {
       return
     }
 
-    const nextMedia = Array.from(files).map((file) => ({
-      id: createMediaId(),
-      name: file.name,
-      mimeType: file.type,
-      previewUrl: URL.createObjectURL(file),
-    }))
+    try {
+      const nextMedia = await Promise.all(Array.from(files).map(readFileAsMedia))
+      setMedia((current) => [...current, ...nextMedia])
+      setLocalError(null)
+    } catch {
+      setLocalError('Media upload could not be prepared. Please choose a valid image file.')
+    }
 
-    setMedia((current) => [...current, ...nextMedia])
+    event.target.value = ''
   }
 
   const removeMedia = (id: string) => {
@@ -62,16 +71,29 @@ export const CreatePostComposer = ({
     event.preventDefault()
 
     const sanitized = content.trim()
-    if (!sanitized) {
+    const normalizedSelectedEntityIds = scope === 'SELECTED_ENTITIES' ? selectedEntityIds : []
+    if (!sanitized && media.length === 0) {
+      setLocalError('Write text or add media before publishing.')
+      return
+    }
+    if (!publishingEntityId) {
+      setLocalError('Choose the entity you want to publish as.')
+      return
+    }
+    if (scope === 'SELECTED_ENTITIES' && normalizedSelectedEntityIds.length === 0) {
+      setLocalError('Choose at least one target entity.')
       return
     }
 
     await onSubmit({
       content: sanitized,
-      communityId: defaultCommunityId,
-      entity: entityName,
+      communityId: publishingEntityId,
+      entity: publishingEntities.find((entity) => entity.id === publishingEntityId)?.name ?? `Entity ${publishingEntityId}`,
       author: currentUser,
       media,
+      publishingEntityId,
+      scope,
+      selectedEntityIds: normalizedSelectedEntityIds,
     })
 
     setContent('')
@@ -82,6 +104,15 @@ export const CreatePostComposer = ({
 
       return []
     })
+    setScope('MY_ENTITY')
+    setSelectedEntityIds([])
+    setLocalError(null)
+  }
+
+  const toggleTargetEntity = (entityId: number) => {
+    setSelectedEntityIds((current) =>
+      current.includes(entityId) ? current.filter((id) => id !== entityId) : [...current, entityId],
+    )
   }
 
   return (
@@ -116,6 +147,68 @@ export const CreatePostComposer = ({
         </div>
       ) : null}
 
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          Publish as
+          <select
+            value={publishingEntityId}
+            onChange={(event) => setPublishingEntityId(Number(event.target.value))}
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm normal-case tracking-normal text-slate-700 outline-none focus:border-brand"
+          >
+            {publishingEntities.map((entity) => (
+              <option key={entity.id} value={entity.id}>
+                {entity.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          Scope
+          <select
+            value={scope}
+            onChange={(event) => setScope(event.target.value as PublicationScope)}
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm normal-case tracking-normal text-slate-700 outline-none focus:border-brand"
+          >
+            <option value="MY_ENTITY">My entity</option>
+            <option value="ALL_ENTITIES">All entities</option>
+            <option value="ALL_USERS">All users</option>
+            <option value="SELECTED_ENTITIES">Selected entities</option>
+          </select>
+        </label>
+      </div>
+
+      {scope === 'SELECTED_ENTITIES' ? (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Target entities</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {allEntities.map((entity) => (
+              <label
+                key={entity.id}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedEntityIds.includes(entity.id)}
+                  onChange={() => toggleTargetEntity(entity.id)}
+                  className="h-4 w-4 accent-brand"
+                />
+                {entity.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {localError || errorMessage ? (
+        <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+          {localError ?? errorMessage}
+        </p>
+      ) : null}
+
+      {successMessage ? (
+        <p className="mt-3 rounded-xl bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">{successMessage}</p>
+      ) : null}
+
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
         <div>
           <input
@@ -136,11 +229,16 @@ export const CreatePostComposer = ({
           </button>
         </div>
 
-        <PermissionAwareButton
+          <PermissionAwareButton
           type="submit"
           permission="PUBLICATION_CREATE"
-          entityId={defaultCommunityId}
-          disabled={isSubmitting || content.trim().length === 0}
+          entityId={publishingEntityId}
+          disabled={
+            isSubmitting ||
+            (!content.trim() && media.length === 0) ||
+            !publishingEntityId ||
+            (scope === 'SELECTED_ENTITIES' && selectedEntityIds.length === 0)
+          }
           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Publishing...' : 'Post'}
@@ -149,3 +247,29 @@ export const CreatePostComposer = ({
     </form>
   )
 }
+
+const readFileAsMedia = (file: File): Promise<LocalMediaInput> =>
+  new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Unsupported media type'))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Unable to read media'))
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : ''
+      if (!dataUrl) {
+        reject(new Error('Unable to read media'))
+        return
+      }
+      resolve({
+        id: createMediaId(),
+        name: file.name,
+        mimeType: file.type,
+        previewUrl: dataUrl,
+        dataUrl,
+      })
+    }
+    reader.readAsDataURL(file)
+  })

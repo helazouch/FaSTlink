@@ -18,6 +18,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -90,11 +94,69 @@ public class PublicationController {
         return isBlank(value) ? null : value.trim();
     }
 
+    private Long resolveUserId(Jwt jwt) {
+        return Long.parseLong(jwt.getSubject());
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private java.util.Set<Long> activeEntityIds(Jwt jwt) {
+        Object memberships = jwt.getClaims().get("entityMemberships");
+        if (!(memberships instanceof java.util.List<?> list)) {
+            return java.util.Set.of();
+        }
+        java.util.Set<Long> entityIds = new java.util.HashSet<>();
+        for (Object item : list) {
+            if (item instanceof java.util.Map<?, ?> membership) {
+                Object status = membership.get("status");
+                if (status != null && !"ACTIVE".equalsIgnoreCase(status.toString())) {
+                    continue;
+                }
+                Object entityId = membership.get("entityId");
+                if (entityId == null) {
+                    entityId = membership.get("entiteId");
+                }
+                if (entityId != null) {
+                    try {
+                        entityIds.add(Long.parseLong(entityId.toString()));
+                    } catch (NumberFormatException ignored) {
+                        // Ignore malformed membership claims.
+                    }
+                }
+            }
+        }
+        return entityIds;
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<PublicationResponse> create(@Valid @RequestBody CreatePublicationRequest request) {
-        PublicationResponse created = publicationUseCase.createPublication(request);
+    public ResponseEntity<PublicationResponse> create(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody CreatePublicationRequest request) {
+        PublicationResponse created = publicationUseCase.createPublication(resolveUserId(jwt), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/feed")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Page<PublicationResponse>> feed(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        Pageable pageable = PageRequest.of(
+                sanitizePage(page),
+                sanitizeSize(size),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(publicationUseCase.feedForUser(
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt),
+                pageable));
     }
 
     @PostMapping("/{publicationId}/medias")

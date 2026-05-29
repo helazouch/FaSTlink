@@ -38,4 +38,9 @@ public class PublicationPersistenceAdapter implements PublicationPort {
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
         return publicationJpaRepository.searchPublications(entityId, authorId, normalizedSearch, pageable);
     }
+
+    @Override
+    public Page<Publication> findAll(Pageable pageable) {
+        return publicationJpaRepository.findAll(pageable);
+    }
 }

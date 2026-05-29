@@ -30,6 +30,7 @@ public class EntityPermissionClientAdapter implements EntityPermissionPort {
         if (isAdmin()) {
             return;
         }
+        assertEntityExists(entiteId);
 
         String uri = UriComponentsBuilder.fromHttpUrl(properties.getBaseUrl())
                 .path(properties.getPermissionCheckPath())
@@ -61,6 +62,26 @@ public class EntityPermissionClientAdapter implements EntityPermissionPort {
             throw new ForbiddenOperationException("Permission refusee sur l'entite " + entiteId);
         } catch (HttpClientErrorException ex) {
             throw new IntegrationException("Entity Service a refuse la verification de permission", ex);
+        } catch (RestClientException ex) {
+            throw new IntegrationException("Entity Service indisponible", ex);
+        }
+    }
+
+    @Override
+    public void assertEntityExists(Long entiteId) {
+        String uri = UriComponentsBuilder.fromHttpUrl(properties.getBaseUrl())
+                .path(properties.getPermissionCheckPath())
+                .queryParam("utilisateurId", 1)
+                .queryParam("action", "__EXISTS__")
+                .buildAndExpand(Map.of("entiteId", entiteId))
+                .toUriString();
+
+        try {
+            entityRestTemplate.getForEntity(uri, EntityPermissionResponse.class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new ResourceNotFoundException("Entite introuvable: " + entiteId);
+        } catch (HttpClientErrorException ex) {
+            throw new IntegrationException("Entity Service a refuse la verification de l'entite", ex);
         } catch (RestClientException ex) {
             throw new IntegrationException("Entity Service indisponible", ex);
         }

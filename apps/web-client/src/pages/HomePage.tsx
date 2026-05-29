@@ -4,9 +4,9 @@ import { CreatePostComposer } from '../components/organisms/CreatePostComposer'
 import { PostCard } from '../components/organisms/PostCard'
 import { useAddComment, useCreatePost, useInfiniteFeed, useToggleLike, useToggleSavedPost } from '../hooks/useFeed'
 import { useAuthStore } from '../stores/authStore'
-import { env } from '../config/env'
 import { useCurrentEntityContext } from '../hooks/useCurrentEntityContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { hydrateEntityDirectory, getEntityName } from '../services/referenceDataService'
 import type { UserSummary } from '../types/social'
 
 const toUserSummary = (
@@ -26,11 +26,36 @@ export const HomePage = () => {
   const addCommentMutation = useAddComment()
   const toggleSavedMutation = useToggleSavedPost()
   const permissions = usePermissions()
-  const { currentEntityId, currentMembership } = useCurrentEntityContext()
+  const { currentEntityId } = useCurrentEntityContext()
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const currentUser = useMemo(() => toUserSummary(user), [user])
+  const bureauPublishingEntities = useMemo(
+    () => {
+      const entities = permissions.memberships
+        .filter((membership) => membership.role === 'BUREAU_MEMBER')
+        .map((membership) => ({
+          id: membership.entityId,
+          name: membership.entityName ?? getEntityName(membership.entityId),
+        }))
+      return currentEntityId && entities.some((entity) => entity.id === currentEntityId)
+        ? [
+            ...entities.filter((entity) => entity.id === currentEntityId),
+            ...entities.filter((entity) => entity.id !== currentEntityId),
+          ]
+        : entities
+    },
+    [currentEntityId, permissions.memberships],
+  )
+  const allEntities = useMemo(
+    () =>
+      permissions.memberships.map((membership) => ({
+        id: membership.entityId,
+        name: membership.entityName ?? getEntityName(membership.entityId),
+      })),
+    [permissions.memberships],
+  )
 
   const posts = useMemo(
     () => feedQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -62,19 +87,25 @@ export const HomePage = () => {
     }
   }, [feedQuery])
 
+  useEffect(() => {
+    void hydrateEntityDirectory()
+  }, [])
+
   return (
     <div className="space-y-4">
-      {currentEntityId !== null && permissions.canPublishInEntity(currentEntityId) ? (
+      {bureauPublishingEntities.length > 0 ? (
         <CreatePostComposer
           currentUser={currentUser}
-          defaultCommunityId={currentEntityId || env.defaultCommunityId}
-          entityName={currentMembership?.entityName ?? `Entity ${currentEntityId}`}
+          publishingEntities={bureauPublishingEntities}
+          allEntities={allEntities.length > 0 ? allEntities : bureauPublishingEntities}
           onSubmit={(input) => createPostMutation.mutateAsync(input)}
           isSubmitting={createPostMutation.isPending}
+          errorMessage={createPostMutation.error instanceof Error ? createPostMutation.error.message : null}
+          successMessage={createPostMutation.isSuccess ? 'Post published.' : null}
         />
       ) : (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
-          Browse, react, and comment across your communities. Publishing tools appear only for entities where you are a bureau member.
+          You need a bureau role in an entity to publish.
         </section>
       )}
 

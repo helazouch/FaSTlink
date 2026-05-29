@@ -3,6 +3,7 @@ package com.fastlink.publication.infrastructure.persistence.adapter;
 import com.fastlink.publication.application.port.out.MediaPort;
 import com.fastlink.publication.domain.model.Media;
 import com.fastlink.publication.infrastructure.persistence.jpa.MediaJpaRepository;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,5 +18,10 @@ public class MediaPersistenceAdapter implements MediaPort {
     @Override
     public Media save(Media media) {
         return mediaJpaRepository.save(media);
+    }
+
+    @Override
+    public List<Media> findByPublicationId(Long publicationId) {
+        return mediaJpaRepository.findByPublication_IdOrderByCreatedAtAsc(publicationId);
     }
 }

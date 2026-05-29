@@ -51,6 +51,10 @@ integration:
     permission-check-path: ${ENTITY_PERMISSION_CHECK_PATH:/api/v1/internal/entities/{entiteId}/permissions/check}
     connect-timeout-ms: ${ENTITY_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${ENTITY_READ_TIMEOUT_MS:5000}
+  notification:
+    base-url: ${NOTIFICATION_BASE_URL:http://localhost:8087}
+    connect-timeout-ms: ${NOTIFICATION_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${NOTIFICATION_READ_TIMEOUT_MS:5000}
 
 security:
   jwt:

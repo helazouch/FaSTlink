@@ -29,6 +29,8 @@ public class PublicationKafkaProducerAdapter implements PublicationEventPort {
                 Instant.now(),
                 publication.getId(),
                 publication.getUtilisateurId(),
+                publication.getPublishingEntityId(),
+                publication.getScope() == null ? null : publication.getScope().name(),
                 new HashSet<>(publication.getEntiteIds()),
                 publication.getContenu());
 
