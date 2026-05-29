@@ -43,6 +43,7 @@ export const createNotificationSocket = (options: NotificationSocketOptions) => 
     onConnect: options.onConnect,
     onDisconnect: options.onDisconnect,
     onError: options.onError,
+    debugLabel: 'notifications-ws',
   })
 
   return {
@@ -54,26 +55,33 @@ export const createNotificationSocket = (options: NotificationSocketOptions) => 
           return
         }
 
+        console.info('[notifications-ws] subscription ready', options.topic)
+
         socket.subscribe(options.topic, (message) => {
+          console.info('[notifications-ws] received payload', message.body)
           try {
             const payload = JSON.parse(message.body) as NotificationRealtimeDto
-            options.onNotification({
+            const notification = {
               id: String(payload.notificationId ?? `ws-${Date.now()}`),
               kind: normalizeKind(payload.type),
               title: payload.titre ?? 'Notification',
               message: payload.contenu ?? '',
               createdAt: payload.createdAt ?? new Date().toISOString(),
               read: payload.lu ?? false,
-            })
+            }
+            options.onNotification(notification)
+            console.info('[notifications-ws] notification state update', notification)
           } catch {
-            options.onNotification({
+            const notification = {
               id: `ws-${Date.now()}`,
               kind: 'info',
               title: 'Realtime update',
               message: message.body,
               createdAt: new Date().toISOString(),
               read: false,
-            })
+            } satisfies NotificationItem
+            options.onNotification(notification)
+            console.info('[notifications-ws] notification state update', notification)
           }
         })
       }

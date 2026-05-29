@@ -7,6 +7,7 @@ import { EntityProvider } from '../context/EntityContext'
 import { PermissionProvider } from '../context/PermissionContext'
 import { useAuthStore } from '../stores/authStore'
 import { useNotificationStore } from '../stores/notificationStore'
+import type { NotificationItem } from '../types/social'
 
 interface AppRuntimeProviderProps {
   children: ReactNode
@@ -18,6 +19,7 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
   const bootstrap = useAuthStore((state) => state.bootstrap)
   const logout = useAuthStore((state) => state.logout)
   const prependNotification = useNotificationStore((state) => state.prependNotification)
+  const setNotifications = useNotificationStore((state) => state.setItems)
   const userId = user?.id ?? null
 
   useEffect(() => {
@@ -42,7 +44,9 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
     void queryClient.removeQueries({ queryKey: ['saved-publications'] })
     void queryClient.removeQueries({ queryKey: ['communities'] })
     void queryClient.removeQueries({ queryKey: ['events'] })
-  }, [userId])
+    void queryClient.removeQueries({ queryKey: ['notifications'] })
+    setNotifications([])
+  }, [setNotifications, userId])
 
   useEffect(() => {
     if (!env.enableWebsocket || status !== 'authenticated' || !user) {
@@ -52,10 +56,23 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
     const socket = createNotificationSocket({
       url: env.notificationWsUrl,
       topic: `${env.notificationTopicPrefix}/${user.id}/notifications`,
-      onNotification: prependNotification,
-      onConnect: () => undefined,
-      onDisconnect: () => undefined,
-      onError: () => undefined,
+      onNotification: (notification) => {
+        prependNotification(notification)
+        queryClient.setQueryData(
+          ['notifications', 'my', user.id],
+          (current: NotificationItem[] | undefined) => {
+            const items = current ?? []
+            return [notification, ...items.filter((item) => item.id !== notification.id)]
+          },
+        )
+        window.setTimeout(() => {
+          void queryClient.invalidateQueries({ queryKey: ['notifications', 'my', user.id] })
+        }, 1_000)
+        console.info('[notifications-ws] query cache updated', notification.id)
+      },
+      onConnect: () => console.info('[notifications-ws] frontend connected'),
+      onDisconnect: () => console.info('[notifications-ws] frontend disconnected'),
+      onError: (message) => console.error('[notifications-ws] frontend error', message),
     })
 
     socket.connect()

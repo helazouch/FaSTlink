@@ -6,6 +6,7 @@ interface SocketOptions {
   onConnect?: () => void
   onDisconnect?: () => void
   onError?: (message: string) => void
+  debugLabel?: string
 }
 
 export interface SocketHandle {
@@ -23,24 +24,41 @@ export const createStompSocket = (options: SocketOptions): SocketHandle => {
     reconnectDelay: 4_000,
     heartbeatIncoming: 5_000,
     heartbeatOutgoing: 5_000,
-    webSocketFactory: () => new SockJS(options.url, undefined, { withCredentials: false }),
-    debug: () => undefined,
+    webSocketFactory: () => new SockJS(options.url),
+    debug: (message) => {
+      if (options.debugLabel) {
+        console.debug(`[${options.debugLabel}] ${message}`)
+      }
+    },
   })
 
   client.onConnect = () => {
+    if (options.debugLabel) {
+      console.info(`[${options.debugLabel}] connected`)
+    }
     options.onConnect?.()
   }
 
   client.onWebSocketClose = () => {
+    if (options.debugLabel) {
+      console.info(`[${options.debugLabel}] disconnected`)
+    }
     options.onDisconnect?.()
   }
 
   client.onStompError = (frame) => {
-    options.onError?.(frame.headers.message ?? 'Realtime transport error')
+    const message = frame.headers.message ?? 'Realtime transport error'
+    if (options.debugLabel) {
+      console.error(`[${options.debugLabel}] stomp error`, message, frame.body)
+    }
+    options.onError?.(message)
   }
 
   return {
     connect: () => {
+      if (options.debugLabel) {
+        console.info(`[${options.debugLabel}] connecting`, options.url)
+      }
       client.activate()
     },
     disconnect: () => {
@@ -63,9 +81,15 @@ export const createStompSocket = (options: SocketOptions): SocketHandle => {
     },
     subscribe: (topic, onMessage) => {
       if (!client.connected) {
+        if (options.debugLabel) {
+          console.warn(`[${options.debugLabel}] subscribe skipped while disconnected`, topic)
+        }
         return () => {}
       }
 
+      if (options.debugLabel) {
+        console.info(`[${options.debugLabel}] subscribing`, topic)
+      }
       const subscription = client.subscribe(topic, onMessage)
       subscriptions.add(subscription)
 
