@@ -67,14 +67,42 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public List<CommunauteResponse> listVisibleCommunautes(Long utilisateurId, boolean admin) {
+        if (admin) {
+            return listCommunautes();
+        }
+        return communautePort.findVisibleToUtilisateurId(utilisateurId).stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<CommunauteResponse> listCommunautesByEntite(Long entiteId) {
         return communautePort.findByEntiteId(entiteId).stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
+    public List<CommunauteResponse> listCommunautesByEntite(Long entiteId, Long utilisateurId, boolean admin) {
+        if (!admin) {
+            entityPermissionPort.checkPermission(utilisateurId, entiteId, ACTION_COMMUNITY_MANAGE);
+        }
+        return listCommunautesByEntite(entiteId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CommunauteResponse getCommunaute(Long communauteId) {
         return toResponse(findCommunaute(communauteId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId, boolean admin) {
+        Communaute communaute = findCommunaute(communauteId);
+        if (!admin && !isVisibleToUtilisateur(communaute, utilisateurId)) {
+            throw new ForbiddenOperationException("Communaute non accessible pour cet utilisateur");
+        }
+        return toResponse(communaute);
     }
 
     @Override
@@ -115,6 +143,11 @@ public class CommunauteService implements CommunauteUseCase {
         if (membre.getRole() != MembreRole.ADMIN) {
             throw new ForbiddenOperationException("Action reservee aux admins de la communaute");
         }
+    }
+
+    private boolean isVisibleToUtilisateur(Communaute communaute, Long utilisateurId) {
+        return communaute.getCreateurUtilisateurId().equals(utilisateurId)
+                || membreCommunautePort.findByCommunauteIdAndUtilisateurId(communaute.getId(), utilisateurId).isPresent();
     }
 
     private CommunauteResponse toResponse(Communaute communaute) {

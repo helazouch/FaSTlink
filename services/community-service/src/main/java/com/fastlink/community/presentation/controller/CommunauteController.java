@@ -11,6 +11,10 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,19 +39,32 @@ public class CommunauteController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<CommunauteResponse>> list(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
             @RequestParam(required = false) @Positive Long entityId,
             @RequestParam(required = false) @Positive Long entiteId) {
         Long scopedEntityId = entityId != null ? entityId : entiteId;
         if (scopedEntityId != null) {
-            return ResponseEntity.ok(communauteUseCase.listCommunautesByEntite(scopedEntityId));
+            return ResponseEntity.ok(communauteUseCase.listCommunautesByEntite(
+                    scopedEntityId,
+                    resolveUserId(jwt),
+                    isAdmin(authentication)));
         }
-        return ResponseEntity.ok(communauteUseCase.listCommunautes());
+        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(resolveUserId(jwt), isAdmin(authentication)));
     }
 
     @GetMapping("/{communauteId}")
-    public ResponseEntity<CommunauteResponse> getById(@PathVariable Long communauteId) {
-        return ResponseEntity.ok(communauteUseCase.getCommunaute(communauteId));
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<CommunauteResponse> getById(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long communauteId) {
+        return ResponseEntity.ok(communauteUseCase.getVisibleCommunaute(
+                communauteId,
+                resolveUserId(jwt),
+                isAdmin(authentication)));
     }
 
     @PostMapping
@@ -72,5 +89,25 @@ public class CommunauteController {
             @PathVariable Long communauteId,
             @RequestParam @NotNull @Positive Long utilisateurId) {
         communauteUseCase.deleteCommunaute(communauteId, utilisateurId);
+    }
+
+    private Long resolveUserId(Jwt jwt) {
+        Object uid = jwt.getClaims().get("uid");
+        if (uid == null) {
+            uid = jwt.getClaims().get("userId");
+        }
+        if (uid == null) {
+            uid = jwt.getClaims().get("utilisateurId");
+        }
+        if (uid != null) {
+            return Long.parseLong(uid.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
     }
 }

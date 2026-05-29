@@ -14,12 +14,14 @@ import com.fastlink.publication.application.port.out.EntityPermissionPort;
 import com.fastlink.publication.application.port.out.MediaPort;
 import com.fastlink.publication.application.port.out.PublicationPort;
 import com.fastlink.publication.application.port.out.ReactionPort;
+import com.fastlink.publication.application.port.out.SavedPublicationPort;
 import com.fastlink.publication.domain.model.Commentaire;
 import com.fastlink.publication.domain.model.Media;
 import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.domain.model.PublicationScope;
 import com.fastlink.publication.domain.model.Reaction;
 import com.fastlink.publication.domain.model.ReactionType;
+import com.fastlink.publication.domain.model.SavedPublication;
 import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class InteractionService implements InteractionUseCase {
     private final MediaPort mediaPort;
     private final CommentairePort commentairePort;
     private final ReactionPort reactionPort;
+    private final SavedPublicationPort savedPublicationPort;
     private final EntityPermissionPort entityPermissionPort;
 
     public InteractionService(
@@ -42,11 +45,13 @@ public class InteractionService implements InteractionUseCase {
             MediaPort mediaPort,
             CommentairePort commentairePort,
             ReactionPort reactionPort,
+            SavedPublicationPort savedPublicationPort,
             EntityPermissionPort entityPermissionPort) {
         this.publicationPort = publicationPort;
         this.mediaPort = mediaPort;
         this.commentairePort = commentairePort;
         this.reactionPort = reactionPort;
+        this.savedPublicationPort = savedPublicationPort;
         this.entityPermissionPort = entityPermissionPort;
     }
 
@@ -138,6 +143,31 @@ public class InteractionService implements InteractionUseCase {
         checkVisiblePublication(publication, admin, activeEntityIds);
         reactionPort.findByPublicationIdAndUtilisateurIdAndType(publicationId, authenticatedUserId, type)
                 .ifPresent(reactionPort::delete);
+    }
+
+    @Override
+    public void savePublication(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds) {
+        Publication publication = findPublication(publicationId);
+        checkVisiblePublication(publication, admin, activeEntityIds);
+
+        savedPublicationPort.findByPublicationIdAndUtilisateurId(publicationId, authenticatedUserId)
+                .orElseGet(() -> savedPublicationPort.save(new SavedPublication(publication, authenticatedUserId)));
+    }
+
+    @Override
+    public void unsavePublication(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds) {
+        Publication publication = findPublication(publicationId);
+        checkVisiblePublication(publication, admin, activeEntityIds);
+        savedPublicationPort.findByPublicationIdAndUtilisateurId(publicationId, authenticatedUserId)
+                .ifPresent(savedPublicationPort::delete);
     }
 
     private Publication findPublication(Long publicationId) {

@@ -249,4 +249,32 @@ public class PublicationController {
                 type);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{publicationId}/save")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> savePublication(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long publicationId) {
+        interactionUseCase.savePublication(
+                publicationId,
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{publicationId}/save")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> unsavePublication(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long publicationId) {
+        interactionUseCase.unsavePublication(
+                publicationId,
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt));
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -3,7 +3,7 @@ import { Button } from '../components/atoms/Button'
 import { useSuggestedCommunities } from '../hooks/useSocial'
 
 export const CommunitiesPage = () => {
-  const { data: communities = [], isLoading } = useSuggestedCommunities()
+  const { data: communities = [], isError, isLoading, refetch } = useSuggestedCommunities()
 
   return (
     <div className="space-y-4">
@@ -17,6 +17,21 @@ export const CommunitiesPage = () => {
       {isLoading ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
           Loading communities...
+        </div>
+      ) : null}
+
+      {isError ? (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+          Communities could not be loaded.
+          <button type="button" className="ml-2 font-semibold underline" onClick={() => void refetch()}>
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {!isLoading && !isError && communities.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          No communities are available for your account yet.
         </div>
       ) : null}
 

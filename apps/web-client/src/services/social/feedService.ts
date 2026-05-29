@@ -23,10 +23,12 @@ interface FeedPostDto {
   likesCount?: number
   commentCount?: number
   commentsCount?: number
+  savedCount?: number
   shareCount?: number
   likedByMe?: boolean
   likedByCurrentUser?: boolean
   savedByMe?: boolean
+  savedByCurrentUser?: boolean
 }
 
 interface MediaDto {
@@ -54,7 +56,9 @@ interface PublicationResponseDto {
   media?: MediaDto[]
   likesCount?: number
   commentsCount?: number
+  savedCount?: number
   likedByCurrentUser?: boolean
+  savedByCurrentUser?: boolean
   createdAt?: string
 }
 
@@ -127,9 +131,10 @@ const mapPost = (payload: FeedPostDto): FeedPost => ({
   createdAt: payload.createdAt ?? new Date().toISOString(),
   likeCount: payload.likesCount ?? payload.likeCount ?? 0,
   commentCount: payload.commentsCount ?? payload.commentCount ?? 0,
+  savedCount: payload.savedCount ?? 0,
   shareCount: payload.shareCount ?? 0,
   likedByMe: Boolean(payload.likedByCurrentUser ?? payload.likedByMe),
-  savedByMe: Boolean(payload.savedByMe),
+  savedByMe: Boolean(payload.savedByCurrentUser ?? payload.savedByMe),
   comments: [],
 })
 
@@ -216,9 +221,10 @@ export const createPost = async (input: CreatePostInput): Promise<FeedPost> => {
     createdAt: publicationResponse.data.createdAt ?? new Date().toISOString(),
     likeCount: publicationResponse.data.likesCount ?? 0,
     commentCount: publicationResponse.data.commentsCount ?? 0,
+    savedCount: publicationResponse.data.savedCount ?? 0,
     shareCount: 0,
     likedByMe: Boolean(publicationResponse.data.likedByCurrentUser),
-    savedByMe: false,
+    savedByMe: Boolean(publicationResponse.data.savedByCurrentUser),
     comments: [],
   }
 }
@@ -260,7 +266,18 @@ export const addComment = async (input: CreateCommentInput): Promise<CommentItem
   return toComment(response.data)
 }
 
-export const toggleSavedPost = (post: FeedPost): FeedPost => ({
-  ...post,
-  savedByMe: !post.savedByMe,
-})
+export const toggleSavedPost = async (post: FeedPost): Promise<FeedPost> => {
+  const shouldSave = !post.savedByMe
+
+  if (shouldSave) {
+    await httpClient.post(`/v1/publications/${post.id}/save`)
+  } else {
+    await httpClient.delete(`/v1/publications/${post.id}/save`)
+  }
+
+  return {
+    ...post,
+    savedByMe: shouldSave,
+    savedCount: shouldSave ? post.savedCount + 1 : Math.max(post.savedCount - 1, 0),
+  }
+}

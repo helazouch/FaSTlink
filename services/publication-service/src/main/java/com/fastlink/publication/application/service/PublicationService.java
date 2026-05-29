@@ -13,6 +13,7 @@ import com.fastlink.publication.application.port.out.PublicationNotificationPort
 import com.fastlink.publication.application.port.out.PublicationPort;
 import com.fastlink.publication.application.port.out.PublicationRecipientPort;
 import com.fastlink.publication.application.port.out.ReactionPort;
+import com.fastlink.publication.application.port.out.SavedPublicationPort;
 import com.fastlink.publication.domain.model.Media;
 import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.domain.model.PublicationScope;
@@ -37,6 +38,7 @@ public class PublicationService implements PublicationUseCase {
     private final EntityPermissionPort entityPermissionPort;
     private final CommentairePort commentairePort;
     private final ReactionPort reactionPort;
+    private final SavedPublicationPort savedPublicationPort;
     private final PublicationEventPort publicationEventPort;
     private final PublicationRecipientPort publicationRecipientPort;
     private final PublicationNotificationPort publicationNotificationPort;
@@ -47,6 +49,7 @@ public class PublicationService implements PublicationUseCase {
             EntityPermissionPort entityPermissionPort,
             CommentairePort commentairePort,
             ReactionPort reactionPort,
+            SavedPublicationPort savedPublicationPort,
             PublicationEventPort publicationEventPort,
             PublicationRecipientPort publicationRecipientPort,
             PublicationNotificationPort publicationNotificationPort) {
@@ -55,6 +58,7 @@ public class PublicationService implements PublicationUseCase {
         this.entityPermissionPort = entityPermissionPort;
         this.commentairePort = commentairePort;
         this.reactionPort = reactionPort;
+        this.savedPublicationPort = savedPublicationPort;
         this.publicationEventPort = publicationEventPort;
         this.publicationRecipientPort = publicationRecipientPort;
         this.publicationNotificationPort = publicationNotificationPort;
@@ -139,10 +143,14 @@ public class PublicationService implements PublicationUseCase {
                         .toList(),
                 reactionPort.countByPublicationIdAndType(publicationId, ReactionType.LIKE),
                 commentairePort.countByPublicationId(publicationId),
+                savedPublicationPort.countByPublicationId(publicationId),
                 currentUserId != null && reactionPort.existsByPublicationIdAndUtilisateurIdAndType(
                         publicationId,
                         currentUserId,
                         ReactionType.LIKE),
+                currentUserId != null && savedPublicationPort.existsByPublicationIdAndUtilisateurId(
+                        publicationId,
+                        currentUserId),
                 publication.getCreatedAt(),
                 publication.getUpdatedAt());
     }

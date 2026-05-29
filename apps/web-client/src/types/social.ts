@@ -38,6 +38,7 @@ export interface FeedPost {
   createdAt: string
   likeCount: number
   commentCount: number
+  savedCount: number
   shareCount: number
   likedByMe: boolean
   savedByMe: boolean

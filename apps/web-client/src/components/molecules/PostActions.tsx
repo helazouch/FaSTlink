@@ -7,6 +7,7 @@ interface PostActionsProps {
   saved: boolean
   likeCount: number
   commentCount: number
+  savedCount: number
   shareCount: number
   onToggleLike: () => void
   onToggleComments: () => void
@@ -43,6 +44,7 @@ export const PostActions = ({
   saved,
   likeCount,
   commentCount,
+  savedCount,
   shareCount,
   onToggleLike,
   onToggleComments,
@@ -68,7 +70,7 @@ export const PostActions = ({
     />
     <ActionButton
       active={saved}
-      label="Save"
+      label={`Save (${savedCount})`}
       onClick={onToggleSaved}
       icon={<Bookmark size={16} className={saved ? 'fill-current' : ''} />}
     />

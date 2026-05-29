@@ -8,26 +8,33 @@ import { useAuthStore } from '../stores/authStore'
 import type { SubmitRequestInput, UpdateParticipationInput } from '../types/social'
 
 const queryKeys = {
-  communities: ['communities', 'suggested'] as const,
-  communityById: (communityId: number) => ['communities', communityId] as const,
+  communities: (userId?: number) => ['communities', 'suggested', userId ?? null] as const,
+  communityById: (communityId: number, userId?: number) => ['communities', communityId, userId ?? null] as const,
   events: ['events', 'upcoming'] as const,
   requestEntities: ['requests', 'entities'] as const,
   requests: ['requests', 'my'] as const,
   profile: ['profile', 'me'] as const,
 }
 
-export const useSuggestedCommunities = () =>
-  useQuery({
-    queryKey: queryKeys.communities,
-    queryFn: getSuggestedCommunities,
-  })
+export const useSuggestedCommunities = () => {
+  const userId = useAuthStore((state) => state.user?.id)
 
-export const useCommunity = (communityId: number) =>
-  useQuery({
-    queryKey: queryKeys.communityById(communityId),
-    queryFn: () => getCommunityById(communityId),
-    enabled: Number.isFinite(communityId),
+  return useQuery({
+    queryKey: queryKeys.communities(userId),
+    queryFn: getSuggestedCommunities,
+    enabled: Boolean(userId),
   })
+}
+
+export const useCommunity = (communityId: number) => {
+  const userId = useAuthStore((state) => state.user?.id)
+
+  return useQuery({
+    queryKey: queryKeys.communityById(communityId, userId),
+    queryFn: () => getCommunityById(communityId),
+    enabled: Number.isFinite(communityId) && Boolean(userId),
+  })
+}
 
 export const useEvents = () =>
   useQuery({

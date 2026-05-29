@@ -15,7 +15,9 @@ public record PublicationResponse(
         List<PublicationMediaResponse> media,
         long likesCount,
         long commentsCount,
+        long savedCount,
         boolean likedByCurrentUser,
+        boolean savedByCurrentUser,
         Instant createdAt,
         Instant updatedAt) {
 }

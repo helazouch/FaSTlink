@@ -32,6 +32,11 @@ public class CommunautePersistenceAdapter implements CommunautePort {
     }
 
     @Override
+    public List<Communaute> findVisibleToUtilisateurId(Long utilisateurId) {
+        return communauteJpaRepository.findVisibleToUtilisateurIdOrderByCreatedAtDesc(utilisateurId);
+    }
+
+    @Override
     public List<Communaute> findByEntiteId(Long entiteId) {
         return communauteJpaRepository.findByEntiteIdOrderByCreatedAtDesc(entiteId);
     }

@@ -18,17 +18,23 @@ export const RightSidebar = () => {
           Suggested communities
         </h3>
         <div className="mt-3 space-y-3">
-          {communities.slice(0, 3).map((community) => (
-            <Link
-              to={`/communities/${community.id}`}
-              key={community.id}
-              className="block rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-brand/25"
-            >
-              <p className="font-semibold text-slate-800">{community.name}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-slate-500">{community.description}</p>
-              <p className="mt-2 text-xs font-medium text-brand">{community.members.toLocaleString()} members</p>
-            </Link>
-          ))}
+          {communities.length > 0 ? (
+            communities.slice(0, 3).map((community) => (
+              <Link
+                to={`/communities/${community.id}`}
+                key={community.id}
+                className="block rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-brand/25"
+              >
+                <p className="font-semibold text-slate-800">{community.name}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-slate-500">{community.description}</p>
+                <p className="mt-2 text-xs font-medium text-brand">{community.members.toLocaleString()} members</p>
+              </Link>
+            ))
+          ) : (
+            <p className="rounded-xl bg-slate-50/70 p-3 text-xs text-slate-500">
+              No communities available yet.
+            </p>
+          )}
         </div>
       </section>
 

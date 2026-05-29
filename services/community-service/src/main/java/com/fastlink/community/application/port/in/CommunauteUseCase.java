@@ -11,9 +11,15 @@ public interface CommunauteUseCase {
 
     List<CommunauteResponse> listCommunautes();
 
+    List<CommunauteResponse> listVisibleCommunautes(Long utilisateurId, boolean admin);
+
     List<CommunauteResponse> listCommunautesByEntite(Long entiteId);
 
+    List<CommunauteResponse> listCommunautesByEntite(Long entiteId, Long utilisateurId, boolean admin);
+
     CommunauteResponse getCommunaute(Long communauteId);
+
+    CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId, boolean admin);
 
     CommunauteResponse updateCommunaute(Long communauteId, UpdateCommunauteRequest request);
 

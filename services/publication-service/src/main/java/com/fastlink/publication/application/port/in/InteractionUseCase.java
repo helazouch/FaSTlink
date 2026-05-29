@@ -39,4 +39,16 @@ public interface InteractionUseCase {
             boolean admin,
             Set<Long> activeEntityIds,
             ReactionType type);
+
+    void savePublication(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds);
+
+    void unsavePublication(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds);
 }

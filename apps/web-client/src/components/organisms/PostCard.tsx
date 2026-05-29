@@ -70,6 +70,7 @@ export const PostCard = ({
         saved={post.savedByMe}
         likeCount={post.likeCount}
         commentCount={post.commentCount}
+        savedCount={post.savedCount}
         shareCount={post.shareCount}
         onToggleLike={() => onToggleLike(post.id)}
         onToggleComments={() => toggleComments(post.id)}
