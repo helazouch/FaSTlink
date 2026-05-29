@@ -62,6 +62,7 @@ interface BureauEventManagementProps {
 export const BureauEventManagement = ({ entityId, actorUserId, permission }: BureauEventManagementProps) => {
   const queryClient = useQueryClient()
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [dateError, setDateError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<EventItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<EventItem | null>(null)
@@ -171,6 +172,7 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
     setCategory('')
     setScope('MY_ENTITY')
     setSelectedEntityIds([])
+    setDateError(null)
   }
 
   const openEdit = (event: EventItem) => {
@@ -185,6 +187,28 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
     setCategory(event.category ?? '')
     setScope((event.scope as EventScope) ?? 'MY_ENTITY')
     setSelectedEntityIds(event.entiteIds ?? [])
+    setDateError(null)
+  }
+
+  const validateDates = (nextStartsAt: string, nextEndsAt: string) => {
+    if (!nextStartsAt || !nextEndsAt) {
+      setDateError(null)
+      return
+    }
+
+    const start = new Date(nextStartsAt).getTime()
+    const end = new Date(nextEndsAt).getTime()
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      setDateError('Invalid date format.')
+      return
+    }
+
+    if (end <= start) {
+      setDateError('End date must be after the start date.')
+      return
+    }
+
+    setDateError(null)
   }
 
   const toggleTargetEntity = (entityIdToToggle: number) => {
@@ -309,7 +333,11 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
                   type="datetime-local"
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm normal-case"
                   value={startsAt}
-                  onChange={(event) => setStartsAt(event.target.value)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    setStartsAt(nextValue)
+                    validateDates(nextValue, endsAt)
+                  }}
                 />
               </label>
               <label className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
@@ -318,10 +346,17 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
                   type="datetime-local"
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm normal-case"
                   value={endsAt}
-                  onChange={(event) => setEndsAt(event.target.value)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    setEndsAt(nextValue)
+                    validateDates(startsAt, nextValue)
+                  }}
                 />
               </label>
             </div>
+            {dateError ? (
+              <p className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{dateError}</p>
+            ) : null}
             <input
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               placeholder="Image / banner URL"
@@ -348,6 +383,7 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
               Scope
               <select
                 value={scope}
+                disabled={Boolean(editTarget)}
                 onChange={(event) => {
                   const nextScope = event.target.value as PublicationScope
                   setScope(nextScope)
@@ -390,6 +426,7 @@ export const BureauEventManagement = ({ entityId, actorUserId, permission }: Bur
                 !title.trim() ||
                 !startsAt ||
                 !endsAt ||
+                Boolean(dateError) ||
                 (scope === 'SELECTED_ENTITIES' && selectedEntityIds.length === 0) ||
                 createMutation.isPending ||
                 updateMutation.isPending

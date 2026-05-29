@@ -27,7 +27,10 @@ const asNumber = (value: string | undefined, defaultValue: number): number => {
 export const env = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? '/api',
   communityWsUrl: import.meta.env.VITE_WS_COMMUNITY_URL ?? import.meta.env.VITE_WS_URL ?? '/ws-community',
-  notificationWsUrl: import.meta.env.VITE_WS_NOTIFICATION_URL ?? '/ws-notifications',
+  notificationWsUrl:
+    import.meta.env.VITE_WS_NOTIFICATION_URL ??
+    import.meta.env.VITE_WS_URL ??
+    'http://localhost:8086/ws-notifications',
   chatTopicPrefix: import.meta.env.VITE_CHAT_TOPIC_PREFIX ?? '/topic/communities',
   chatDestination: import.meta.env.VITE_CHAT_DESTINATION ?? '/app/communities/{communityId}/send',
   notificationTopicPrefix:
