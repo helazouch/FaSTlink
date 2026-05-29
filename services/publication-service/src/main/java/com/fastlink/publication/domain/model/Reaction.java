@@ -18,7 +18,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 @Entity
-@Table(name = "reactions", uniqueConstraints = @UniqueConstraint(columnNames = { "publication_id", "utilisateur_id" }))
+@Table(name = "reactions", uniqueConstraints = @UniqueConstraint(columnNames = { "publication_id", "utilisateur_id", "type" }))
 public class Reaction {
 
     @Id

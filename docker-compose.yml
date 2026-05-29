@@ -163,6 +163,8 @@ services:
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       EVENT_TOPIC_CREATED: fastlink.event.created.v1
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
     ports:
       - "8083:8083"
     networks:
@@ -210,6 +212,8 @@ services:
       REQUEST_TOPIC_SUBMITTED: fastlink.request.submitted.v1
       REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
       REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
     ports:
       - "8085:8085"
     networks:
@@ -264,6 +268,8 @@ services:
       REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
       REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
       ENTITY_TOPIC_MEMBER_ASSIGNED: fastlink.entity.member.assigned.v1
+      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+      JWT_ISSUER: fast-link-identity
     ports:
       - "8088:8088"
     networks:

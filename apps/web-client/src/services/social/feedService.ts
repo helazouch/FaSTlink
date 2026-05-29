@@ -22,9 +22,12 @@ interface FeedPostDto {
   media?: MediaDto[]
   createdAt?: string
   likeCount?: number
+  likesCount?: number
   commentCount?: number
+  commentsCount?: number
   shareCount?: number
   likedByMe?: boolean
+  likedByCurrentUser?: boolean
   savedByMe?: boolean
 }
 
@@ -53,6 +56,9 @@ interface PublicationResponseDto {
   scope?: string
   entiteIds: number[]
   media?: MediaDto[]
+  likesCount?: number
+  commentsCount?: number
+  likedByCurrentUser?: boolean
   createdAt?: string
 }
 
@@ -68,6 +74,16 @@ let feedCache: FeedPost[] = mockFeedPosts.map((item) => ({
   comments: [...item.comments],
   media: [...item.media],
 }))
+let feedCacheUserId: number | null = null
+
+export const resetFeedCache = (): void => {
+  feedCache = mockFeedPosts.map((item) => ({
+    ...item,
+    comments: [...item.comments],
+    media: [...item.media],
+  }))
+  feedCacheUserId = null
+}
 
 const createId = (prefix: string): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -125,10 +141,10 @@ const mapPost = (payload: FeedPostDto): FeedPost => ({
   content: payload.content ?? payload.contenu ?? '',
   media: toMedia(payload.media),
   createdAt: payload.createdAt ?? new Date().toISOString(),
-  likeCount: payload.likeCount ?? 0,
-  commentCount: payload.commentCount ?? 0,
+  likeCount: payload.likesCount ?? payload.likeCount ?? 0,
+  commentCount: payload.commentsCount ?? payload.commentCount ?? 0,
   shareCount: payload.shareCount ?? 0,
-  likedByMe: Boolean(payload.likedByMe),
+  likedByMe: Boolean(payload.likedByCurrentUser ?? payload.likedByMe),
   savedByMe: Boolean(payload.savedByMe),
   comments: [],
 })
@@ -208,9 +224,14 @@ export const getFeedPage = async (
   limit: number,
   communityId: number | null,
   searchQuery: string,
+  userId: number | null,
 ): Promise<FeedPage> =>
   withFallback(
     async () => {
+      if (feedCacheUserId !== userId) {
+        resetFeedCache()
+        feedCacheUserId = userId
+      }
       const pageNumber = cursor ? Number(cursor) : 0
       const response = await httpClient.get<FeedPageDto | FeedPostDto[]>('/v1/publications/feed', {
         params: {
@@ -282,92 +303,58 @@ export const createPost = async (input: CreatePostInput): Promise<FeedPost> => {
       return post
 }
 
-export const toggleLike = async (postId: string, userId: number): Promise<FeedPost> =>
-  withFallback(
-    async () => {
-      const currentPost = feedCache.find((item) => item.id === postId)
-      if (!currentPost) {
-        throw new Error('Post not found')
-      }
+export const toggleLike = async (postId: string): Promise<FeedPost> => {
+  const currentPost = feedCache.find((item) => item.id === postId)
+  if (!currentPost) {
+    throw new Error('Post not found')
+  }
 
-      const shouldLike = !currentPost.likedByMe
+  const shouldLike = !currentPost.likedByMe
 
-      if (shouldLike) {
-        await httpClient.post(`/v1/publications/${postId}/reactions`, {
-          utilisateurId: userId,
-          type: 'LIKE',
-        })
-      }
+  if (shouldLike) {
+    await httpClient.post(`/v1/publications/${postId}/reactions`, {
+      type: 'LIKE',
+    })
+  } else {
+    await httpClient.delete(`/v1/publications/${postId}/reactions/LIKE`)
+  }
 
-      return updateFeedPost(postId, (post) => ({
-        ...post,
-        likedByMe: shouldLike,
-        likeCount: shouldLike ? post.likeCount + 1 : Math.max(post.likeCount - 1, 0),
-      }))
+  return updateFeedPost(postId, (post) => ({
+    ...post,
+    likedByMe: shouldLike,
+    likeCount: shouldLike ? post.likeCount + 1 : Math.max(post.likeCount - 1, 0),
+  }))
+}
+
+export const addComment = async (input: CreateCommentInput): Promise<FeedPost> => {
+  const response = await httpClient.post<CommentaireResponseDto>(
+    `/v1/publications/${input.postId}/commentaires`,
+    {
+      contenu: input.content,
     },
-    () =>
-      updateFeedPost(postId, (post) => {
-        const likedByMe = !post.likedByMe
-
-        return {
-          ...post,
-          likedByMe,
-          likeCount: likedByMe ? post.likeCount + 1 : Math.max(post.likeCount - 1, 0),
-        }
-      }),
   )
 
-export const addComment = async (input: CreateCommentInput, userId: number): Promise<FeedPost> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.post<CommentaireResponseDto>(
-        `/v1/publications/${input.postId}/commentaires`,
-        {
-          utilisateurId: userId,
-          contenu: input.content,
+  return updateFeedPost(input.postId, (post) => {
+    const nextComments = [
+      ...post.comments,
+      {
+        id: String(response.data.id),
+        author: {
+          ...input.author,
+          id: response.data.utilisateurId,
         },
-      )
+        content: response.data.contenu,
+        createdAt: response.data.createdAt ?? new Date().toISOString(),
+      },
+    ]
 
-      return updateFeedPost(input.postId, (post) => {
-        const nextComments = [
-          ...post.comments,
-          {
-            id: String(response.data.id),
-            author: {
-              ...input.author,
-              id: response.data.utilisateurId,
-            },
-            content: response.data.contenu,
-            createdAt: response.data.createdAt ?? new Date().toISOString(),
-          },
-        ]
-
-        return {
-          ...post,
-          comments: nextComments,
-          commentCount: nextComments.length,
-        }
-      })
-    },
-    () =>
-      updateFeedPost(input.postId, (post) => {
-        const nextComments = [
-          ...post.comments,
-          {
-            id: createId('comment'),
-            author: input.author,
-            content: input.content,
-            createdAt: new Date().toISOString(),
-          },
-        ]
-
-        return {
-          ...post,
-          comments: nextComments,
-          commentCount: nextComments.length,
-        }
-      }),
-  )
+    return {
+      ...post,
+      comments: nextComments,
+      commentCount: nextComments.length,
+    }
+  })
+}
 
 export const toggleSavedPost = (postId: string): FeedPost | null => {
   let updated: FeedPost | null = null

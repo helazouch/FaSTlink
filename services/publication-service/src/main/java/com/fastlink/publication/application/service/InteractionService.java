@@ -6,6 +6,7 @@ import com.fastlink.publication.application.dto.media.AddMediaRequest;
 import com.fastlink.publication.application.dto.media.MediaResponse;
 import com.fastlink.publication.application.dto.reaction.AddReactionRequest;
 import com.fastlink.publication.application.dto.reaction.ReactionResponse;
+import com.fastlink.publication.application.exception.ForbiddenOperationException;
 import com.fastlink.publication.application.exception.ResourceNotFoundException;
 import com.fastlink.publication.application.port.in.InteractionUseCase;
 import com.fastlink.publication.application.port.out.CommentairePort;
@@ -16,7 +17,10 @@ import com.fastlink.publication.application.port.out.ReactionPort;
 import com.fastlink.publication.domain.model.Commentaire;
 import com.fastlink.publication.domain.model.Media;
 import com.fastlink.publication.domain.model.Publication;
+import com.fastlink.publication.domain.model.PublicationScope;
 import com.fastlink.publication.domain.model.Reaction;
+import com.fastlink.publication.domain.model.ReactionType;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class InteractionService implements InteractionUseCase {
 
     private static final String ACTION_ADD_MEDIA = "PUBLICATION_MEDIA_ADD";
-    private static final String ACTION_ADD_COMMENT = "PUBLICATION_COMMENT_ADD";
-    private static final String ACTION_ADD_REACTION = "PUBLICATION_REACTION_ADD";
 
     private final PublicationPort publicationPort;
     private final MediaPort mediaPort;
@@ -64,13 +66,18 @@ public class InteractionService implements InteractionUseCase {
     }
 
     @Override
-    public CommentaireResponse addCommentaire(Long publicationId, AddCommentaireRequest request) {
+    public CommentaireResponse addCommentaire(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds,
+            AddCommentaireRequest request) {
         Publication publication = findPublication(publicationId);
-        checkPermissionForPublication(request.utilisateurId(), publication, ACTION_ADD_COMMENT);
+        checkVisiblePublication(publication, admin, activeEntityIds);
 
         Commentaire commentaire = new Commentaire(
                 publication,
-                request.utilisateurId(),
+                authenticatedUserId,
                 normalizeText(request.contenu()));
 
         Commentaire saved = commentairePort.save(commentaire);
@@ -85,16 +92,24 @@ public class InteractionService implements InteractionUseCase {
     }
 
     @Override
-    public ReactionResponse addReaction(Long publicationId, AddReactionRequest request) {
+    public ReactionResponse addReaction(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds,
+            AddReactionRequest request) {
         Publication publication = findPublication(publicationId);
-        checkPermissionForPublication(request.utilisateurId(), publication, ACTION_ADD_REACTION);
+        checkVisiblePublication(publication, admin, activeEntityIds);
 
-        Reaction reaction = reactionPort.findByPublicationIdAndUtilisateurId(publicationId, request.utilisateurId())
+        Reaction reaction = reactionPort.findByPublicationIdAndUtilisateurIdAndType(
+                        publicationId,
+                        authenticatedUserId,
+                        request.type())
                 .map(existing -> {
                     existing.setType(request.type());
                     return existing;
                 })
-                .orElseGet(() -> new Reaction(publication, request.utilisateurId(), request.type()));
+                .orElseGet(() -> new Reaction(publication, authenticatedUserId, request.type()));
 
         Reaction saved = reactionPort.save(reaction);
 
@@ -107,6 +122,19 @@ public class InteractionService implements InteractionUseCase {
                 saved.getUpdatedAt());
     }
 
+    @Override
+    public void removeReaction(
+            Long publicationId,
+            Long authenticatedUserId,
+            boolean admin,
+            Set<Long> activeEntityIds,
+            ReactionType type) {
+        Publication publication = findPublication(publicationId);
+        checkVisiblePublication(publication, admin, activeEntityIds);
+        reactionPort.findByPublicationIdAndUtilisateurIdAndType(publicationId, authenticatedUserId, type)
+                .ifPresent(reactionPort::delete);
+    }
+
     private Publication findPublication(Long publicationId) {
         return publicationPort.findById(publicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Publication introuvable: " + publicationId));
@@ -116,6 +144,26 @@ public class InteractionService implements InteractionUseCase {
         for (Long entiteId : publication.getEntiteIds()) {
             entityPermissionPort.checkPermission(utilisateurId, entiteId, action);
         }
+    }
+
+    private void checkVisiblePublication(Publication publication, boolean admin, Set<Long> activeEntityIds) {
+        if (admin || isVisibleToUser(publication, activeEntityIds)) {
+            return;
+        }
+        throw new ForbiddenOperationException("Publication non accessible pour cet utilisateur");
+    }
+
+    private boolean isVisibleToUser(Publication publication, Set<Long> activeEntityIds) {
+        PublicationScope scope = publication.getScope() == null ? PublicationScope.MY_ENTITY : publication.getScope();
+        Set<Long> entityIds = activeEntityIds == null ? Set.of() : activeEntityIds;
+        return switch (scope) {
+            case ALL_USERS -> true;
+            case ALL_ENTITIES -> !entityIds.isEmpty();
+            case MY_ENTITY -> publication.getPublishingEntityId() != null
+                    ? entityIds.contains(publication.getPublishingEntityId())
+                    : publication.getEntiteIds().stream().anyMatch(entityIds::contains);
+            case SELECTED_ENTITIES -> publication.getEntiteIds().stream().anyMatch(entityIds::contains);
+        };
     }
 
     private String normalizeText(String value) {

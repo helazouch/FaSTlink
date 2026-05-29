@@ -10,6 +10,7 @@ import com.fastlink.publication.application.dto.reaction.AddReactionRequest;
 import com.fastlink.publication.application.dto.reaction.ReactionResponse;
 import com.fastlink.publication.application.port.in.InteractionUseCase;
 import com.fastlink.publication.application.port.in.PublicationUseCase;
+import com.fastlink.publication.domain.model.ReactionType;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +24,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -95,6 +97,16 @@ public class PublicationController {
     }
 
     private Long resolveUserId(Jwt jwt) {
+        Object uid = jwt.getClaims().get("uid");
+        if (uid == null) {
+            uid = jwt.getClaims().get("userId");
+        }
+        if (uid == null) {
+            uid = jwt.getClaims().get("utilisateurId");
+        }
+        if (uid != null) {
+            return Long.parseLong(uid.toString());
+        }
         return Long.parseLong(jwt.getSubject());
     }
 
@@ -171,18 +183,48 @@ public class PublicationController {
     @PostMapping("/{publicationId}/commentaires")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<CommentaireResponse> addCommentaire(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
             @PathVariable Long publicationId,
             @Valid @RequestBody AddCommentaireRequest request) {
-        CommentaireResponse created = interactionUseCase.addCommentaire(publicationId, request);
+        CommentaireResponse created = interactionUseCase.addCommentaire(
+                publicationId,
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt),
+                request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PostMapping("/{publicationId}/reactions")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ReactionResponse> addReaction(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
             @PathVariable Long publicationId,
             @Valid @RequestBody AddReactionRequest request) {
-        ReactionResponse created = interactionUseCase.addReaction(publicationId, request);
+        ReactionResponse created = interactionUseCase.addReaction(
+                publicationId,
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt),
+                request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @DeleteMapping("/{publicationId}/reactions/{type}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> removeReaction(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long publicationId,
+            @PathVariable ReactionType type) {
+        interactionUseCase.removeReaction(
+                publicationId,
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt),
+                type);
+        return ResponseEntity.noContent().build();
     }
 }

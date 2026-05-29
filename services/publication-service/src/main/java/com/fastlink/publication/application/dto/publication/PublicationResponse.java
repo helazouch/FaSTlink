@@ -13,6 +13,9 @@ public record PublicationResponse(
         PublicationScope scope,
         Set<Long> entiteIds,
         List<PublicationMediaResponse> media,
+        long likesCount,
+        long commentsCount,
+        boolean likedByCurrentUser,
         Instant createdAt,
         Instant updatedAt) {
 }

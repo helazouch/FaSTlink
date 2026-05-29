@@ -1,6 +1,5 @@
 import { Bookmark, Heart, MessageCircle, Share2 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { PermissionAwareButton } from '../auth/PermissionAwareButton'
 import { cn } from '../../lib/cn'
 
 interface PostActionsProps {
@@ -9,7 +8,6 @@ interface PostActionsProps {
   likeCount: number
   commentCount: number
   shareCount: number
-  entityId: number
   onToggleLike: () => void
   onToggleComments: () => void
   onShare: () => void
@@ -21,19 +19,14 @@ const ActionButton = ({
   label,
   onClick,
   icon,
-  entityId,
-  permission,
 }: {
   active?: boolean
   label: string
   onClick: () => void
   icon: ReactNode
-  entityId?: number
-  permission?: string
 }) => (
-  <PermissionAwareButton
-    permission={permission}
-    entityId={entityId}
+  <button
+    type="button"
     onClick={onClick}
     className={cn(
       'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition',
@@ -42,7 +35,7 @@ const ActionButton = ({
   >
     {icon}
     <span>{label}</span>
-  </PermissionAwareButton>
+  </button>
 )
 
 export const PostActions = ({
@@ -51,7 +44,6 @@ export const PostActions = ({
   likeCount,
   commentCount,
   shareCount,
-  entityId,
   onToggleLike,
   onToggleComments,
   onShare,
@@ -62,15 +54,11 @@ export const PostActions = ({
       active={liked}
       label={`Like (${likeCount})`}
     onClick={onToggleLike}
-    entityId={entityId}
-    permission="PUBLICATION_REACTION_ADD"
     icon={<Heart size={16} className={liked ? 'fill-current' : ''} />}
   />
     <ActionButton
     label={`Comment (${commentCount})`}
     onClick={onToggleComments}
-    entityId={entityId}
-    permission="PUBLICATION_COMMENT_ADD"
     icon={<MessageCircle size={16} />}
   />
     <ActionButton

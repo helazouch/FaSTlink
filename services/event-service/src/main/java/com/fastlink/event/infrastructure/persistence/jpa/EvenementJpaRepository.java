@@ -16,19 +16,22 @@ public interface EvenementJpaRepository extends JpaRepository<Evenement, Long> {
     @Query("""
             select e
             from Evenement e
-            where (:entityId is null or e.entiteId = :entityId)
-              and (:search is null
-                or lower(e.titre) like lower(concat('%', :search, '%'))
-                or lower(coalesce(e.description, '')) like lower(concat('%', :search, '%')))
-              and (:status is null
+            where (:hasEntityFilter = false or e.entiteId = :entityId)
+              and (:hasSearch = false
+                or lower(e.titre) like :searchPattern
+                or lower(coalesce(e.description, '')) like :searchPattern)
+              and (:hasStatus = false
                 or (:status = 'UPCOMING' and e.debutAt > :now)
                 or (:status = 'ONGOING' and e.debutAt <= :now and e.finAt >= :now)
                 or (:status = 'CLOSED' and e.finAt < :now))
             """)
     Page<Evenement> searchEvenements(
+            @Param("hasEntityFilter") boolean hasEntityFilter,
             @Param("entityId") Long entityId,
+            @Param("hasStatus") boolean hasStatus,
             @Param("status") String status,
-            @Param("search") String search,
+            @Param("hasSearch") boolean hasSearch,
+            @Param("searchPattern") String searchPattern,
             @Param("now") Instant now,
             Pageable pageable);
 }

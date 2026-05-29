@@ -5,15 +5,18 @@ import com.fastlink.publication.application.dto.publication.PublicationMediaResp
 import com.fastlink.publication.application.dto.publication.PublicationResponse;
 import com.fastlink.publication.application.exception.ForbiddenOperationException;
 import com.fastlink.publication.application.port.in.PublicationUseCase;
+import com.fastlink.publication.application.port.out.CommentairePort;
 import com.fastlink.publication.application.port.out.EntityPermissionPort;
 import com.fastlink.publication.application.port.out.MediaPort;
 import com.fastlink.publication.application.port.out.PublicationEventPort;
 import com.fastlink.publication.application.port.out.PublicationNotificationPort;
 import com.fastlink.publication.application.port.out.PublicationPort;
 import com.fastlink.publication.application.port.out.PublicationRecipientPort;
+import com.fastlink.publication.application.port.out.ReactionPort;
 import com.fastlink.publication.domain.model.Media;
 import com.fastlink.publication.domain.model.Publication;
 import com.fastlink.publication.domain.model.PublicationScope;
+import com.fastlink.publication.domain.model.ReactionType;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +35,8 @@ public class PublicationService implements PublicationUseCase {
     private final PublicationPort publicationPort;
     private final MediaPort mediaPort;
     private final EntityPermissionPort entityPermissionPort;
+    private final CommentairePort commentairePort;
+    private final ReactionPort reactionPort;
     private final PublicationEventPort publicationEventPort;
     private final PublicationRecipientPort publicationRecipientPort;
     private final PublicationNotificationPort publicationNotificationPort;
@@ -40,12 +45,16 @@ public class PublicationService implements PublicationUseCase {
             PublicationPort publicationPort,
             MediaPort mediaPort,
             EntityPermissionPort entityPermissionPort,
+            CommentairePort commentairePort,
+            ReactionPort reactionPort,
             PublicationEventPort publicationEventPort,
             PublicationRecipientPort publicationRecipientPort,
             PublicationNotificationPort publicationNotificationPort) {
         this.publicationPort = publicationPort;
         this.mediaPort = mediaPort;
         this.entityPermissionPort = entityPermissionPort;
+        this.commentairePort = commentairePort;
+        this.reactionPort = reactionPort;
         this.publicationEventPort = publicationEventPort;
         this.publicationRecipientPort = publicationRecipientPort;
         this.publicationNotificationPort = publicationNotificationPort;
@@ -89,19 +98,20 @@ public class PublicationService implements PublicationUseCase {
         publicationEventPort.publishPublicationCreated(saved);
         publicationNotificationPort.notifyPublicationCreated(saved, resolveRecipients(saved));
 
-        return toResponse(saved);
+        return toResponse(saved, authenticatedUserId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PublicationResponse> listPublications() {
-        return publicationPort.findAll().stream().map(this::toResponse).toList();
+        return publicationPort.findAll().stream().map(publication -> toResponse(publication, null)).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<PublicationResponse> searchPublications(Long entityId, Long authorId, String search, Pageable pageable) {
-        return publicationPort.search(entityId, authorId, search, pageable).map(this::toResponse);
+        return publicationPort.search(entityId, authorId, search, pageable)
+                .map(publication -> toResponse(publication, null));
     }
 
     @Override
@@ -110,22 +120,29 @@ public class PublicationService implements PublicationUseCase {
         Page<Publication> page = publicationPort.findAll(pageable);
         List<PublicationResponse> visible = page.getContent().stream()
                 .filter(publication -> isVisibleToUser(publication, admin, activeEntityIds))
-                .map(this::toResponse)
+                .map(publication -> toResponse(publication, userId))
                 .toList();
         return new PageImpl<>(visible, pageable, page.getTotalElements());
     }
 
-    private PublicationResponse toResponse(Publication publication) {
+    private PublicationResponse toResponse(Publication publication, Long currentUserId) {
+        Long publicationId = publication.getId();
         return new PublicationResponse(
-                publication.getId(),
+                publicationId,
                 publication.getUtilisateurId(),
                 publication.getContenu(),
                 publication.getPublishingEntityId(),
                 publication.getScope(),
                 publication.getEntiteIds(),
-                mediaPort.findByPublicationId(publication.getId()).stream()
+                mediaPort.findByPublicationId(publicationId).stream()
                         .map(media -> new PublicationMediaResponse(media.getId(), media.getUrl(), media.getType()))
                         .toList(),
+                reactionPort.countByPublicationIdAndType(publicationId, ReactionType.LIKE),
+                commentairePort.countByPublicationId(publicationId),
+                currentUserId != null && reactionPort.existsByPublicationIdAndUtilisateurIdAndType(
+                        publicationId,
+                        currentUserId,
+                        ReactionType.LIKE),
                 publication.getCreatedAt(),
                 publication.getUpdatedAt());
     }

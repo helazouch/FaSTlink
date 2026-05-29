@@ -18,4 +18,9 @@ public class CommentairePersistenceAdapter implements CommentairePort {
     public Commentaire save(Commentaire commentaire) {
         return commentaireJpaRepository.save(commentaire);
     }
+
+    @Override
+    public long countByPublicationId(Long publicationId) {
+        return commentaireJpaRepository.countByPublication_Id(publicationId);
+    }
 }
