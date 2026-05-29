@@ -13,7 +13,10 @@ export const EventParticipationCard = ({
   event,
   onUpdateParticipation,
 }: EventParticipationCardProps) => {
-  const occupancy = Math.round((event.attendees / event.capacity) * 100)
+  const isFull = event.capacity > 0 && event.attendees >= event.capacity
+  const participationLabel = event.participation ?? 'no response'
+  const occupancy =
+    event.capacity > 0 ? Math.round((event.attendees / event.capacity) * 100) : 0
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -23,7 +26,7 @@ export const EventParticipationCard = ({
           <p className="mt-1 text-sm text-slate-500">{event.communityName}</p>
         </div>
         <Badge tone={event.participation === 'going' ? 'success' : 'neutral'}>
-          {event.participation}
+          {participationLabel}
         </Badge>
       </div>
 
@@ -37,20 +40,25 @@ export const EventParticipationCard = ({
       <div className="mt-3">
         <p className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
           <Users size={13} />
-          {event.attendees} / {event.capacity} attendees
+          {event.attendees} going
+          {event.capacity > 0 ? ` / ${event.capacity} capacity` : ''}
+          {(event.interestedCount ?? 0) > 0 ? ` · ${event.interestedCount} interested` : ''}
         </p>
-        <div className="mt-2 h-2 rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-brand to-brand-700"
-            style={{ width: `${Math.min(occupancy, 100)}%` }}
-          />
-        </div>
+        {event.capacity > 0 ? (
+          <div className="mt-2 h-2 rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand to-brand-700"
+              style={{ width: `${Math.min(occupancy, 100)}%` }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
           size="sm"
           variant={event.participation === 'going' ? 'primary' : 'secondary'}
+          disabled={isFull && event.participation !== 'going'}
           onClick={() => onUpdateParticipation(event.id, 'going')}
         >
           Going

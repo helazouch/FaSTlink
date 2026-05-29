@@ -15,6 +15,8 @@ public interface EvenementPort {
 
     List<Evenement> findAll();
 
+    List<Evenement> findByEntiteId(Long entiteId);
+
     Page<Evenement> search(Long entityId, String status, String search, Instant now, Pageable pageable);
 
     void delete(Evenement evenement);

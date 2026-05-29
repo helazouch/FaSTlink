@@ -41,6 +41,7 @@ export const AppRuntimeProvider = ({ children }: AppRuntimeProviderProps) => {
     void queryClient.removeQueries({ queryKey: ['social-feed'] })
     void queryClient.removeQueries({ queryKey: ['saved-publications'] })
     void queryClient.removeQueries({ queryKey: ['communities'] })
+    void queryClient.removeQueries({ queryKey: ['events'] })
   }, [userId])
 
   useEffect(() => {

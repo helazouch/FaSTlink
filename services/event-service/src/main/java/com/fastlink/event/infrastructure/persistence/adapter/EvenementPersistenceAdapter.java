@@ -35,6 +35,11 @@ public class EvenementPersistenceAdapter implements EvenementPort {
     }
 
     @Override
+    public List<Evenement> findByEntiteId(Long entiteId) {
+        return evenementJpaRepository.findByEntiteIdOrderByDebutAtDesc(entiteId);
+    }
+
+    @Override
     public Page<Evenement> search(Long entityId, String status, String search, Instant now, Pageable pageable) {
         String normalizedStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase();
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();

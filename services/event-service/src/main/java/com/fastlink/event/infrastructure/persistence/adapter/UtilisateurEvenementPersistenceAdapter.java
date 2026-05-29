@@ -1,6 +1,7 @@
 package com.fastlink.event.infrastructure.persistence.adapter;
 
 import com.fastlink.event.application.port.out.UtilisateurEvenementPort;
+import com.fastlink.event.domain.model.ParticipationStatus;
 import com.fastlink.event.domain.model.UtilisateurEvenement;
 import com.fastlink.event.infrastructure.persistence.jpa.UtilisateurEvenementJpaRepository;
 import java.util.Optional;
@@ -18,6 +19,11 @@ public class UtilisateurEvenementPersistenceAdapter implements UtilisateurEvenem
     @Override
     public Optional<UtilisateurEvenement> findByEvenementIdAndUtilisateurId(Long evenementId, Long utilisateurId) {
         return utilisateurEvenementJpaRepository.findByEvenement_IdAndUtilisateurId(evenementId, utilisateurId);
+    }
+
+    @Override
+    public long countByEvenementIdAndStatut(Long evenementId, ParticipationStatus statut) {
+        return utilisateurEvenementJpaRepository.countByEvenement_IdAndStatut(evenementId, statut);
     }
 
     @Override

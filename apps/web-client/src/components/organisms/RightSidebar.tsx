@@ -12,7 +12,12 @@ export const RightSidebar = () => {
     isLoading: communitiesLoading,
     refetch: refetchCommunities,
   } = useSuggestedCommunities()
-  const { data: events = [] } = useEvents()
+  const {
+    data: events = [],
+    isError: eventsError,
+    isLoading: eventsLoading,
+    refetch: refetchEvents,
+  } = useEvents()
   const activeUsers = mockUsers.filter((item) => item.online)
 
   return (
@@ -68,17 +73,30 @@ export const RightSidebar = () => {
           Upcoming events
         </h3>
         <div className="mt-3 space-y-3">
-          {events.slice(0, 3).map((event) => (
-            <Link
-              to={`/events/${event.id}`}
-              key={event.id}
-              className="block rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-brand/25"
-            >
-              <p className="font-semibold text-slate-800">{event.title}</p>
-              <p className="mt-1 text-xs text-slate-500">{event.communityName}</p>
-              <p className="mt-2 text-xs font-medium text-brand">{formatDateTime(event.startsAt)}</p>
-            </Link>
-          ))}
+          {eventsLoading ? (
+            <p className="rounded-xl bg-slate-50/70 p-3 text-xs text-slate-500">Loading events...</p>
+          ) : eventsError ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">
+              Unable to load events.
+              <button type="button" className="mt-2 block font-semibold underline" onClick={() => void refetchEvents()}>
+                Retry
+              </button>
+            </div>
+          ) : events.length > 0 ? (
+            events.slice(0, 3).map((event) => (
+              <Link
+                to={`/events/${event.id}`}
+                key={event.id}
+                className="block rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-brand/25"
+              >
+                <p className="font-semibold text-slate-800">{event.title}</p>
+                <p className="mt-1 text-xs text-slate-500">{event.communityName}</p>
+                <p className="mt-2 text-xs font-medium text-brand">{formatDateTime(event.startsAt)}</p>
+              </Link>
+            ))
+          ) : (
+            <p className="rounded-xl bg-slate-50/70 p-3 text-xs text-slate-500">No upcoming events for you.</p>
+          )}
         </div>
       </section>
 

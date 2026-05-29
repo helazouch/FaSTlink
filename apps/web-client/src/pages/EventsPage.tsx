@@ -1,10 +1,8 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { PermissionAwareButton } from '../components/auth/PermissionAwareButton'
 import { EventParticipationCard } from '../components/organisms/EventParticipationCard'
 import { EmptyState } from '../components/role/EmptyState'
 import { useEvents, useUpdateParticipation } from '../hooks/useSocial'
-import { useCurrentEntityContext } from '../hooks/useCurrentEntityContext'
 import { CalendarPlus } from 'lucide-react'
 
 export const EventsPage = () => {
@@ -12,10 +10,8 @@ export const EventsPage = () => {
   const params = useParams<{ eventId: string }>()
   const selectedEventId = Number(params.eventId)
 
-  const { data: events = [], isLoading } = useEvents()
+  const { data: events = [], isError, isLoading, refetch } = useEvents()
   const updateParticipationMutation = useUpdateParticipation()
-  const { currentEntityId } = useCurrentEntityContext()
-
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId),
     [events, selectedEventId],
@@ -31,14 +27,6 @@ export const EventsPage = () => {
               Discover upcoming events and confirm your participation in one click.
             </p>
           </div>
-          <PermissionAwareButton
-            permission="EVENT_CREATE"
-            entityId={currentEntityId}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
-          >
-            <CalendarPlus size={16} />
-            Create event
-          </PermissionAwareButton>
         </div>
       </section>
 
@@ -56,8 +44,17 @@ export const EventsPage = () => {
         </div>
       ) : null}
 
+      {isError ? (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+          Events could not be loaded.
+          <button type="button" className="ml-2 font-semibold underline" onClick={() => void refetch()}>
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       <section className="grid gap-3">
-        {events.length > 0 ? events.map((event) => (
+        {!isLoading && !isError && events.length > 0 ? events.map((event) => (
           <div key={event.id} className="space-y-2">
             <button
               onClick={() => navigate(`/events/${event.id}`)}
@@ -72,13 +69,13 @@ export const EventsPage = () => {
               }}
             />
           </div>
-        )) : (
+        )) : !isLoading && !isError ? (
           <EmptyState
             icon={CalendarPlus}
             title="No events yet"
-            description="Events you can consult will appear here. Bureau creation controls only show in eligible entity contexts."
+            description="Events visible to you will appear here."
           />
-        )}
+        ) : null}
       </section>
     </div>
   )

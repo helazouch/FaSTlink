@@ -4,15 +4,18 @@ import com.fastlink.event.application.dto.feedback.FeedbackResponse;
 import com.fastlink.event.application.dto.feedback.SubmitFeedbackRequest;
 import com.fastlink.event.application.dto.participation.ParticipationResponse;
 import com.fastlink.event.application.dto.participation.SetParticipationRequest;
+import com.fastlink.event.application.exception.ConflictException;
+import com.fastlink.event.application.exception.ForbiddenOperationException;
 import com.fastlink.event.application.exception.ResourceNotFoundException;
 import com.fastlink.event.application.port.in.EvenementInteractionUseCase;
-import com.fastlink.event.application.port.out.EntityPermissionPort;
 import com.fastlink.event.application.port.out.EvenementPort;
 import com.fastlink.event.application.port.out.FeedbackEvenementPort;
 import com.fastlink.event.application.port.out.UtilisateurEvenementPort;
 import com.fastlink.event.domain.model.Evenement;
+import com.fastlink.event.domain.model.EventScope;
 import com.fastlink.event.domain.model.FeedbackEvenement;
 import com.fastlink.event.domain.model.UtilisateurEvenement;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,30 +23,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class EvenementInteractionService implements EvenementInteractionUseCase {
 
-    private static final String ACTION_EVENT_PARTICIPATE = "EVENT_PARTICIPATE";
-    private static final String ACTION_EVENT_FEEDBACK = "EVENT_FEEDBACK";
-
     private final EvenementPort evenementPort;
     private final UtilisateurEvenementPort utilisateurEvenementPort;
     private final FeedbackEvenementPort feedbackEvenementPort;
-    private final EntityPermissionPort entityPermissionPort;
 
     public EvenementInteractionService(
             EvenementPort evenementPort,
             UtilisateurEvenementPort utilisateurEvenementPort,
-            FeedbackEvenementPort feedbackEvenementPort,
-            EntityPermissionPort entityPermissionPort) {
+            FeedbackEvenementPort feedbackEvenementPort) {
         this.evenementPort = evenementPort;
         this.utilisateurEvenementPort = utilisateurEvenementPort;
         this.feedbackEvenementPort = feedbackEvenementPort;
-        this.entityPermissionPort = entityPermissionPort;
     }
 
     @Override
-    public ParticipationResponse setParticipation(Long evenementId, SetParticipationRequest request) {
+    public ParticipationResponse setParticipation(
+            Long evenementId,
+            SetParticipationRequest request,
+            boolean admin,
+            Set<Long> activeEntityIds) {
         Evenement evenement = findEvenement(evenementId);
-        entityPermissionPort.checkPermission(request.utilisateurId(), evenement.getEntiteId(),
-                ACTION_EVENT_PARTICIPATE);
+        checkVisibleEvenement(evenement, admin, activeEntityIds);
+
+        enforceCapacity(evenement, request.utilisateurId(), request.statut());
 
         UtilisateurEvenement participation = utilisateurEvenementPort
                 .findByEvenementIdAndUtilisateurId(evenementId, request.utilisateurId())
@@ -64,10 +66,40 @@ public class EvenementInteractionService implements EvenementInteractionUseCase 
                 saved.getUpdatedAt());
     }
 
+    private void enforceCapacity(Evenement evenement, Long utilisateurId,
+            com.fastlink.event.domain.model.ParticipationStatus statut) {
+        if (statut != com.fastlink.event.domain.model.ParticipationStatus.GOING) {
+            return;
+        }
+
+        Integer capacity = evenement.getCapacity();
+        if (capacity == null || capacity <= 0) {
+            return;
+        }
+
+        long goingCount = utilisateurEvenementPort.countByEvenementIdAndStatut(
+                evenement.getId(),
+                com.fastlink.event.domain.model.ParticipationStatus.GOING);
+
+        boolean alreadyGoing = utilisateurEvenementPort
+                .findByEvenementIdAndUtilisateurId(evenement.getId(), utilisateurId)
+                .map(participation -> participation
+                        .getStatut() == com.fastlink.event.domain.model.ParticipationStatus.GOING)
+                .orElse(false);
+
+        if (!alreadyGoing && goingCount >= capacity) {
+            throw new ConflictException("Capacite atteinte pour cet evenement");
+        }
+    }
+
     @Override
-    public FeedbackResponse submitFeedback(Long evenementId, SubmitFeedbackRequest request) {
+    public FeedbackResponse submitFeedback(
+            Long evenementId,
+            SubmitFeedbackRequest request,
+            boolean admin,
+            Set<Long> activeEntityIds) {
         Evenement evenement = findEvenement(evenementId);
-        entityPermissionPort.checkPermission(request.utilisateurId(), evenement.getEntiteId(), ACTION_EVENT_FEEDBACK);
+        checkVisibleEvenement(evenement, admin, activeEntityIds);
 
         FeedbackEvenement feedback = feedbackEvenementPort
                 .findByEvenementIdAndUtilisateurId(evenementId, request.utilisateurId())
@@ -92,6 +124,23 @@ public class EvenementInteractionService implements EvenementInteractionUseCase 
                 saved.getCommentaire(),
                 saved.getCreatedAt(),
                 saved.getUpdatedAt());
+    }
+
+    private void checkVisibleEvenement(Evenement evenement, boolean admin, Set<Long> activeEntityIds) {
+        if (admin) {
+            return;
+        }
+        EventScope scope = evenement.getScope() == null ? EventScope.MY_ENTITY : evenement.getScope();
+        boolean visible = switch (scope) {
+            case ALL_USERS -> true;
+            case ALL_ENTITIES -> activeEntityIds != null && !activeEntityIds.isEmpty();
+            case MY_ENTITY -> activeEntityIds != null && activeEntityIds.contains(evenement.getEntiteId());
+            case SELECTED_ENTITIES -> activeEntityIds != null
+                    && evenement.getEntiteIds().stream().anyMatch(activeEntityIds::contains);
+        };
+        if (!visible) {
+            throw new ForbiddenOperationException("Evenement non accessible pour cet utilisateur");
+        }
     }
 
     private Evenement findEvenement(Long evenementId) {

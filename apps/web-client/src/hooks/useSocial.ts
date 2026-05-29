@@ -10,7 +10,7 @@ import type { SubmitRequestInput, UpdateParticipationInput } from '../types/soci
 const queryKeys = {
   communities: (userId?: number) => ['communities', 'suggested', userId ?? null] as const,
   communityById: (communityId: number, userId?: number) => ['communities', communityId, userId ?? null] as const,
-  events: ['events', 'upcoming'] as const,
+  events: (userId?: number) => ['events', 'upcoming', userId ?? null] as const,
   requestEntities: ['requests', 'entities'] as const,
   requests: ['requests', 'my'] as const,
   profile: ['profile', 'me'] as const,
@@ -36,11 +36,15 @@ export const useCommunity = (communityId: number) => {
   })
 }
 
-export const useEvents = () =>
-  useQuery({
-    queryKey: queryKeys.events,
+export const useEvents = () => {
+  const userId = useAuthStore((state) => state.user?.id)
+
+  return useQuery({
+    queryKey: queryKeys.events(userId),
     queryFn: getUpcomingEvents,
+    enabled: Boolean(userId),
   })
+}
 
 export const useRequestEntities = () =>
   {
@@ -72,7 +76,7 @@ export const useUpdateParticipation = () => {
       return updateEventParticipation(input, userId)
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.events })
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
     },
   })
 }

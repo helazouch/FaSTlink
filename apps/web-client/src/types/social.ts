@@ -88,9 +88,14 @@ export interface EventItem {
   endsAt: string
   capacity: number
   attendees: number
+  interestedCount?: number
   communityId: number
   communityName: string
-  participation: EventParticipation
+  scope?: PublicationScope
+  entiteIds?: number[]
+  imageUrl?: string
+  category?: string
+  participation: EventParticipation | null
 }
 
 export interface ServiceRequest {

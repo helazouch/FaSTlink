@@ -13,6 +13,8 @@ public interface EvenementJpaRepository extends JpaRepository<Evenement, Long> {
 
     List<Evenement> findAllByOrderByDebutAtAsc();
 
+    List<Evenement> findByEntiteIdOrderByDebutAtDesc(Long entiteId);
+
     @Query("""
             select e
             from Evenement e

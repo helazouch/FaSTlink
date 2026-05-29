@@ -4,13 +4,11 @@ import {
   BarChart3,
   CalendarPlus,
   Check,
-  Edit3,
   EyeOff,
   Loader2,
   Megaphone,
   MessageSquare,
   RefreshCw,
-  Trash2,
   UserPlus,
   Users,
   X,
@@ -24,11 +22,10 @@ import { MetricCard } from '../components/role/MetricCard'
 import { RolePanel } from '../components/role/RolePanel'
 import {
   createBureauSeed,
-  type BureauEvent,
-  type BureauEventStatus,
   type BureauPublication,
   type BureauPublicationStatus,
 } from '../data/bureauMockData'
+import { BureauEventManagement } from '../components/organisms/BureauEventManagement'
 import { useCurrentEntityContext } from '../hooks/useCurrentEntityContext'
 import { useScopedPermissions } from '../hooks/useScopedPermissions'
 import {
@@ -478,58 +475,6 @@ const MemberManagement = ({
   )
 }
 
-const EventManagement = ({ events, permission }: { events: BureauEvent[]; permission: string }) => {
-  const [items, setItems] = useState(events)
-
-  const updateStatus = async (id: number, status: BureauEventStatus) => {
-    const previous = items
-    setItems((current) => current.map((event) => (event.id === id ? { ...event, status } : event)))
-    try {
-      await simulateMutation()
-    } catch {
-      setItems(previous)
-    }
-  }
-
-  if (items.length === 0) {
-    return <EmptyState icon={CalendarPlus} title="No entity events" description="Create the first event for this scoped entity." />
-  }
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-slate-900">Entity events</h2>
-        <PermissionAwareButton permission={permission} className="inline-flex items-center gap-2 rounded-xl bg-brand px-3 py-2 text-sm font-bold text-white">
-          <CalendarPlus size={15} />
-          Create
-        </PermissionAwareButton>
-      </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {items.map((event) => (
-          <article key={event.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-bold text-slate-800">{event.title}</h3>
-              <Badge tone={event.status}>{event.status}</Badge>
-            </div>
-            <p className="mt-2 text-sm text-slate-500">{new Date(event.date).toLocaleDateString()}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-700">{event.participants} participants</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <PermissionAwareButton permission={permission} className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700">
-                <Edit3 size={13} />
-                Edit
-              </PermissionAwareButton>
-              <PermissionAwareButton permission={permission} onClick={() => updateStatus(event.id, 'cancelled')} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700">
-                <Trash2 size={13} />
-                Cancel
-              </PermissionAwareButton>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 const PublicationManagement = ({ publications, permission }: { publications: BureauPublication[]; permission: string }) => {
   const [items, setItems] = useState(publications)
   const [error, setError] = useState<string | null>(null)
@@ -942,7 +887,10 @@ export const BureauToolPage = () => {
   )
   const resource = useBureauResource(seed, `${currentEntityId ?? 'none'}:${location.pathname}`)
   const panelKey = `${currentEntityId ?? 'none'}:${location.pathname}`
-  const isRealBureauPage = location.pathname === '/bureau/members' || location.pathname === '/bureau/community'
+  const isRealBureauPage =
+    location.pathname === '/bureau/members' ||
+    location.pathname === '/bureau/community' ||
+    location.pathname === '/bureau/events'
 
   if (!scoped.isBureauMember) {
     return (
@@ -972,8 +920,8 @@ export const BureauToolPage = () => {
       {location.pathname === '/bureau/members' && currentEntityId !== null && (
         <MemberManagement key={panelKey} entityId={currentEntityId} currentUserId={currentUserId} permission={meta.permission} />
       )}
-      {!resource.isLoading && !resource.error && location.pathname === '/bureau/events' && (
-        <EventManagement key={panelKey} events={resource.data.events} permission={meta.permission} />
+      {location.pathname === '/bureau/events' && currentEntityId !== null && (
+        <BureauEventManagement key={panelKey} entityId={currentEntityId} actorUserId={currentUserId} permission={meta.permission} />
       )}
       {!resource.isLoading && !resource.error && location.pathname === '/bureau/publish' && (
         <PublicationManagement key={panelKey} publications={resource.data.publications} permission={meta.permission} />
