@@ -88,46 +88,8 @@ export const useToggleLike = () => {
 
       return toggleLike(post)
     },
-    onMutate: async (postId) => {
-      await queryClient.cancelQueries({ queryKey: [FEED_QUERY_KEY] })
-      const previous = queryClient.getQueriesData<{ pages: FeedPage[]; pageParams: Array<string | null> }>({
-        queryKey: [FEED_QUERY_KEY],
-      })
-
-      queryClient.setQueriesData(
-        { queryKey: [FEED_QUERY_KEY] },
-        (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) => {
-          if (!current) {
-            return current
-          }
-
-          return {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) => {
-                if (item.id !== postId) {
-                  return item
-                }
-
-                const likedByMe = !item.likedByMe
-                return {
-                  ...item,
-                  likedByMe,
-                  likeCount: likedByMe ? item.likeCount + 1 : Math.max(item.likeCount - 1, 0),
-                }
-              }),
-            })),
-          }
-        },
-      )
-
-      return { previous }
-    },
-    onError: (_error, _postId, context) => {
-      context?.previous.forEach(([queryKey, data]) => {
-        queryClient.setQueryData(queryKey, data)
-      })
+    onError: (error) => {
+      console.error('Unable to update publication reaction.', error)
     },
     onSuccess: (post) => {
       queryClient.setQueriesData(
@@ -137,6 +99,7 @@ export const useToggleLike = () => {
         (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) =>
           patchPostInPages(current, post),
       )
+      void queryClient.invalidateQueries({ queryKey: [FEED_QUERY_KEY] })
     },
   })
 }
@@ -220,46 +183,8 @@ export const useToggleSavedPost = () => {
 
       return toggleSavedPost(post)
     },
-    onMutate: async (postId) => {
-      await queryClient.cancelQueries({ queryKey: [FEED_QUERY_KEY] })
-      const previous = queryClient.getQueriesData<{ pages: FeedPage[]; pageParams: Array<string | null> }>({
-        queryKey: [FEED_QUERY_KEY],
-      })
-
-      queryClient.setQueriesData(
-        { queryKey: [FEED_QUERY_KEY] },
-        (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) => {
-          if (!current) {
-            return current
-          }
-
-          return {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) => {
-                if (item.id !== postId) {
-                  return item
-                }
-
-                const savedByMe = !item.savedByMe
-                return {
-                  ...item,
-                  savedByMe,
-                  savedCount: savedByMe ? item.savedCount + 1 : Math.max(item.savedCount - 1, 0),
-                }
-              }),
-            })),
-          }
-        },
-      )
-
-      return { previous }
-    },
-    onError: (_error, _postId, context) => {
-      context?.previous.forEach(([queryKey, data]) => {
-        queryClient.setQueryData(queryKey, data)
-      })
+    onError: (error) => {
+      console.error('Unable to update saved publication.', error)
     },
     onSuccess: (post) => {
       queryClient.setQueriesData(
@@ -269,6 +194,7 @@ export const useToggleSavedPost = () => {
         (current: { pages: FeedPage[]; pageParams: Array<string | null> } | undefined) =>
           patchPostInPages(current, post),
       )
+      void queryClient.invalidateQueries({ queryKey: [FEED_QUERY_KEY] })
     },
   })
 }

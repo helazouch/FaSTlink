@@ -14,6 +14,7 @@ import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.domain.model.MembreCommunaute;
 import com.fastlink.community.domain.model.MembreRole;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,11 +68,14 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommunauteResponse> listVisibleCommunautes(Long utilisateurId, boolean admin) {
+    public List<CommunauteResponse> listVisibleCommunautes(Set<Long> activeEntityIds, boolean admin) {
         if (admin) {
             return listCommunautes();
         }
-        return communautePort.findVisibleToUtilisateurId(utilisateurId).stream().map(this::toResponse).toList();
+        if (activeEntityIds == null || activeEntityIds.isEmpty()) {
+            return List.of();
+        }
+        return communautePort.findByEntiteIdIn(activeEntityIds).stream().map(this::toResponse).toList();
     }
 
     @Override
@@ -82,9 +86,9 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommunauteResponse> listCommunautesByEntite(Long entiteId, Long utilisateurId, boolean admin) {
-        if (!admin) {
-            entityPermissionPort.checkPermission(utilisateurId, entiteId, ACTION_COMMUNITY_MANAGE);
+    public List<CommunauteResponse> listCommunautesByEntite(Long entiteId, Set<Long> activeEntityIds, boolean admin) {
+        if (!admin && (activeEntityIds == null || !activeEntityIds.contains(entiteId))) {
+            throw new ForbiddenOperationException("Communaute non accessible pour cet utilisateur");
         }
         return listCommunautesByEntite(entiteId);
     }
@@ -97,9 +101,9 @@ public class CommunauteService implements CommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId, boolean admin) {
+    public CommunauteResponse getVisibleCommunaute(Long communauteId, Set<Long> activeEntityIds, boolean admin) {
         Communaute communaute = findCommunaute(communauteId);
-        if (!admin && !isVisibleToUtilisateur(communaute, utilisateurId)) {
+        if (!admin && (activeEntityIds == null || !activeEntityIds.contains(communaute.getEntiteId()))) {
             throw new ForbiddenOperationException("Communaute non accessible pour cet utilisateur");
         }
         return toResponse(communaute);
@@ -143,11 +147,6 @@ public class CommunauteService implements CommunauteUseCase {
         if (membre.getRole() != MembreRole.ADMIN) {
             throw new ForbiddenOperationException("Action reservee aux admins de la communaute");
         }
-    }
-
-    private boolean isVisibleToUtilisateur(Communaute communaute, Long utilisateurId) {
-        return communaute.getCreateurUtilisateurId().equals(utilisateurId)
-                || membreCommunautePort.findByCommunauteIdAndUtilisateurId(communaute.getId(), utilisateurId).isPresent();
     }
 
     private CommunauteResponse toResponse(Communaute communaute) {

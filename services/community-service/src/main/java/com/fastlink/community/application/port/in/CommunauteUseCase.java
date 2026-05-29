@@ -4,6 +4,7 @@ import com.fastlink.community.application.dto.communaute.CommunauteResponse;
 import com.fastlink.community.application.dto.communaute.CreateCommunauteRequest;
 import com.fastlink.community.application.dto.communaute.UpdateCommunauteRequest;
 import java.util.List;
+import java.util.Set;
 
 public interface CommunauteUseCase {
 
@@ -11,15 +12,15 @@ public interface CommunauteUseCase {
 
     List<CommunauteResponse> listCommunautes();
 
-    List<CommunauteResponse> listVisibleCommunautes(Long utilisateurId, boolean admin);
+    List<CommunauteResponse> listVisibleCommunautes(Set<Long> activeEntityIds, boolean admin);
 
     List<CommunauteResponse> listCommunautesByEntite(Long entiteId);
 
-    List<CommunauteResponse> listCommunautesByEntite(Long entiteId, Long utilisateurId, boolean admin);
+    List<CommunauteResponse> listCommunautesByEntite(Long entiteId, Set<Long> activeEntityIds, boolean admin);
 
     CommunauteResponse getCommunaute(Long communauteId);
 
-    CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId, boolean admin);
+    CommunauteResponse getVisibleCommunaute(Long communauteId, Set<Long> activeEntityIds, boolean admin);
 
     CommunauteResponse updateCommunaute(Long communauteId, UpdateCommunauteRequest request);
 

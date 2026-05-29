@@ -7,7 +7,9 @@ import com.fastlink.community.application.port.in.CommunauteUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,10 +51,10 @@ public class CommunauteController {
         if (scopedEntityId != null) {
             return ResponseEntity.ok(communauteUseCase.listCommunautesByEntite(
                     scopedEntityId,
-                    resolveUserId(jwt),
+                    activeEntityIds(jwt),
                     isAdmin(authentication)));
         }
-        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(resolveUserId(jwt), isAdmin(authentication)));
+        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(activeEntityIds(jwt), isAdmin(authentication)));
     }
 
     @GetMapping("/{communauteId}")
@@ -63,7 +65,7 @@ public class CommunauteController {
             @PathVariable Long communauteId) {
         return ResponseEntity.ok(communauteUseCase.getVisibleCommunaute(
                 communauteId,
-                resolveUserId(jwt),
+                activeEntityIds(jwt),
                 isAdmin(authentication)));
     }
 
@@ -91,23 +93,37 @@ public class CommunauteController {
         communauteUseCase.deleteCommunaute(communauteId, utilisateurId);
     }
 
-    private Long resolveUserId(Jwt jwt) {
-        Object uid = jwt.getClaims().get("uid");
-        if (uid == null) {
-            uid = jwt.getClaims().get("userId");
-        }
-        if (uid == null) {
-            uid = jwt.getClaims().get("utilisateurId");
-        }
-        if (uid != null) {
-            return Long.parseLong(uid.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
-    }
-
     private boolean isAdmin(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private Set<Long> activeEntityIds(Jwt jwt) {
+        Object memberships = jwt.getClaims().get("entityMemberships");
+        if (!(memberships instanceof List<?> list)) {
+            return Set.of();
+        }
+        Set<Long> entityIds = new HashSet<>();
+        for (Object item : list) {
+            if (item instanceof java.util.Map<?, ?> membership) {
+                Object status = membership.get("status");
+                if (status != null && !"ACTIVE".equalsIgnoreCase(status.toString())) {
+                    continue;
+                }
+                Object entityId = membership.get("entityId");
+                if (entityId == null) {
+                    entityId = membership.get("entiteId");
+                }
+                if (entityId != null) {
+                    try {
+                        entityIds.add(Long.parseLong(entityId.toString()));
+                    } catch (NumberFormatException ignored) {
+                        // Ignore malformed membership claims.
+                    }
+                }
+            }
+        }
+        return entityIds;
     }
 }

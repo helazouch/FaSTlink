@@ -5,6 +5,7 @@ import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.infrastructure.persistence.jpa.CommunauteJpaRepository;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -32,8 +33,8 @@ public class CommunautePersistenceAdapter implements CommunautePort {
     }
 
     @Override
-    public List<Communaute> findVisibleToUtilisateurId(Long utilisateurId) {
-        return communauteJpaRepository.findVisibleToUtilisateurIdOrderByCreatedAtDesc(utilisateurId);
+    public List<Communaute> findByEntiteIdIn(Set<Long> entiteIds) {
+        return communauteJpaRepository.findByEntiteIdInOrderByCreatedAtDesc(entiteIds);
     }
 
     @Override

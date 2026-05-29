@@ -3,6 +3,7 @@ package com.fastlink.community.application.port.out;
 import com.fastlink.community.domain.model.Communaute;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface CommunautePort {
 
@@ -12,7 +13,7 @@ public interface CommunautePort {
 
     List<Communaute> findAll();
 
-    List<Communaute> findVisibleToUtilisateurId(Long utilisateurId);
+    List<Communaute> findByEntiteIdIn(Set<Long> entiteIds);
 
     List<Communaute> findByEntiteId(Long entiteId);
 

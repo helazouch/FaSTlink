@@ -237,7 +237,7 @@ export const toggleLike = async (post: FeedPost): Promise<FeedPost> => {
       type: 'LIKE',
     })
   } else {
-    await httpClient.delete(`/v1/publications/${post.id}/reactions/LIKE`)
+    await httpClient.delete(`/v1/publications/${post.id}/reactions`)
   }
 
   return {

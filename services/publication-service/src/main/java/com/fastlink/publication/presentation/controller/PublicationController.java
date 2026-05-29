@@ -250,6 +250,21 @@ public class PublicationController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{publicationId}/reactions")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> removeLikeReaction(
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
+            @PathVariable Long publicationId) {
+        interactionUseCase.removeReaction(
+                publicationId,
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                activeEntityIds(jwt),
+                ReactionType.LIKE);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{publicationId}/save")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<Void> savePublication(
