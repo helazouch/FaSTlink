@@ -328,8 +328,8 @@ services:
       NOTIFICATION_SERVICE_URI: http://notification-service:8087
       ANALYTICS_SERVICE_URI: http://analytics-service:8088
       ADMIN_SERVICE_URI: http://admin-service:8089
-      COMMUNITY_WS_URI: ws://community-service:8084
-      NOTIFICATION_WS_URI: ws://notification-service:8087
+      COMMUNITY_WS_URI: http://community-service:8084
+      NOTIFICATION_WS_URI: http://notification-service:8087
       JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
       JWT_ISSUER: fast-link-identity
       RATE_LIMIT_ENABLED: "false"

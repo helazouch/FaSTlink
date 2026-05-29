@@ -12,6 +12,7 @@ spring:
         cors-configurations:
           "[/**]":
             allowedOriginPatterns: "*"
+            allowCredentials: true
             allowedMethods:
               - GET
               - POST
@@ -80,12 +81,12 @@ spring:
             - Path=/api/v1/admin/configs/**,/api/v1/admin/settings/**,/api/v1/admin/stats/**,/api/v1/admin/audit/**
 
         - id: community-websocket-route
-          uri: ${COMMUNITY_WS_URI:ws://localhost:8084}
+          uri: ${COMMUNITY_WS_URI:http://localhost:8084}
           predicates:
             - Path=/ws-community,/ws-community/**
 
         - id: notification-websocket-route
-          uri: ${NOTIFICATION_WS_URI:ws://localhost:8087}
+          uri: ${NOTIFICATION_WS_URI:http://localhost:8087}
           predicates:
             - Path=/ws-notifications,/ws-notifications/**
 
