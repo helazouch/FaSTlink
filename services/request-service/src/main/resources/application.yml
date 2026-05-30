@@ -57,6 +57,7 @@ integration:
   entity:
     base-url: ${ENTITY_BASE_URL:http://localhost:8081}
     permission-check-path: ${ENTITY_PERMISSION_CHECK_PATH:/api/v1/internal/entities/{entiteId}/permissions/check}
+    members-path: ${ENTITY_MEMBERS_PATH:/api/v1/entities/{entiteId}/members}
     connect-timeout-ms: ${ENTITY_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${ENTITY_READ_TIMEOUT_MS:5000}
 
@@ -74,3 +75,4 @@ security:
 logging:
   level:
     org.springframework.web: INFO
+    com.fastlink.request.presentation.controller.DemandeController: DEBUG

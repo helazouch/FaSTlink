@@ -3,6 +3,7 @@ package com.fastlink.request.infrastructure.messaging.kafka;
 import com.fastlink.request.application.port.out.RequestEventPort;
 import com.fastlink.request.domain.model.Demande;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -27,21 +28,21 @@ public class RequestKafkaProducerAdapter implements RequestEventPort {
     }
 
     @Override
-    public void publishRequestSubmitted(Demande demande) {
-        publish(requestSubmittedTopic, "request.submitted", demande);
+    public void publishRequestSubmitted(Demande demande, List<Long> recipientUtilisateurIds) {
+        publish(requestSubmittedTopic, "request.submitted", demande, recipientUtilisateurIds);
     }
 
     @Override
     public void publishRequestApproved(Demande demande) {
-        publish(requestApprovedTopic, "request.approved", demande);
+        publish(requestApprovedTopic, "request.approved", demande, List.of(demande.getDemandeurUtilisateurId()));
     }
 
     @Override
     public void publishRequestRejected(Demande demande) {
-        publish(requestRejectedTopic, "request.rejected", demande);
+        publish(requestRejectedTopic, "request.rejected", demande, List.of(demande.getDemandeurUtilisateurId()));
     }
 
-    private void publish(String topic, String eventType, Demande demande) {
+    private void publish(String topic, String eventType, Demande demande, List<Long> recipientUtilisateurIds) {
         RequestEventMessage event = new RequestEventMessage(
                 UUID.randomUUID(),
                 eventType,
@@ -52,7 +53,8 @@ public class RequestKafkaProducerAdapter implements RequestEventPort {
                 demande.getObjet(),
                 demande.getStatus().name(),
                 demande.getDecideurUtilisateurId(),
-                demande.getDecisionCommentaire());
+                demande.getDecisionCommentaire(),
+                recipientUtilisateurIds == null ? List.of() : recipientUtilisateurIds);
 
         kafkaTemplate.send(topic, String.valueOf(demande.getId()), event);
     }

@@ -25,13 +25,19 @@ public class ReservationSalle {
     private Demande demande;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "salle_id", nullable = false)
+    @JoinColumn(name = "salle_id")
     private SalleDemandee salleDemandee;
 
-    @Column(name = "debut_at", nullable = false)
+    @Column(name = "capacite_souhaitee")
+    private Integer capaciteSouhaitee;
+
+    @Column(name = "nom_salle_attribuee", length = 180)
+    private String nomSalleAttribuee;
+
+    @Column(name = "debut_at")
     private Instant debutAt;
 
-    @Column(name = "fin_at", nullable = false)
+    @Column(name = "fin_at")
     private Instant finAt;
 
     @Column(name = "note", length = 1000)
@@ -42,9 +48,15 @@ public class ReservationSalle {
 
     public ReservationSalle(SalleDemandee salleDemandee, Instant debutAt, Instant finAt, String note) {
         this.salleDemandee = salleDemandee;
+        this.capaciteSouhaitee = salleDemandee == null ? null : salleDemandee.getCapacite();
+        this.nomSalleAttribuee = salleDemandee == null ? null : salleDemandee.getNom();
         this.debutAt = debutAt;
         this.finAt = finAt;
         this.note = note;
+    }
+
+    public ReservationSalle(Integer capaciteSouhaitee) {
+        this.capaciteSouhaitee = capaciteSouhaitee;
     }
 
     public Long getId() {
@@ -65,6 +77,22 @@ public class ReservationSalle {
 
     public void setSalleDemandee(SalleDemandee salleDemandee) {
         this.salleDemandee = salleDemandee;
+    }
+
+    public Integer getCapaciteSouhaitee() {
+        return capaciteSouhaitee;
+    }
+
+    public void setCapaciteSouhaitee(Integer capaciteSouhaitee) {
+        this.capaciteSouhaitee = capaciteSouhaitee;
+    }
+
+    public String getNomSalleAttribuee() {
+        return nomSalleAttribuee;
+    }
+
+    public void setNomSalleAttribuee(String nomSalleAttribuee) {
+        this.nomSalleAttribuee = nomSalleAttribuee;
     }
 
     public Instant getDebutAt() {

@@ -67,7 +67,10 @@ export const hasAnyEntityPermission = (
 
   return activeMemberships(user).some((membership) =>
     membership.role === 'BUREAU_MEMBER' &&
-    ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE'].includes(normalizeRole(permission)),
+    ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE', 'REQUEST_SUBMIT'].includes(normalizeRole(permission)),
+  ) || activeMemberships(user).some((membership) =>
+    membership.role === 'COORDINATOR' &&
+    ['REQUEST_APPROVE', 'REQUEST_REJECT'].includes(normalizeRole(permission)),
   )
 }
 
@@ -78,7 +81,7 @@ const hasEntityPermissionFromMembership = (
 ): boolean => activeMemberships(user).some((membership) =>
   membership.entityId === entityId &&
   membership.role === 'BUREAU_MEMBER' &&
-  ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE'].includes(normalizeRole(permission)),
+  ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE', 'REQUEST_SUBMIT'].includes(normalizeRole(permission)),
 )
 
 export const bureauEntityIds = (user: AuthUser | null | undefined): number[] =>

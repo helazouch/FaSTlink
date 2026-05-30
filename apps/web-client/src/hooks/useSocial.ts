@@ -3,7 +3,7 @@ import { getCommunityById, getSuggestedCommunities } from '../services/social/co
 import { getRequestEntities } from '../services/social/entityService'
 import { getUpcomingEvents, updateEventParticipation } from '../services/social/eventService'
 import { getMyProfile } from '../services/social/profileService'
-import { getMyRequests, submitRequest } from '../services/social/requestService'
+import { getMyEntityRequests, submitRequest } from '../services/social/requestService'
 import { useAuthStore } from '../stores/authStore'
 import type { SubmitRequestInput, UpdateParticipationInput } from '../types/social'
 
@@ -12,7 +12,7 @@ const queryKeys = {
   communityById: (communityId: number, userId?: number) => ['communities', communityId, userId ?? null] as const,
   events: (userId?: number) => ['events', 'upcoming', userId ?? null] as const,
   requestEntities: ['requests', 'entities'] as const,
-  requests: ['requests', 'my'] as const,
+  requests: (entityId?: number | null, userId?: number) => ['requests', 'my-entity', entityId ?? null, userId ?? null] as const,
   profile: ['profile', 'me'] as const,
 }
 
@@ -81,19 +81,19 @@ export const useUpdateParticipation = () => {
   })
 }
 
-export const useRequests = () => {
+export const useRequests = (entityId?: number | null) => {
   const userId = useAuthStore((state) => state.user?.id)
 
   return useQuery({
-    queryKey: [...queryKeys.requests, userId] as const,
+    queryKey: queryKeys.requests(entityId, userId),
     queryFn: () => {
-      if (!userId) {
+      if (!userId || !entityId) {
         return Promise.resolve([])
       }
 
-      return getMyRequests(userId)
+      return getMyEntityRequests(entityId)
     },
-    enabled: Boolean(userId),
+    enabled: Boolean(userId && entityId),
   })
 }
 
@@ -107,10 +107,10 @@ export const useSubmitRequest = () => {
         throw new Error('You must be signed in to submit a request')
       }
 
-      return submitRequest(input, userId)
+      return submitRequest(input)
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.requests })
+      void queryClient.invalidateQueries({ queryKey: ['requests'] })
     },
   })
 }

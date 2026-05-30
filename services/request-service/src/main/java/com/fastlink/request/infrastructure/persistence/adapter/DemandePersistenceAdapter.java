@@ -2,6 +2,7 @@ package com.fastlink.request.infrastructure.persistence.adapter;
 
 import com.fastlink.request.application.port.out.DemandePort;
 import com.fastlink.request.domain.model.Demande;
+import com.fastlink.request.domain.model.DemandeStatus;
 import com.fastlink.request.infrastructure.persistence.jpa.DemandeJpaRepository;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,16 @@ public class DemandePersistenceAdapter implements DemandePort {
     @Override
     public List<Demande> findByEntiteId(Long entiteId) {
         return demandeJpaRepository.findByEntiteId(entiteId);
+    }
+
+    @Override
+    public List<Demande> findByEntiteIdAndDemandeurUtilisateurId(Long entiteId, Long utilisateurId) {
+        return demandeJpaRepository.findByEntiteIdAndDemandeurUtilisateurId(entiteId, utilisateurId);
+    }
+
+    @Override
+    public List<Demande> findByStatus(DemandeStatus status) {
+        return demandeJpaRepository.findByStatus(status);
     }
 
     @Override

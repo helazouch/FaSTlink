@@ -3,7 +3,6 @@ import type {
   CommunitySummary,
   EventItem,
   NotificationItem,
-  ServiceRequest,
   UserProfile,
   UserSummary,
 } from '../types/social'
@@ -126,34 +125,6 @@ export const mockNotifications: NotificationItem[] = [
     message: 'Your cross-community performance digest is available.',
     createdAt: hoursAgo(5),
     read: true,
-  },
-]
-
-export const mockRequests: ServiceRequest[] = [
-  {
-    id: 9001,
-    title: 'Need sponsor for student hackathon',
-    category: 'Partnership',
-    description:
-      'Requesting outreach support and sponsor introduction for regional chapter event.',
-    priority: 'high',
-    status: 'pending',
-    createdAt: hoursAgo(8),
-    updatedAt: hoursAgo(2),
-    communityId: 1,
-    communityName: 'Founders Hub',
-  },
-  {
-    id: 9002,
-    title: 'Need event moderator roster',
-    category: 'Operations',
-    description: 'Seeking two experienced moderators for hybrid event broadcast.',
-    priority: 'medium',
-    status: 'approved',
-    createdAt: hoursAgo(30),
-    updatedAt: hoursAgo(6),
-    communityId: 3,
-    communityName: 'Events Studio',
   },
 ]
 

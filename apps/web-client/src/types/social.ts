@@ -104,19 +104,48 @@ export interface ServiceRequest {
   category: string
   description: string
   priority: 'low' | 'medium' | 'high'
-  status: 'pending' | 'approved' | 'rejected'
+  type: 'MATERIAL_REQUEST' | 'ROOM_RESERVATION'
+  status: 'submitted' | 'under_review' | 'approved' | 'rejected'
+  rawStatus: 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'
   createdAt: string
   updatedAt: string
+  processedAt?: string
   communityId: number
   communityName: string
+  requesterUserId: number
+  processorUserId?: number
+  note?: string
+  dateDebut?: string
+  dateFin?: string
+  heureDebut?: string
+  heureFin?: string
+  materials: Array<{
+    id: number
+    typeMateriel: string
+    quantite: number
+    details?: string
+  }>
+  rooms: Array<{
+    id: number
+    capaciteSouhaitee?: number
+    nomSalleAttribuee?: string
+  }>
 }
 
 export interface SubmitRequestInput {
   title: string
-  category: string
   description: string
-  priority: 'low' | 'medium' | 'high'
   communityId: number
+  type: 'MATERIAL_REQUEST' | 'ROOM_RESERVATION'
+  dateDebut: string
+  dateFin: string
+  heureDebut: string
+  heureFin: string
+  typeMateriel?: string
+  quantite?: number
+  sallesDemandees: Array<{
+    capaciteSouhaitee: number
+  }>
 }
 
 export interface UpdateParticipationInput {

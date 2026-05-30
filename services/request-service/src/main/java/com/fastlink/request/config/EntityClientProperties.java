@@ -15,6 +15,9 @@ public class EntityClientProperties {
     @NotBlank
     private String permissionCheckPath = "/api/v1/internal/entities/{entiteId}/permissions/check";
 
+    @NotBlank
+    private String membersPath = "/api/v1/entities/{entiteId}/members";
+
     @Min(100)
     private int connectTimeoutMs = 3000;
 
@@ -35,6 +38,14 @@ public class EntityClientProperties {
 
     public void setPermissionCheckPath(String permissionCheckPath) {
         this.permissionCheckPath = permissionCheckPath;
+    }
+
+    public String getMembersPath() {
+        return membersPath;
+    }
+
+    public void setMembersPath(String membersPath) {
+        this.membersPath = membersPath;
     }
 
     public int getConnectTimeoutMs() {

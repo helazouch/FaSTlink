@@ -1,4 +1,9 @@
 import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import {
   AlertTriangle,
   BarChart3,
   Check,
@@ -22,13 +27,18 @@ import {
   coordinatorAlerts,
   coordinatorAnalyticsSeries,
   coordinatorEntitySignals,
-  coordinatorRequests,
   type CoordinatorAlert,
-  type CoordinatorRequest,
-  type CoordinatorRequestStatus,
-  type CoordinatorRequestType,
 } from '../data/coordinatorMockData'
 import { formatRelativeTime } from '../lib/date'
+import { normalizeApiError } from '../lib/errors'
+import {
+  approveRequest,
+  getCoordinatorRequests,
+  markRequestUnderReview,
+  rejectRequest,
+  type AssignedRoomInput,
+} from '../services/social/requestService'
+import type { ServiceRequest } from '../types/social'
 
 type Loadable<T> = {
   data: T
@@ -37,7 +47,11 @@ type Loadable<T> = {
   reload: () => void
 }
 
-type RequestFilter = 'all' | CoordinatorRequestStatus | CoordinatorRequestType
+type RequestFilter = 'all' | ServiceRequest['status'] | 'MATERIAL_REQUEST' | 'ROOM_RESERVATION'
+type PendingDecision = {
+  request: ServiceRequest
+  action: 'approve' | 'reject'
+}
 
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
@@ -90,10 +104,18 @@ const useCoordinatorResource = <T,>(initialData: T): Loadable<T> => {
   return { data, isLoading, error, reload }
 }
 
-const statusTone: Record<CoordinatorRequestStatus, string> = {
-  pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+const statusTone: Record<ServiceRequest['status'], string> = {
+  submitted: 'bg-amber-50 text-amber-700 ring-amber-200',
+  under_review: 'bg-sky-50 text-sky-700 ring-sky-200',
   approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
+}
+
+const statusLabel: Record<ServiceRequest['status'], string> = {
+  submitted: 'New request',
+  under_review: 'Under review',
+  approved: 'Approved',
+  rejected: 'Rejected',
 }
 
 const priorityTone = {
@@ -103,6 +125,8 @@ const priorityTone = {
 }
 
 const requestTypeIcon = {
+  ROOM_RESERVATION: DoorOpen,
+  MATERIAL_REQUEST: HardDrive,
   room: DoorOpen,
   equipment: HardDrive,
   budget: Workflow,
@@ -147,52 +171,67 @@ const ErrorPanel = ({ message, onRetry }: { message: string; onRetry: () => void
   </section>
 )
 
-const StatusBadge = ({ status }: { status: CoordinatorRequestStatus }) => (
+const StatusBadge = ({ status }: { status: ServiceRequest['status'] }) => (
   <span className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${statusTone[status]}`}>
-    {status}
+    {statusLabel[status]}
   </span>
 )
 
-const PriorityBadge = ({ priority }: { priority: CoordinatorRequest['priority'] }) => (
+const PriorityBadge = ({ priority }: { priority: ServiceRequest['priority'] }) => (
   <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${priorityTone[priority]}`}>
     {priority}
   </span>
 )
 
 const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
-  const requestsResource = useCoordinatorResource(coordinatorRequests)
-  const [requests, setRequests] = useState<CoordinatorRequest[]>(coordinatorRequests)
+  const queryClient = useQueryClient()
   const [filter, setFilter] = useState<RequestFilter>('all')
-  const [processingId, setProcessingId] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
+  const [notes, setNotes] = useState<Record<number, string>>({})
+  const [roomAssignments, setRoomAssignments] = useState<Record<number, Record<number, string>>>({})
+  const [pendingDecision, setPendingDecision] = useState<PendingDecision | null>(null)
+  const [modalNote, setModalNote] = useState('')
 
-  const decide = async (id: number, status: CoordinatorRequestStatus) => {
-    const previousRequests = requests
-    setProcessingId(id)
-    setActionError(null)
-    setNotice(null)
-    setRequests((current) => current.map((request) => (request.id === id ? { ...request, status } : request)))
-
-    try {
-      await simulateCoordinatorMutation()
-      setNotice(`Request ${status}.`)
-    } catch {
-      setRequests(previousRequests)
-      setActionError('The decision could not be saved. The queue was restored.')
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  const filteredRequests = requests.filter((request) => {
-    if (filter === 'all') return true
-    return request.status === filter || request.type === filter
+  const requestsQuery = useQuery({
+    queryKey: ['requests', 'coordinator-queue'],
+    queryFn: () => getCoordinatorRequests(),
   })
+  const requests = requestsQuery.data ?? []
+
+  const actionMutation = useMutation({
+    mutationFn: async (input: { id: number; action: 'under_review' | 'approve' | 'reject'; note?: string }) => {
+      const note = input.note ?? notes[input.id] ?? ''
+      if (input.action === 'under_review') return markRequestUnderReview(input.id, note)
+      if (input.action === 'reject') return rejectRequest(input.id, note)
+      const request = requests.find((item) => item.id === input.id)
+      const assignedRooms: AssignedRoomInput[] = request?.rooms.map((room) => ({
+        reservationId: room.id,
+        nomSalleAttribuee: roomAssignments[input.id]?.[room.id] ?? room.nomSalleAttribuee ?? '',
+      })) ?? []
+      return approveRequest(input.id, note, assignedRooms)
+    },
+    onSuccess: (_, variables) => {
+      setNotice(
+        variables.action === 'approve'
+          ? 'Request approved.'
+          : variables.action === 'reject'
+            ? 'Request rejected.'
+            : 'Request marked under review.',
+      )
+      setPendingDecision(null)
+      setModalNote('')
+      if (variables.note !== undefined) {
+        setNotes((current) => ({ ...current, [variables.id]: variables.note ?? '' }))
+      }
+      void queryClient.invalidateQueries({ queryKey: ['requests', 'coordinator-queue'] })
+    },
+  })
+
+  const filteredRequests = requests.filter((request) => filter === 'all' || request.status === filter || request.type === filter)
   const visibleRequests = compact ? filteredRequests.slice(0, 3) : filteredRequests
 
-  if (requestsResource.isLoading) return <LoadingPanel />
-  if (requestsResource.error) return <ErrorPanel message={requestsResource.error} onRetry={requestsResource.reload} />
+  if (requestsQuery.isLoading) return <LoadingPanel />
+  if (requestsQuery.error) return <ErrorPanel message={`Request queue unavailable: ${normalizeApiError(requestsQuery.error).message}`} onRetry={() => void requestsQuery.refetch()} />
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -202,13 +241,13 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
           <p className="text-sm text-slate-500">Coordinator decisions for cross-entity operations.</p>
         </div>
         <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-          {requests.filter((request) => request.status === 'pending').length} pending
+          {requests.filter((request) => request.status === 'submitted' || request.status === 'under_review').length} open
         </span>
       </div>
 
       {!compact && (
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {(['all', 'pending', 'approved', 'rejected', 'room', 'equipment'] as RequestFilter[]).map((item) => (
+          {(['all', 'under_review', 'approved', 'rejected', 'ROOM_RESERVATION', 'MATERIAL_REQUEST'] as RequestFilter[]).map((item) => (
             <button
               key={item}
               type="button"
@@ -225,7 +264,7 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
       )}
 
       {notice && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{notice}</p>}
-      {actionError && <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{actionError}</p>}
+      {actionMutation.error && <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{normalizeApiError(actionMutation.error).message}</p>}
 
       {visibleRequests.length === 0 ? (
         <div className="mt-4">
@@ -247,44 +286,102 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
             <tbody>
               {visibleRequests.map((request) => {
                 const Icon = requestTypeIcon[request.type]
-                const isProcessing = processingId === request.id
+                const isProcessing = actionMutation.isPending && actionMutation.variables?.id === request.id
+                const isFinal = request.status === 'approved' || request.status === 'rejected'
+                const canProcess = request.status === 'submitted' || request.status === 'under_review'
+                const noteValue = notes[request.id] ?? request.note ?? ''
                 return (
                   <tr key={request.id} className="border-t border-slate-100">
                     <td className="min-w-[280px] px-3 py-3">
                       <p className="font-semibold text-slate-800">{request.title}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {request.requester} - {formatRelativeTime(request.submittedAt)}
+                        User #{request.requesterUserId} - {formatRelativeTime(request.createdAt)}
                       </p>
+                      <p className="mt-1 text-xs text-slate-500">{request.description}</p>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-slate-600">{request.entityName}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-slate-600">{request.communityName}</td>
                     <td className="whitespace-nowrap px-3 py-3">
                       <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                         <Icon size={13} />
-                        {request.type}
+                        {request.category}
                       </span>
+                      {request.type === 'ROOM_RESERVATION' && request.rooms.length > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          {request.rooms.map((room) => (
+                            <input
+                              key={room.id}
+                              value={roomAssignments[request.id]?.[room.id] ?? room.nomSalleAttribuee ?? ''}
+                              onChange={(event) =>
+                                setRoomAssignments((current) => ({
+                                  ...current,
+                                  [request.id]: {
+                                    ...current[request.id],
+                                    [room.id]: event.target.value,
+                                  },
+                                }))
+                              }
+                              disabled={isFinal}
+                              placeholder={`Room for capacity ${room.capaciteSouhaitee ?? '-'}`}
+                              className="h-8 w-48 rounded-lg border border-slate-200 px-2 text-xs outline-none focus:border-brand disabled:bg-slate-100 disabled:text-slate-500"
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3"><PriorityBadge priority={request.priority} /></td>
                     <td className="whitespace-nowrap px-3 py-3"><StatusBadge status={request.status} /></td>
                     <td className="whitespace-nowrap px-3 py-3">
-                      <div className="flex gap-2">
-                        <PermissionAwareButton
-                          anyEntityPermission="REQUEST_APPROVE"
-                          disabled={request.status !== 'pending' || isProcessing}
-                          onClick={() => decide(request.id, 'approved')}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-40"
-                        >
-                          {isProcessing ? <Loader2 className="animate-spin" size={13} /> : <Check size={13} />}
-                          Approve
-                        </PermissionAwareButton>
-                        <PermissionAwareButton
-                          anyEntityPermission="REQUEST_REJECT"
-                          disabled={request.status !== 'pending' || isProcessing}
-                          onClick={() => decide(request.id, 'rejected')}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-rose-50 px-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-40"
-                        >
-                          {isProcessing ? <Loader2 className="animate-spin" size={13} /> : <X size={13} />}
-                          Reject
-                        </PermissionAwareButton>
+                      <div className="flex flex-col gap-2">
+                        <textarea
+                          value={noteValue}
+                          onChange={(event) => setNotes((current) => ({ ...current, [request.id]: event.target.value }))}
+                          disabled={isFinal}
+                          placeholder="Treatment note"
+                          className="min-h-16 w-52 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-brand disabled:bg-slate-100 disabled:text-slate-500"
+                        />
+                        {isFinal ? (
+                          <p className="rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-600">
+                            Final decision: {statusLabel[request.status]}
+                          </p>
+                        ) : (
+                          <div className="flex gap-2">
+                            {request.status === 'submitted' ? (
+                              <PermissionAwareButton
+                                anyEntityPermission="REQUEST_APPROVE"
+                                disabled={isProcessing}
+                                onClick={() => actionMutation.mutate({ id: request.id, action: 'under_review' })}
+                                className="inline-flex h-8 items-center gap-1 rounded-lg bg-sky-50 px-2.5 text-xs font-bold text-sky-700 transition hover:bg-sky-100 disabled:opacity-40"
+                              >
+                                {isProcessing ? <Loader2 className="animate-spin" size={13} /> : <Clock3 size={13} />}
+                                Review
+                              </PermissionAwareButton>
+                            ) : null}
+                            <PermissionAwareButton
+                              anyEntityPermission="REQUEST_APPROVE"
+                              disabled={!canProcess || isProcessing}
+                              onClick={() => {
+                                setModalNote(noteValue)
+                                setPendingDecision({ request, action: 'approve' })
+                              }}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-40"
+                            >
+                              <Check size={13} />
+                              Approve
+                            </PermissionAwareButton>
+                            <PermissionAwareButton
+                              anyEntityPermission="REQUEST_REJECT"
+                              disabled={!canProcess || isProcessing}
+                              onClick={() => {
+                                setModalNote(noteValue)
+                                setPendingDecision({ request, action: 'reject' })
+                              }}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg bg-rose-50 px-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-40"
+                            >
+                              <X size={13} />
+                              Reject
+                            </PermissionAwareButton>
+                        </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -294,6 +391,79 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
           </table>
         </div>
       )}
+      {pendingDecision ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">
+                  {pendingDecision.action === 'approve' ? 'Approve request' : 'Reject request'}
+                </p>
+                <h3 className="mt-2 text-lg font-black text-slate-900">{pendingDecision.request.title}</h3>
+                <p className="mt-1 text-sm text-slate-500">{pendingDecision.request.communityName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!actionMutation.isPending) {
+                    setPendingDecision(null)
+                    setModalNote('')
+                  }
+                }}
+                className="rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <label className="mt-4 block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                Treatment note
+              </span>
+              <textarea
+                value={modalNote}
+                onChange={(event) => setModalNote(event.target.value)}
+                disabled={actionMutation.isPending}
+                className="min-h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-brand disabled:bg-slate-100"
+                placeholder="Add a coordinator note for this decision"
+              />
+            </label>
+            {actionMutation.error ? (
+              <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {normalizeApiError(actionMutation.error).message}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={actionMutation.isPending}
+                onClick={() => {
+                  setPendingDecision(null)
+                  setModalNote('')
+                }}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionMutation.isPending}
+                onClick={() => actionMutation.mutate({
+                  id: pendingDecision.request.id,
+                  action: pendingDecision.action,
+                  note: modalNote,
+                })}
+                className={[
+                  'inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white transition disabled:opacity-50',
+                  pendingDecision.action === 'approve' ? 'bg-brand hover:bg-brand-700' : 'bg-rose-600 hover:bg-rose-700',
+                ].join(' ')}
+              >
+                {actionMutation.isPending ? <Loader2 className="animate-spin" size={15} /> : null}
+                {pendingDecision.action === 'approve' ? 'Approve request' : 'Reject request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -376,8 +546,12 @@ const EntitySupervisionGrid = () => (
 )
 
 const OperationalMonitoring = () => {
-  const roomRequests = coordinatorRequests.filter((request) => request.type === 'room').length
-  const equipmentRequests = coordinatorRequests.filter((request) => request.type === 'equipment').length
+  const { data: requests = [] } = useQuery({
+    queryKey: ['requests', 'coordinator-queue'],
+    queryFn: () => getCoordinatorRequests(),
+  })
+  const roomRequests = requests.filter((request) => request.type === 'ROOM_RESERVATION').length
+  const equipmentRequests = requests.filter((request) => request.type === 'MATERIAL_REQUEST').length
 
   return (
     <section className="grid gap-3 md:grid-cols-3">
@@ -461,7 +635,11 @@ const AlertsCenter = ({ compact = false }: { compact?: boolean }) => {
 }
 
 export const CoordinatorDashboardPage = () => {
-  const pendingRequests = coordinatorRequests.filter((request) => request.status === 'pending').length
+  const { data: requests = [] } = useQuery({
+    queryKey: ['requests', 'coordinator-queue'],
+    queryFn: () => getCoordinatorRequests(),
+  })
+  const pendingRequests = requests.filter((request) => request.status === 'submitted' || request.status === 'under_review').length
   const monitoredMembers = useMemo(() => coordinatorEntitySignals.reduce((total, entity) => total + entity.members, 0), [])
   const moderationCount = coordinatorEntitySignals.reduce((total, entity) => total + entity.moderationItems, 0)
 

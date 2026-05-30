@@ -27,8 +27,15 @@ export const normalizeApiError = (error: unknown): AppError => {
 
     if (payload && typeof payload === 'object' && 'message' in payload) {
       const message = (payload as { message?: unknown }).message
+      const fieldErrors = (payload as { fieldErrors?: unknown; validationErrors?: unknown }).fieldErrors
+        ?? (payload as { fieldErrors?: unknown; validationErrors?: unknown }).validationErrors
+      const fieldMessage = fieldErrors && typeof fieldErrors === 'object'
+        ? Object.entries(fieldErrors as Record<string, unknown>)
+            .map(([field, value]) => `${field}: ${String(value)}`)
+            .join(', ')
+        : ''
       if (typeof message === 'string') {
-        return { message, statusCode: error.response?.status }
+        return { message: fieldMessage ? `${message} - ${fieldMessage}` : message, statusCode: error.response?.status }
       }
     }
 

@@ -14,6 +14,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,8 +41,24 @@ public class Demande {
     private String description;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "request_type", nullable = false, length = 40)
+    private DemandeType type;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private DemandeStatus status;
+
+    @Column(name = "date_debut")
+    private LocalDate dateDebut;
+
+    @Column(name = "date_fin")
+    private LocalDate dateFin;
+
+    @Column(name = "heure_debut")
+    private LocalTime heureDebut;
+
+    @Column(name = "heure_fin")
+    private LocalTime heureFin;
 
     @Column(name = "decision_commentaire", length = 1000)
     private String decisionCommentaire;
@@ -69,17 +87,37 @@ public class Demande {
     protected Demande() {
     }
 
-    public Demande(Long entiteId, Long demandeurUtilisateurId, String objet, String description) {
+    public Demande(
+            Long entiteId,
+            Long demandeurUtilisateurId,
+            DemandeType type,
+            String objet,
+            String description,
+            LocalDate dateDebut,
+            LocalDate dateFin,
+            LocalTime heureDebut,
+            LocalTime heureFin) {
         this.entiteId = entiteId;
         this.demandeurUtilisateurId = demandeurUtilisateurId;
+        this.type = type;
         this.objet = objet;
         this.description = description;
+        this.dateDebut = dateDebut;
+        this.dateFin = dateFin;
+        this.heureDebut = heureDebut;
+        this.heureFin = heureFin;
         this.status = DemandeStatus.SUBMITTED;
     }
 
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
+        if (this.type == null) {
+            this.type = DemandeType.MATERIAL_REQUEST;
+        }
+        if (this.status == null) {
+            this.status = DemandeStatus.SUBMITTED;
+        }
         this.submittedAt = now;
         this.createdAt = now;
         this.updatedAt = now;
@@ -136,12 +174,52 @@ public class Demande {
         this.description = description;
     }
 
+    public DemandeType getType() {
+        return type;
+    }
+
+    public void setType(DemandeType type) {
+        this.type = type;
+    }
+
     public DemandeStatus getStatus() {
         return status;
     }
 
     public void setStatus(DemandeStatus status) {
         this.status = status;
+    }
+
+    public LocalDate getDateDebut() {
+        return dateDebut;
+    }
+
+    public void setDateDebut(LocalDate dateDebut) {
+        this.dateDebut = dateDebut;
+    }
+
+    public LocalDate getDateFin() {
+        return dateFin;
+    }
+
+    public void setDateFin(LocalDate dateFin) {
+        this.dateFin = dateFin;
+    }
+
+    public LocalTime getHeureDebut() {
+        return heureDebut;
+    }
+
+    public void setHeureDebut(LocalTime heureDebut) {
+        this.heureDebut = heureDebut;
+    }
+
+    public LocalTime getHeureFin() {
+        return heureFin;
+    }
+
+    public void setHeureFin(LocalTime heureFin) {
+        this.heureFin = heureFin;
     }
 
     public String getDecisionCommentaire() {

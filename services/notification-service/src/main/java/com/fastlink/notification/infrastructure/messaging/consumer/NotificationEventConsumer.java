@@ -52,24 +52,28 @@ public class NotificationEventConsumer {
     public void onRequestSubmitted(String payload) {
         JsonNode root = readPayload(payload);
 
-        Long utilisateurId = asLong(root, "demandeurUtilisateurId");
-        if (utilisateurId == null) {
-            LOGGER.warn("Demande soumise ignoree: demandeurUtilisateurId absent dans payload={}", payload);
+        Set<Long> recipients = asLongSet(root, "recipientUtilisateurIds");
+        if (recipients.isEmpty()) {
+            LOGGER.warn("Demande soumise ignoree: aucun coordinateur destinataire dans payload={}", payload);
             return;
         }
 
         String demandeId = asText(root, "demandeId");
+        String objet = asText(root, "objet");
         String contenu = demandeId == null || demandeId.isBlank()
-                ? "Votre demande a ete soumise."
-                : "Votre demande #" + demandeId + " a ete soumise.";
+                ? "Une nouvelle demande a ete soumise."
+                : "Une nouvelle demande #" + demandeId + " a ete soumise.";
+        if (objet != null && !objet.isBlank()) {
+            contenu = contenu + " Objet: " + objet;
+        }
 
         eventNotificationUseCase.notifyFromEvent(
                 "REQUEST_SUBMITTED",
                 demandeId,
-                "Demande soumise",
+                "Nouvelle demande a traiter",
                 contenu,
                 payload,
-                Set.of(utilisateurId));
+                recipients);
     }
 
     @KafkaListener(topics = "${messaging.topics.request-approved}")
@@ -166,5 +170,27 @@ public class NotificationEventConsumer {
             LOGGER.warn("Valeur numerique invalide pour {}: {}", field, textValue);
             return null;
         }
+    }
+
+    private Set<Long> asLongSet(JsonNode root, String field) {
+        JsonNode node = root.path(field);
+        if (!node.isArray()) {
+            Long single = asLong(root, field);
+            return single == null ? Set.of() : Set.of(single);
+        }
+
+        java.util.LinkedHashSet<Long> values = new java.util.LinkedHashSet<>();
+        node.forEach(item -> {
+            if (item.canConvertToLong()) {
+                values.add(item.longValue());
+            } else if (item.isTextual()) {
+                try {
+                    values.add(Long.parseLong(item.asText()));
+                } catch (NumberFormatException exception) {
+                    LOGGER.warn("Valeur numerique invalide dans {}: {}", field, item.asText());
+                }
+            }
+        });
+        return values;
     }
 }

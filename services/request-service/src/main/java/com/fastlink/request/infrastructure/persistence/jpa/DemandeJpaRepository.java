@@ -1,6 +1,7 @@
 package com.fastlink.request.infrastructure.persistence.jpa;
 
 import com.fastlink.request.domain.model.Demande;
+import com.fastlink.request.domain.model.DemandeStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -18,4 +19,8 @@ public interface DemandeJpaRepository extends JpaRepository<Demande, Long> {
     List<Demande> findByDemandeurUtilisateurId(Long demandeurUtilisateurId);
 
     List<Demande> findByEntiteId(Long entiteId);
+
+    List<Demande> findByEntiteIdAndDemandeurUtilisateurId(Long entiteId, Long demandeurUtilisateurId);
+
+    List<Demande> findByStatus(DemandeStatus status);
 }

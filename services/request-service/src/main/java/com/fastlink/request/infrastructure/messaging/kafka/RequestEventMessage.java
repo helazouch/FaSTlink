@@ -1,6 +1,7 @@
 package com.fastlink.request.infrastructure.messaging.kafka;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record RequestEventMessage(
@@ -13,5 +14,6 @@ public record RequestEventMessage(
         String objet,
         String status,
         Long decideurUtilisateurId,
-        String decisionCommentaire) {
+        String decisionCommentaire,
+        List<Long> recipientUtilisateurIds) {
 }

@@ -2,74 +2,151 @@ import { httpClient } from '../api/httpClient'
 import { getEntityName, hydrateEntityDirectory } from '../referenceDataService'
 import type { ServiceRequest, SubmitRequestInput } from '../../types/social'
 
+export interface AssignedRoomInput {
+  reservationId?: number
+  nomSalleAttribuee: string
+}
+
+interface DemandeMaterielDto {
+  id: number
+  libelle: string
+  quantite: number
+  details?: string | null
+}
+
+interface ReservationSalleDto {
+  id: number
+  salleId?: number | null
+  salleNom?: string | null
+  capaciteSouhaitee?: number | null
+  nomSalleAttribuee?: string | null
+  debutAt?: string | null
+  finAt?: string | null
+  note?: string | null
+}
+
 interface DemandeDto {
   id: number
   entiteId: number
   demandeurUtilisateurId: number
   objet: string
-  description: string
-  status: 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+  description: string | null
+  type: 'MATERIAL_REQUEST' | 'ROOM_RESERVATION'
+  status: 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'
+  dateDebut?: string | null
+  dateFin?: string | null
+  heureDebut?: string | null
+  heureFin?: string | null
+  decisionCommentaire?: string | null
+  decideurUtilisateurId?: number | null
   submittedAt?: string
+  decisionAt?: string | null
   createdAt: string
   updatedAt: string
+  materiels?: DemandeMaterielDto[]
+  reservations?: ReservationSalleDto[]
 }
 
-let requestsCache: ServiceRequest[] = []
-
-const mapStatus = (status: DemandeDto['status']): ServiceRequest['status'] => {
-  if (status === 'APPROVED') {
-    return 'approved'
-  }
-
-  if (status === 'REJECTED') {
-    return 'rejected'
-  }
-
-  return 'pending'
+const statusMap: Record<DemandeDto['status'], ServiceRequest['status']> = {
+  SUBMITTED: 'submitted',
+  UNDER_REVIEW: 'under_review',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
 }
 
 const mapRequest = (payload: DemandeDto): ServiceRequest => ({
   id: payload.id,
   title: payload.objet,
-  category: 'General',
-  description: payload.description,
+  category: payload.type === 'ROOM_RESERVATION' ? 'Room reservation' : 'Material request',
+  description: payload.description ?? '',
   priority: 'medium',
-  status: mapStatus(payload.status),
+  type: payload.type,
+  status: statusMap[payload.status],
+  rawStatus: payload.status,
   createdAt: payload.submittedAt ?? payload.createdAt,
   updatedAt: payload.updatedAt,
+  processedAt: payload.decisionAt ?? undefined,
   communityId: payload.entiteId,
   communityName: getEntityName(payload.entiteId, `Entity #${payload.entiteId}`),
+  requesterUserId: payload.demandeurUtilisateurId,
+  processorUserId: payload.decideurUtilisateurId ?? undefined,
+  note: payload.decisionCommentaire ?? undefined,
+  dateDebut: payload.dateDebut ?? undefined,
+  dateFin: payload.dateFin ?? undefined,
+  heureDebut: payload.heureDebut ?? undefined,
+  heureFin: payload.heureFin ?? undefined,
+  materials: (payload.materiels ?? []).map((item) => ({
+    id: item.id,
+    typeMateriel: item.libelle,
+    quantite: item.quantite,
+    details: item.details ?? undefined,
+  })),
+  rooms: (payload.reservations ?? []).map((item) => ({
+    id: item.id,
+    capaciteSouhaitee: item.capaciteSouhaitee ?? undefined,
+    nomSalleAttribuee: item.nomSalleAttribuee ?? item.salleNom ?? undefined,
+  })),
 })
 
-export const getMyRequests = async (userId: number): Promise<ServiceRequest[]> =>
-  {
-    await hydrateEntityDirectory()
-    const response = await httpClient.get<DemandeDto[]>('/v1/requests', {
-      params: {
-        utilisateurId: userId,
-      },
-    })
+export const getMyEntityRequests = async (entityId: number): Promise<ServiceRequest[]> => {
+  await hydrateEntityDirectory()
+  const response = await httpClient.get<DemandeDto[]>('/v1/requests/my-entity', {
+    params: { entityId },
+  })
+  return response.data.map(mapRequest)
+}
 
-    const mapped = response.data.map(mapRequest)
-    requestsCache = mapped
-    return mapped
-  }
+export const getCoordinatorRequests = async (filters?: {
+  status?: DemandeDto['status']
+  type?: DemandeDto['type']
+}): Promise<ServiceRequest[]> => {
+  await hydrateEntityDirectory()
+  const response = await httpClient.get<DemandeDto[]>('/v1/requests/queue', {
+    params: {
+      status: filters?.status,
+      type: filters?.type,
+    },
+  })
+  return response.data.map(mapRequest)
+}
 
-export const submitRequest = async (
-  input: SubmitRequestInput,
-  userId: number,
-): Promise<ServiceRequest> => {
-  await hydrateEntityDirectory(userId)
+export const submitRequest = async (input: SubmitRequestInput): Promise<ServiceRequest> => {
   const response = await httpClient.post<DemandeDto>('/v1/requests', {
-    utilisateurId: userId,
-    entiteId: input.communityId,
+    entityId: input.communityId,
+    type: input.type,
     objet: input.title,
     description: input.description,
-    materiels: [],
-    reservations: [],
+    dateDebut: input.dateDebut,
+    dateFin: input.dateFin,
+    heureDebut: input.heureDebut,
+    heureFin: input.heureFin,
+    typeMateriel: input.type === 'MATERIAL_REQUEST' ? input.typeMateriel : undefined,
+    quantite: input.type === 'MATERIAL_REQUEST' ? input.quantite : undefined,
+    nbSallesDemandees: input.type === 'ROOM_RESERVATION' ? input.sallesDemandees.length : undefined,
+    sallesDemandees: input.type === 'ROOM_RESERVATION' ? input.sallesDemandees : undefined,
   })
 
-  const created = mapRequest(response.data)
-  requestsCache = [created, ...requestsCache]
-  return created
+  return mapRequest(response.data)
+}
+
+export const markRequestUnderReview = async (requestId: number, note?: string): Promise<ServiceRequest> => {
+  const response = await httpClient.patch<DemandeDto>(`/v1/requests/${requestId}/under-review`, { note })
+  return mapRequest(response.data)
+}
+
+export const approveRequest = async (
+  requestId: number,
+  note: string,
+  assignedRooms: AssignedRoomInput[] = [],
+): Promise<ServiceRequest> => {
+  const response = await httpClient.patch<DemandeDto>(`/v1/requests/${requestId}/approve`, {
+    note,
+    assignedRooms,
+  })
+  return mapRequest(response.data)
+}
+
+export const rejectRequest = async (requestId: number, note: string): Promise<ServiceRequest> => {
+  const response = await httpClient.patch<DemandeDto>(`/v1/requests/${requestId}/reject`, { note })
+  return mapRequest(response.data)
 }
