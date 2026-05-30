@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Megaphone,
   MonitorCheck,
-  ShieldCheck,
   Shapes,
   Users,
   Workflow,
@@ -32,15 +31,11 @@ const bureauNavItems = [
   { to: '/bureau/statistics', label: 'Entity Statistics', icon: BarChart3, gate: 'canViewStats' as const },
 ]
 
-const coordinatorNavItems = [
-  { to: '/coordinator', label: 'Coordinator Dashboard', icon: ShieldCheck, gate: 'isCoordinator' as const },
-]
-
 const coordinatorToolNavItems = [
+  { to: '/coordinator/publish', label: 'Publish', icon: Megaphone, gate: 'canPublish' as const },
   { to: '/coordinator/members', label: 'Manage Members', icon: Users, gate: 'canManageMembers' as const },
   { to: '/coordinator/community', label: 'Manage Community', icon: Shapes, gate: 'canManageCommunity' as const },
   { to: '/coordinator/events', label: 'Manage Events', icon: CalendarRange, gate: 'canManageEvents' as const },
-  { to: '/coordinator/publish', label: 'Publish', icon: Megaphone, gate: 'canPublish' as const },
   { to: '/coordinator/statistics', label: 'Entity Statistics', icon: BarChart3, gate: 'canViewStats' as const },
 ]
 
@@ -53,7 +48,7 @@ const coordinatorOperationNavItems = [
 export const LeftSidebar = () => {
   const permissions = useScopedPermissions()
   const { currentEntityId, currentMembership } = useCurrentEntityContext()
-  const showBureauTools = currentEntityId !== null && permissions.isBureauMember
+  const showBureauTools = currentEntityId !== null && permissions.isBureauMember && !permissions.isCoordinator
   const showCoordinatorTools = permissions.isCoordinator
 
   const memberGateMap = {
@@ -70,7 +65,6 @@ export const LeftSidebar = () => {
   }
 
   const coordinatorGateMap = {
-    isCoordinator: permissions.isCoordinator,
     canProcessRequests: permissions.canProcessRequests,
     canViewAdvancedAnalytics: permissions.canViewAdvancedAnalytics,
     canSuperviseEntities: permissions.canSuperviseEntities,
@@ -81,17 +75,18 @@ export const LeftSidebar = () => {
     canViewStats: permissions.canViewStats,
   }
 
-  const visibleMemberNavItems = memberNavItems.filter((item) =>
-    item.gate ? memberGateMap[item.gate] : true,
-  )
+  const visibleMemberNavItems = memberNavItems.filter((item) => {
+    if (permissions.isCoordinator && item.to === '/requests') {
+      return false
+    }
+
+    return item.gate ? memberGateMap[item.gate] : true
+  })
 
   const visibleBureauNavItems = bureauNavItems.filter((item) =>
     item.gate ? bureauGateMap[item.gate] : true,
   )
 
-  const visibleCoordinatorNavItems = coordinatorNavItems.filter((item) =>
-    item.gate ? coordinatorGateMap[item.gate] : true,
-  )
   const visibleCoordinatorToolNavItems = coordinatorToolNavItems.filter((item) =>
     item.gate ? coordinatorGateMap[item.gate] : true,
   )
@@ -115,17 +110,6 @@ export const LeftSidebar = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Bureau tools</p>
           <div className="mt-3 space-y-1">
             {visibleBureauNavItems.map((item) => (
-              <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {showCoordinatorTools && visibleCoordinatorNavItems.length > 0 ? (
-        <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator</p>
-          <div className="mt-3 space-y-1">
-            {visibleCoordinatorNavItems.map((item) => (
               <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
             ))}
           </div>

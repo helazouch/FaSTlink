@@ -11,7 +11,7 @@ import { usePermissions } from '../../hooks/usePermissions'
 
 const navItems = [
   { to: '/coordinator', label: 'Overview', icon: LayoutDashboard, gate: 'isCoordinator' as const, end: true },
-  { to: '/coordinator/requests', label: 'Requests', icon: Workflow, gate: 'canProcessRequests' as const },
+  { to: '/coordinator/requests', label: 'Request Processing', icon: Workflow, gate: 'canProcessRequests' as const },
   { to: '/coordinator/analytics', label: 'Analytics', icon: BarChart3, gate: 'canViewAdvancedAnalytics' as const },
   { to: '/coordinator/supervision', label: 'Supervision', icon: MonitorCheck, gate: 'canSuperviseEntities' as const },
   { to: '/coordinator/alerts', label: 'Alerts', icon: Bell, gate: 'isCoordinator' as const },

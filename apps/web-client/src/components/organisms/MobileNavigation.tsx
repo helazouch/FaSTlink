@@ -8,7 +8,7 @@ export const MobileNavigation = () => {
     { to: '/', label: 'Home', icon: House, visible: true },
     { to: '/communities', label: 'Communities', icon: Shapes, visible: true },
     { to: '/events', label: 'Events', icon: CalendarRange, visible: true },
-    { to: '/bureau', label: 'Bureau', icon: Workflow, visible: permissions.isBureauMember },
+    { to: '/bureau', label: 'Bureau', icon: Workflow, visible: permissions.isBureauMember && !permissions.isCoordinator },
     { to: '/coordinator', label: 'Coordinator', icon: ShieldCheck, visible: permissions.isCoordinator },
   ].filter((item) => item.visible)
 

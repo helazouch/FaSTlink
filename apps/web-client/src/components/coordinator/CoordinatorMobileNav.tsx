@@ -6,7 +6,7 @@ export const CoordinatorMobileNav = () => {
   const permissions = usePermissions()
   const items = [
     { to: '/coordinator', label: 'Home', icon: LayoutDashboard, visible: true, end: true },
-    { to: '/coordinator/requests', label: 'Requests', icon: Workflow, visible: permissions.canProcessRequests() },
+    { to: '/coordinator/requests', label: 'Request Processing', icon: Workflow, visible: permissions.canProcessRequests() },
     { to: '/coordinator/analytics', label: 'Analytics', icon: BarChart3, visible: permissions.canViewAdvancedAnalytics() },
     { to: '/coordinator/supervision', label: 'Supervision', icon: MonitorCheck, visible: permissions.canSuperviseEntities() },
     { to: '/coordinator/alerts', label: 'Alerts', icon: Bell, visible: true },
