@@ -6,6 +6,7 @@ import com.fastlink.analytics.application.exception.ResourceNotFoundException;
 import com.fastlink.analytics.application.port.out.EntityPermissionPort;
 import com.fastlink.analytics.config.EntityClientProperties;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,9 @@ public class EntityPermissionClientAdapter implements EntityPermissionPort {
     private final RestTemplate entityRestTemplate;
     private final EntityClientProperties properties;
 
-    public EntityPermissionClientAdapter(RestTemplate entityRestTemplate, EntityClientProperties properties) {
+    public EntityPermissionClientAdapter(
+            @Qualifier("entityRestTemplate") RestTemplate entityRestTemplate,
+            EntityClientProperties properties) {
         this.entityRestTemplate = entityRestTemplate;
         this.properties = properties;
     }

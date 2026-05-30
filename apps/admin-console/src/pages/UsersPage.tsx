@@ -23,8 +23,6 @@ import {
 } from '../services/admin/adminService'
 import { useAuthStore } from '../stores/authStore'
 
-const ROLE_FALLBACK = ['ADMIN', 'USER']
-
 export const UsersPage = () => {
   const queryClient = useQueryClient()
   const actorUserId = useAuthStore((state) => state.user?.id ?? 0)
@@ -64,8 +62,7 @@ export const UsersPage = () => {
   })
 
   const roleNames = useMemo(() => {
-    const fromApi = (rolesQuery.data ?? []).map((role) => role.name)
-    return fromApi.length > 0 ? fromApi : ROLE_FALLBACK
+    return (rolesQuery.data ?? []).map((role) => role.name)
   }, [rolesQuery.data])
 
   const assignRoleMutation = useMutation({

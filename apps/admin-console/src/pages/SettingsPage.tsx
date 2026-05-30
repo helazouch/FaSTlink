@@ -11,7 +11,6 @@ import { Loader } from '../components/ui/Loader'
 import { Modal } from '../components/ui/Modal'
 import { TextArea } from '../components/ui/TextArea'
 import { TextInput } from '../components/ui/TextInput'
-import { appendAuditEntry, listLocalAuditEntries } from '../lib/auditTrail'
 import { normalizeApiError } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import {
@@ -105,7 +104,7 @@ export const SettingsPage = () => {
     })
   }, [configSearch, configsQuery.data])
 
-  const auditRows = auditQuery.isError ? listLocalAuditEntries(200) : auditQuery.data ?? []
+  const auditRows = auditQuery.data ?? []
 
   const pageSize = 8
   const settingsRows = filteredSettings.slice(settingPage * pageSize, settingPage * pageSize + pageSize)
@@ -131,14 +130,7 @@ export const SettingsPage = () => {
         updatedByUserId: actorUserId,
       })
     },
-    onSuccess: (saved) => {
-      appendAuditEntry(
-        settingEditId ? 'UPDATE_SETTING' : 'CREATE_SETTING',
-        'setting',
-        String(saved.id),
-        'SUCCESS',
-        saved.settingKey,
-      )
+    onSuccess: () => {
       setSettingModalOpen(false)
       setSettingEditId(null)
       setSettingKey('')
@@ -147,15 +139,9 @@ export const SettingsPage = () => {
       setSettingEnabled(true)
       setErrorMessage(null)
       void queryClient.invalidateQueries({ queryKey: ['platform-settings'] })
+      void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
     },
     onError: (error) => {
-      appendAuditEntry(
-        settingEditId ? 'UPDATE_SETTING' : 'CREATE_SETTING',
-        'setting',
-        String(settingEditId ?? 'new'),
-        'FAILED',
-        normalizeApiError(error).message,
-      )
       setErrorMessage(normalizeApiError(error).message)
     },
   })
@@ -177,14 +163,7 @@ export const SettingsPage = () => {
         updatedByUserId: actorUserId,
       })
     },
-    onSuccess: (saved) => {
-      appendAuditEntry(
-        configEditId ? 'UPDATE_CONFIG' : 'CREATE_CONFIG',
-        'config',
-        String(saved.id),
-        'SUCCESS',
-        saved.configKey,
-      )
+    onSuccess: () => {
       setConfigModalOpen(false)
       setConfigEditId(null)
       setConfigKey('')
@@ -192,15 +171,9 @@ export const SettingsPage = () => {
       setConfigDescription('')
       setErrorMessage(null)
       void queryClient.invalidateQueries({ queryKey: ['global-configs'] })
+      void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
     },
     onError: (error) => {
-      appendAuditEntry(
-        configEditId ? 'UPDATE_CONFIG' : 'CREATE_CONFIG',
-        'config',
-        String(configEditId ?? 'new'),
-        'FAILED',
-        normalizeApiError(error).message,
-      )
       setErrorMessage(normalizeApiError(error).message)
     },
   })
@@ -222,7 +195,6 @@ export const SettingsPage = () => {
         return
       }
 
-      appendAuditEntry('DELETE_CONFIG_ITEM', target.type, String(target.id), 'SUCCESS', 'Deleted item')
       setDeleteTarget(null)
       setErrorMessage(null)
 
@@ -231,15 +203,9 @@ export const SettingsPage = () => {
       } else {
         void queryClient.invalidateQueries({ queryKey: ['global-configs'] })
       }
+      void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
     },
-    onError: (error, target) => {
-      appendAuditEntry(
-        'DELETE_CONFIG_ITEM',
-        target?.type ?? 'unknown',
-        String(target?.id ?? 'unknown'),
-        'FAILED',
-        normalizeApiError(error).message,
-      )
+    onError: (error) => {
       setErrorMessage(normalizeApiError(error).message)
     },
   })
@@ -432,7 +398,7 @@ export const SettingsPage = () => {
         <Pagination page={configPage} pageSize={pageSize} total={filteredConfigs.length} onPageChange={setConfigPage} />
       </DataTableShell>
 
-      <DataTableShell title="Audit logs" subtitle="Server audit endpoint is used when available, with local fallback.">
+      <DataTableShell title="Audit logs" subtitle="Server audit endpoint data.">
         {auditQuery.isLoading ? (
           <div className="p-4">
             <Loader label="Loading audit logs..." />
@@ -441,7 +407,7 @@ export const SettingsPage = () => {
           <div className="p-4">
             <EmptyState
               title="No audit logs"
-              message="No audit entries found from server endpoint or local admin action history."
+              message="No audit entries were returned by the admin audit endpoint."
             />
           </div>
         ) : (

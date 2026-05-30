@@ -1,135 +1,163 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
-import { ActivityChart } from '../components/charts/ActivityChart'
-import { GrowthChart } from '../components/charts/GrowthChart'
+import { MetricBarChart } from '../components/charts/MetricBarChart'
+import { MetricLineChart } from '../components/charts/MetricLineChart'
 import { DataTableShell } from '../components/table/DataTableShell'
-import { Pagination } from '../components/table/Pagination'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Loader } from '../components/ui/Loader'
 import { StatCard } from '../components/ui/StatCard'
-import { TextInput } from '../components/ui/TextInput'
-import { env } from '../config/env'
 import { compactNumber, formatDateTime } from '../lib/format'
-import { getAnalyticsSnapshots } from '../services/admin/adminService'
+import {
+  getCommunityMetrics,
+  getEntityDistribution,
+  getEventMetrics,
+  getPlatformOverview,
+  getPublicationMetrics,
+  getRequestMetrics,
+} from '../services/admin/adminService'
 
 export const AnalyticsPage = () => {
-  const [entityIdInput, setEntityIdInput] = useState(String(env.defaultEntityId))
-  const [limitInput, setLimitInput] = useState('60')
-  const [page, setPage] = useState(0)
-
-  const entityId = useMemo(() => {
-    const parsed = Number(entityIdInput)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : env.defaultEntityId
-  }, [entityIdInput])
-
-  const limit = useMemo(() => {
-    const parsed = Number(limitInput)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 60
-  }, [limitInput])
-
-  const snapshotsQuery = useQuery({
-    queryKey: ['analytics-snapshots-page', entityId, limit],
-    queryFn: () => getAnalyticsSnapshots(entityId, Math.min(limit, 200)),
+  const overviewQuery = useQuery({
+    queryKey: ['analytics-platform-overview'],
+    queryFn: getPlatformOverview,
+    staleTime: 60_000,
   })
 
-  const snapshots = snapshotsQuery.data ?? []
-  const totalInteractions = snapshots.reduce((acc, item) => acc + item.interactions, 0)
-  const totalParticipation = snapshots.reduce((acc, item) => acc + item.participation, 0)
-  const avgEngagement =
-    snapshots.length === 0
-      ? 0
-      : snapshots.reduce((acc, item) => acc + item.engagement, 0) / snapshots.length
+  const entityDistributionQuery = useQuery({
+    queryKey: ['analytics-entity-distribution'],
+    queryFn: getEntityDistribution,
+    staleTime: 60_000,
+  })
 
-  const pageSize = 12
-  const paginated = snapshots.slice(page * pageSize, page * pageSize + pageSize)
+  const publicationQuery = useQuery({
+    queryKey: ['analytics-publication-metrics'],
+    queryFn: getPublicationMetrics,
+    staleTime: 60_000,
+  })
 
-  if (snapshotsQuery.isLoading) {
-    return <Loader label="Loading analytics snapshots..." />
+  const eventQuery = useQuery({
+    queryKey: ['analytics-event-metrics'],
+    queryFn: getEventMetrics,
+    staleTime: 60_000,
+  })
+
+  const communityQuery = useQuery({
+    queryKey: ['analytics-community-metrics'],
+    queryFn: getCommunityMetrics,
+    staleTime: 60_000,
+  })
+
+  const requestQuery = useQuery({
+    queryKey: ['analytics-request-metrics'],
+    queryFn: getRequestMetrics,
+    staleTime: 60_000,
+  })
+
+  if (
+    overviewQuery.isLoading ||
+    entityDistributionQuery.isLoading ||
+    publicationQuery.isLoading ||
+    eventQuery.isLoading ||
+    communityQuery.isLoading ||
+    requestQuery.isLoading
+  ) {
+    return <Loader label="Loading analytics metrics..." />
   }
 
-  if (snapshotsQuery.isError) {
+  if (
+    overviewQuery.isError ||
+    entityDistributionQuery.isError ||
+    publicationQuery.isError ||
+    eventQuery.isError ||
+    communityQuery.isError ||
+    requestQuery.isError
+  ) {
     return (
       <EmptyState
         title="Analytics unavailable"
-        message="Could not read analytics snapshots for this entity. Check analytics-service and permissions."
+        message="Could not read platform analytics. Check analytics-service, downstream services, and ADMIN permissions."
       />
     )
   }
 
+  const overview = overviewQuery.data
+  const entityDistribution = entityDistributionQuery.data
+  const publicationMetrics = publicationQuery.data
+  const eventMetrics = eventQuery.data
+  const communityMetrics = communityQuery.data
+  const requestMetrics = requestQuery.data
+
+  if (!overview || !entityDistribution || !publicationMetrics || !eventMetrics || !communityMetrics || !requestMetrics) {
+    return <Loader label="Loading analytics metrics..." />
+  }
+
+  const entityPoints = entityDistribution.entities.map((entity) => ({
+    label: entity.nom,
+    value: entity.members,
+  }))
+
   return (
     <div className="space-y-5">
-      <section className="panel p-4">
-        <div className="grid gap-3 md:grid-cols-3">
-          <TextInput
-            label="Entity id"
-            value={entityIdInput}
-            onChange={(event) => setEntityIdInput(event.target.value)}
-            placeholder="1"
-          />
-          <TextInput
-            label="Snapshot limit"
-            value={limitInput}
-            onChange={(event) => setLimitInput(event.target.value)}
-            placeholder="60"
-          />
-          <TextInput label="Loaded snapshots" value={String(snapshots.length)} disabled />
-        </div>
-      </section>
-
       <section className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Interactions" value={compactNumber(totalInteractions)} detail="Total in selected horizon" />
-        <StatCard title="Participation" value={compactNumber(totalParticipation)} detail="Participation signal" />
-        <StatCard title="Average engagement" value={compactNumber(Math.round(avgEngagement))} detail="Mean per snapshot" />
+        <StatCard title="Users" value={compactNumber(overview.totalUsers)} detail="identity-service total" />
+        <StatCard title="Posts" value={compactNumber(publicationMetrics.totalPosts)} detail="publication-service total" />
+        <StatCard title="Events" value={compactNumber(eventMetrics.eventsCreated)} detail="event-service total" />
+        <StatCard title="Communities" value={compactNumber(communityMetrics.communitiesCreated)} detail="community-service total" />
+        <StatCard title="Entity members" value={compactNumber(entityDistribution.totalMembers)} detail="entity-service memberships" />
+        <StatCard
+          title="Requests"
+          value={compactNumber(requestMetrics.requestsSubmitted)}
+          detail={`${compactNumber(requestMetrics.pending)} pending`}
+        />
       </section>
 
-      {snapshots.length === 0 ? (
-        <EmptyState
-          title="No analytics data"
-          message="No snapshots were returned for this entity. Start generating platform events first."
+      <section className="grid gap-4 xl:grid-cols-2">
+        <MetricLineChart
+          title="Publication activity"
+          subtitle="Daily publication creation events"
+          points={publicationMetrics.activity}
         />
-      ) : (
-        <section className="grid gap-4 xl:grid-cols-2">
-          <ActivityChart snapshots={snapshots} />
-          <GrowthChart snapshots={snapshots} />
-        </section>
-      )}
+        <MetricLineChart title="Event activity" subtitle="Daily event creation events" points={eventMetrics.activity} />
+        <MetricBarChart title="Posts by entity" subtitle="Publication events by entity" points={publicationMetrics.postsByEntity} />
+        <MetricBarChart title="Request processing" subtitle="Current request status totals" points={requestMetrics.processing} />
+      </section>
 
-      <DataTableShell title="Snapshot table" subtitle="Raw analytics snapshots for detailed audit and trend checks.">
+      <DataTableShell
+        title="Entity distribution"
+        subtitle={`Computed ${formatDateTime(entityDistribution.computedAt)} from entity-service memberships.`}
+      >
         <table className="min-w-full">
           <thead className="bg-slate-50 dark:bg-surface-700/60">
             <tr>
-              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Snapshot id</th>
-              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Interactions</th>
-              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Participation</th>
-              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Engagement</th>
-              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Source type</th>
-              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Created</th>
+              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Entity</th>
+              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Members</th>
+              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Bureau</th>
+              <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Coordinators</th>
             </tr>
           </thead>
           <tbody>
-            {paginated.length === 0 ? (
+            {entityDistribution.entities.length === 0 ? (
               <tr>
-                <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={6}>
-                  No rows to display.
+                <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={4}>
+                  No entity membership data returned.
                 </td>
               </tr>
             ) : (
-              paginated.map((snapshot) => (
-                <tr key={snapshot.id} className="border-t border-slate-200 dark:border-surface-700">
-                  <td className="table-cell text-slate-700 dark:text-slate-200">#{snapshot.id}</td>
-                  <td className="table-cell text-slate-700 dark:text-slate-200">{snapshot.interactions}</td>
-                  <td className="table-cell text-slate-700 dark:text-slate-200">{snapshot.participation}</td>
-                  <td className="table-cell text-slate-700 dark:text-slate-200">{snapshot.engagement}</td>
-                  <td className="table-cell text-slate-600 dark:text-slate-300">{snapshot.sourceEventType ?? 'N/A'}</td>
-                  <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(snapshot.createdAt)}</td>
+              entityDistribution.entities.map((entity) => (
+                <tr key={entity.entiteId} className="border-t border-slate-200 dark:border-surface-700">
+                  <td className="table-cell text-slate-700 dark:text-slate-200">{entity.nom}</td>
+                  <td className="table-cell text-slate-700 dark:text-slate-200">{entity.members}</td>
+                  <td className="table-cell text-slate-700 dark:text-slate-200">{entity.bureauMembers}</td>
+                  <td className="table-cell text-slate-700 dark:text-slate-200">{entity.coordinators}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
-
-        <Pagination page={page} pageSize={pageSize} total={snapshots.length} onPageChange={setPage} />
       </DataTableShell>
+
+      {entityPoints.length === 0 ? (
+        <EmptyState title="No entity analytics data" message="Entity-service returned no entities for distribution metrics." />
+      ) : null}
     </div>
   )
 }

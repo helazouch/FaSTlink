@@ -258,7 +258,11 @@ services:
       DB_URL: jdbc:postgresql://ep-misty-credit-andnetfk-pooler.c-6.us-east-1.aws.neon.tech/analytics_db?sslmode=require&channel_binding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_Hp7oP9zrslfa
+      IDENTITY_BASE_URL: http://identity-service:8080
       ENTITY_BASE_URL: http://entity-service:8081
+      PUBLICATION_BASE_URL: http://publication-service:8082
+      EVENT_BASE_URL: http://event-service:8083
+      COMMUNITY_BASE_URL: http://community-service:8084
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
       NOTIFICATION_BASE_URL: http://notification-service:8087
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092

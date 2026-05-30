@@ -66,6 +66,15 @@ integration:
     permission-check-path: ${ENTITY_PERMISSION_CHECK_PATH:/api/v1/internal/entities/{entiteId}/permissions/check}
     connect-timeout-ms: ${ENTITY_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${ENTITY_READ_TIMEOUT_MS:5000}
+  platform:
+    identity-base-url: ${IDENTITY_BASE_URL:http://localhost:8080}
+    entity-base-url: ${ENTITY_BASE_URL:http://localhost:8081}
+    publication-base-url: ${PUBLICATION_BASE_URL:http://localhost:8082}
+    event-base-url: ${EVENT_BASE_URL:http://localhost:8083}
+    community-base-url: ${COMMUNITY_BASE_URL:http://localhost:8084}
+    notification-base-url: ${NOTIFICATION_BASE_URL:http://localhost:8087}
+    connect-timeout-ms: ${PLATFORM_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${PLATFORM_READ_TIMEOUT_MS:5000}
 
 security:
   jwt:

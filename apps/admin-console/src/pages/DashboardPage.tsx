@@ -1,169 +1,164 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Cog, Gauge, SlidersHorizontal } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { ActivityChart } from '../components/charts/ActivityChart'
-import { GrowthChart } from '../components/charts/GrowthChart'
+import { Bell, Building2, CalendarDays, FileText, Network, Users } from 'lucide-react'
+import { MetricBarChart } from '../components/charts/MetricBarChart'
+import { MetricLineChart } from '../components/charts/MetricLineChart'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Loader } from '../components/ui/Loader'
 import { StatCard } from '../components/ui/StatCard'
-import { TextInput } from '../components/ui/TextInput'
-import { env } from '../config/env'
-import { listLocalAuditEntries } from '../lib/auditTrail'
 import { compactNumber, formatDateTime } from '../lib/format'
-import { getAnalyticsSnapshots, getGlobalStats, listAuditLogs } from '../services/admin/adminService'
+import {
+  getEntityDistribution,
+  getEventMetrics,
+  getPlatformOverview,
+  getPublicationMetrics,
+  getRequestMetrics,
+} from '../services/admin/adminService'
 
 export const DashboardPage = () => {
-  const [entityIdInput, setEntityIdInput] = useState(String(env.defaultEntityId))
-
-  const entityId = useMemo(() => {
-    const parsed = Number(entityIdInput)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : env.defaultEntityId
-  }, [entityIdInput])
-
-  const statsQuery = useQuery({
-    queryKey: ['admin-global-stats'],
-    queryFn: getGlobalStats,
+  const overviewQuery = useQuery({
+    queryKey: ['analytics-platform-overview'],
+    queryFn: getPlatformOverview,
+    staleTime: 60_000,
   })
 
-  const snapshotsQuery = useQuery({
-    queryKey: ['analytics-snapshots', entityId],
-    queryFn: () => getAnalyticsSnapshots(entityId, 30),
+  const publicationQuery = useQuery({
+    queryKey: ['analytics-publication-metrics'],
+    queryFn: getPublicationMetrics,
+    staleTime: 60_000,
   })
 
-  const auditQuery = useQuery({
-    queryKey: ['dashboard-audit-logs'],
-    queryFn: () => listAuditLogs(8),
-    retry: false,
+  const eventQuery = useQuery({
+    queryKey: ['analytics-event-metrics'],
+    queryFn: getEventMetrics,
+    staleTime: 60_000,
   })
 
-  const auditEntries = useMemo(
-    () => (auditQuery.isError ? listLocalAuditEntries(8) : auditQuery.data ?? []),
-    [auditQuery.data, auditQuery.isError],
-  )
+  const requestQuery = useQuery({
+    queryKey: ['analytics-request-metrics'],
+    queryFn: getRequestMetrics,
+    staleTime: 60_000,
+  })
 
-  if (statsQuery.isLoading || snapshotsQuery.isLoading) {
+  const entityDistributionQuery = useQuery({
+    queryKey: ['analytics-entity-distribution'],
+    queryFn: getEntityDistribution,
+    staleTime: 60_000,
+  })
+
+  if (
+    overviewQuery.isLoading ||
+    publicationQuery.isLoading ||
+    eventQuery.isLoading ||
+    requestQuery.isLoading ||
+    entityDistributionQuery.isLoading
+  ) {
     return <Loader label="Loading dashboard metrics..." />
   }
 
-  if (statsQuery.isError) {
+  if (
+    overviewQuery.isError ||
+    publicationQuery.isError ||
+    eventQuery.isError ||
+    requestQuery.isError ||
+    entityDistributionQuery.isError
+  ) {
     return (
       <EmptyState
         title="Unable to load platform metrics"
-        message="The admin stats endpoint is unavailable. Verify gateway and ADMIN token permissions."
+        message="Analytics endpoints are unavailable. Verify analytics-service, gateway routing, and ADMIN token permissions."
       />
     )
   }
 
-  const stats = statsQuery.data
+  const overview = overviewQuery.data
+  const publicationMetrics = publicationQuery.data
+  const eventMetrics = eventQuery.data
+  const requestMetrics = requestQuery.data
+  const entityDistribution = entityDistributionQuery.data
 
-  if (!stats) {
+  if (!overview || !publicationMetrics || !eventMetrics || !requestMetrics || !entityDistribution) {
     return <Loader label="Loading platform metrics..." />
   }
 
-  const snapshots = snapshotsQuery.data ?? []
-  const latestSnapshot = snapshots[0]
+  const entityPoints = entityDistribution.entities.map((entity) => ({
+    label: entity.nom,
+    value: entity.members,
+  }))
 
   return (
     <div className="space-y-5">
-      <section className="panel p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Dashboard scope
-            </p>
-            <h3 className="font-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Entity analytics source
-            </h3>
-          </div>
-          <div className="ml-auto w-full max-w-xs">
-            <TextInput
-              label="Entity id"
-              value={entityIdInput}
-              onChange={(event) => setEntityIdInput(event.target.value)}
-              placeholder="1"
-            />
-          </div>
-        </div>
-      </section>
-
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Global configs"
-          value={compactNumber(stats.totalGlobalConfigs)}
-          detail={`Last update ${formatDateTime(stats.lastGlobalConfigUpdatedAt)}`}
-          icon={<Cog size={18} />}
+          title="Users"
+          value={compactNumber(overview.totalUsers)}
+          detail={`Computed ${formatDateTime(overview.computedAt)}`}
+          icon={<Users size={18} />}
         />
         <StatCard
-          title="Platform settings"
-          value={compactNumber(stats.totalPlatformSettings)}
-          detail={`${stats.enabledPlatformSettings} enabled / ${stats.disabledPlatformSettings} disabled`}
-          icon={<SlidersHorizontal size={18} />}
+          title="Entities"
+          value={compactNumber(overview.totalEntities)}
+          detail={`${compactNumber(entityDistribution.totalMembers)} members`}
+          icon={<Building2 size={18} />}
         />
         <StatCard
-          title="Interactions"
-          value={compactNumber(latestSnapshot?.interactions ?? 0)}
-          detail="Latest analytics snapshot"
-          icon={<Activity size={18} />}
+          title="Publications"
+          value={compactNumber(overview.totalPublications)}
+          detail={`${compactNumber(publicationMetrics.engagement)} engagement signal`}
+          icon={<FileText size={18} />}
         />
         <StatCard
-          title="Engagement"
-          value={compactNumber(latestSnapshot?.engagement ?? 0)}
-          detail={`Computed ${formatDateTime(stats.computedAt)}`}
-          icon={<Gauge size={18} />}
+          title="Events"
+          value={compactNumber(overview.totalEvents)}
+          detail={`${compactNumber(eventMetrics.participationCount)} participation signal`}
+          icon={<CalendarDays size={18} />}
+        />
+        <StatCard
+          title="Requests"
+          value={compactNumber(overview.totalRequests)}
+          detail={`${compactNumber(requestMetrics.pending)} pending`}
+          icon={<Network size={18} />}
+        />
+        <StatCard
+          title="Communities"
+          value={compactNumber(overview.totalCommunities)}
+          detail={`${compactNumber(overview.totalCommunities)} active`}
+          icon={<Users size={18} />}
+        />
+        <StatCard
+          title="Notifications"
+          value={compactNumber(overview.totalNotifications)}
+          detail="Stored notifications"
+          icon={<Bell size={18} />}
+        />
+        <StatCard
+          title="Processed requests"
+          value={compactNumber(requestMetrics.approved + requestMetrics.rejected)}
+          detail={`${compactNumber(requestMetrics.approved)} approved / ${compactNumber(requestMetrics.rejected)} rejected`}
+          icon={<Network size={18} />}
         />
       </section>
 
-      {snapshots.length === 0 ? (
-        <EmptyState
-          title="No analytics snapshots"
-          message="No snapshots exist for this entity yet. Generate events and interactions first."
+      <section className="grid gap-4 xl:grid-cols-2">
+        <MetricLineChart
+          title="Publication activity"
+          subtitle="Daily publication events captured by analytics-service"
+          points={publicationMetrics.activity}
         />
-      ) : (
-        <section className="grid gap-4 xl:grid-cols-2">
-          <ActivityChart snapshots={snapshots} />
-          <GrowthChart snapshots={snapshots} />
-        </section>
-      )}
-
-      <section className="panel overflow-hidden">
-        <header className="border-b border-slate-200 px-4 py-4 dark:border-surface-700">
-          <h3 className="font-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Audit highlights</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Recent admin operations stored locally when audit endpoint is not available.
-          </p>
-        </header>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-slate-50 dark:bg-surface-700/60">
-              <tr>
-                <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Time</th>
-                <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Action</th>
-                <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Resource</th>
-                <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditEntries.length === 0 ? (
-                <tr>
-                  <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={4}>
-                    No audit activity captured yet.
-                  </td>
-                </tr>
-              ) : (
-                auditEntries.map((entry) => (
-                  <tr key={entry.id} className="border-t border-slate-200 dark:border-surface-700">
-                    <td className="table-cell text-slate-600 dark:text-slate-300">{formatDateTime(entry.createdAt)}</td>
-                    <td className="table-cell text-slate-700 dark:text-slate-200">{entry.action}</td>
-                    <td className="table-cell text-slate-600 dark:text-slate-300">
-                      {entry.resourceType} #{entry.resourceId}
-                    </td>
-                    <td className="table-cell text-slate-700 dark:text-slate-200">{entry.status}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <MetricLineChart
+          title="Event activity"
+          subtitle="Daily event creation captured by analytics-service"
+          points={eventMetrics.activity}
+        />
+        <MetricBarChart
+          title="Request processing"
+          subtitle="Submitted requests resolved from analytics events"
+          points={requestMetrics.processing}
+        />
+        <MetricBarChart
+          title="Entity distribution"
+          subtitle="Members by entity from entity-service"
+          points={entityPoints}
+        />
       </section>
     </div>
   )

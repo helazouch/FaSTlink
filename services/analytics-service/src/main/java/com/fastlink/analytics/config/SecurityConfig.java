@@ -1,8 +1,10 @@
 package com.fastlink.analytics.config;
 
 import java.util.Base64;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
@@ -58,16 +60,39 @@ public class SecurityConfig {
 
     private Converter<Jwt, Collection<GrantedAuthority>> jwtRolesConverter() {
         return jwt -> {
+            List<GrantedAuthority> authorities = new ArrayList<>();
             List<String> roles = jwt.getClaimAsStringList("roles");
-            if (roles == null) {
-                return List.of();
+            if (roles != null) {
+                authorities.addAll(roles.stream()
+                        .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+                        .map(String::toUpperCase)
+                        .map(SimpleGrantedAuthority::new)
+                        .map(GrantedAuthority.class::cast)
+                        .toList());
             }
-            return roles.stream()
-                    .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
-                    .map(String::toUpperCase)
-                    .map(SimpleGrantedAuthority::new)
-                    .map(GrantedAuthority.class::cast)
-                    .toList();
+            if (hasCoordinatorMembership(jwt.getClaims()) && authorities.stream()
+                    .noneMatch(authority -> "ROLE_COORDINATOR".equals(authority.getAuthority()))) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_COORDINATOR"));
+            }
+            return authorities;
         };
+    }
+
+    private boolean hasCoordinatorMembership(Map<String, Object> claims) {
+        Object memberships = claims.get("entityMemberships");
+        if (!(memberships instanceof List<?> list)) {
+            return false;
+        }
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> membership) {
+                Object status = membership.get("status");
+                Object role = membership.get("role");
+                boolean active = status == null || "ACTIVE".equalsIgnoreCase(status.toString());
+                if (active && role != null && "COORDINATOR".equalsIgnoreCase(role.toString())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

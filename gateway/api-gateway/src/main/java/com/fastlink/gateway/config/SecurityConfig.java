@@ -47,6 +47,13 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
                         .pathMatchers("/ws-community/**", "/ws-notifications/**").permitAll()
                         .pathMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .pathMatchers(
+                                "/api/v1/analytics/request-metrics",
+                                "/api/v1/analytics/cross-entity-weekly",
+                                "/api/v1/analytics/engagement-lift",
+                                "/api/v1/analytics/decision-time",
+                                "/api/v1/analytics/entity-health")
+                        .access(adminOrCoordinator())
                         .pathMatchers(HttpMethod.POST, "/api/v1/entities").access(adminOrCoordinator())
                         .pathMatchers(HttpMethod.PUT, "/api/v1/entities/*").access(adminOrCoordinator())
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/entities/*").access(adminOrCoordinator())
@@ -96,6 +103,9 @@ public class SecurityConfig {
                 .map(auth -> {
                     Jwt jwt = (Jwt) auth.getPrincipal();
                     if (hasRole(auth.getAuthorities(), "ROLE_ADMIN")) {
+                        return new AuthorizationDecision(true);
+                    }
+                    if (hasRole(auth.getAuthorities(), "ROLE_COORDINATOR")) {
                         return new AuthorizationDecision(true);
                     }
                     return new AuthorizationDecision(hasCoordinatorMembership(jwt.getClaims()));

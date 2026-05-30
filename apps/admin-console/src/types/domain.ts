@@ -28,6 +28,73 @@ export interface AnalyticsSnapshot {
   createdAt: string
 }
 
+export interface MetricPoint {
+  label: string
+  value: number
+}
+
+export interface PlatformOverview {
+  totalUsers: number
+  totalEntities: number
+  totalCommunities: number
+  totalPublications: number
+  totalEvents: number
+  totalRequests: number
+  totalNotifications: number
+  computedAt: string
+}
+
+export interface EntityDistributionItem {
+  entiteId: number
+  nom: string
+  members: number
+  bureauMembers: number
+  coordinators: number
+}
+
+export interface EntityDistribution {
+  entities: EntityDistributionItem[]
+  totalMembers: number
+  totalBureauMembers: number
+  totalCoordinators: number
+  computedAt: string
+}
+
+export interface PublicationMetrics {
+  totalPosts: number
+  postsByEntityTotal: number
+  likes: number
+  comments: number
+  engagement: number
+  postsByEntity: MetricPoint[]
+  activity: MetricPoint[]
+  computedAt: string
+}
+
+export interface EventMetrics {
+  eventsCreated: number
+  participationCount: number
+  interestCount: number
+  activity: MetricPoint[]
+  computedAt: string
+}
+
+export interface CommunityMetrics {
+  communitiesCreated: number
+  activeCommunities: number
+  memberCount: number
+  computedAt: string
+}
+
+export interface RequestMetrics {
+  requestsSubmitted: number
+  approved: number
+  rejected: number
+  pending: number
+  processing: MetricPoint[]
+  computedAt: string
+}
+
 export interface PlatformSetting {
   id: number
   settingKey: string
