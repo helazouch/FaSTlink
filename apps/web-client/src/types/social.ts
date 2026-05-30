@@ -14,6 +14,17 @@ export interface CommunitySummary {
   coverUrl?: string
 }
 
+export interface MyCommunity {
+  id: number
+  name: string
+  description: string
+  creatorUserId: number
+  role: 'ADMIN' | 'MEMBER'
+  createdAt?: string
+  lastMessageContent?: string
+  lastMessageAt?: string
+}
+
 export interface MediaAttachment {
   id: string
   name: string

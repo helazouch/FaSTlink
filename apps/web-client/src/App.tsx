@@ -6,6 +6,7 @@ import { SocialLayout } from './components/templates/SocialLayout'
 import { BureauDashboardPage } from './pages/BureauDashboardPage'
 import { BureauToolPage } from './pages/BureauToolPage'
 import { CommunitiesPage } from './pages/CommunitiesPage'
+import { CommunityMessagingPage } from './pages/CommunityMessagingPage'
 import { CommunityPage } from './pages/CommunityPage'
 import {
   CoordinatorAlertsPage,
@@ -17,7 +18,6 @@ import {
 import { EventsPage } from './pages/EventsPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
-import { MessagesPage } from './pages/MessagesPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -40,7 +40,8 @@ export function App() {
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventsPage />} />
           <Route path="saved" element={<SavedItemsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
+          <Route path="messages" element={<CommunityMessagingPage />} />
+          <Route path="messages/community/:communityId" element={<CommunityMessagingPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="unauthorized" element={<UnauthorizedPage />} />
 

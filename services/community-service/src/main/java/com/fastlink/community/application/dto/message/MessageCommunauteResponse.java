@@ -6,6 +6,7 @@ public record MessageCommunauteResponse(
         Long id,
         Long communauteId,
         Long utilisateurId,
+        String senderName,
         String contenu,
         Instant createdAt) {
 }

@@ -50,6 +50,7 @@ public class MessageCommunauteService implements MessageCommunauteUseCase {
         MessageCommunaute message = new MessageCommunaute(
                 communaute,
                 request.utilisateurId(),
+                normalizeOptional(request.senderName()),
                 normalizeRequired(request.contenu()));
 
         MessageCommunaute saved = messageCommunautePort.save(message);
@@ -87,11 +88,20 @@ public class MessageCommunauteService implements MessageCommunauteUseCase {
                 message.getId(),
                 message.getCommunaute().getId(),
                 message.getUtilisateurId(),
+                message.getSenderName(),
                 message.getContenu(),
                 message.getCreatedAt());
     }
 
     private String normalizeRequired(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }
