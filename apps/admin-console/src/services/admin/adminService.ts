@@ -11,6 +11,13 @@ import type {
   NotificationItem,
   PagedResult,
   PlatformSetting,
+  CommunityMetrics,
+  EntityDistribution,
+  EventMetrics,
+  MetricPoint,
+  PlatformOverview,
+  PublicationMetrics,
+  RequestMetrics,
   RoleOption,
 } from '../../types/domain'
 import { httpClient } from '../api/httpClient'
@@ -120,6 +127,101 @@ const mapModerationItem = (item: unknown, type: ModerationItem['type']): Moderat
       new Date().toISOString(),
     reportedByUserId:
       toNumber(payload.reportedByUserId, 0) > 0 ? toNumber(payload.reportedByUserId, 0) : null,
+  }
+}
+
+const mapMetricPoint = (item: unknown): MetricPoint => {
+  const payload = asObject(item)
+  return {
+    label: toStringValue(payload.label),
+    value: toNumber(payload.value),
+  }
+}
+
+export const getPlatformOverview = async (): Promise<PlatformOverview> => {
+  const response = await httpClient.get<unknown>('/v1/analytics/platform-overview')
+  const payload = asObject(response.data)
+  return {
+    totalUsers: toNumber(payload.totalUsers),
+    totalEntities: toNumber(payload.totalEntities),
+    totalCommunities: toNumber(payload.totalCommunities),
+    totalPublications: toNumber(payload.totalPublications),
+    totalEvents: toNumber(payload.totalEvents),
+    totalRequests: toNumber(payload.totalRequests),
+    totalNotifications: toNumber(payload.totalNotifications),
+    computedAt: toStringValue(payload.computedAt),
+  }
+}
+
+export const getEntityDistribution = async (): Promise<EntityDistribution> => {
+  const response = await httpClient.get<unknown>('/v1/analytics/entity-distribution')
+  const payload = asObject(response.data)
+  return {
+    entities: asArray<unknown>(payload.entities).map((item) => {
+      const entity = asObject(item)
+      return {
+        entiteId: toNumber(entity.entiteId),
+        nom: toStringValue(entity.nom, `Entity #${toNumber(entity.entiteId)}`),
+        members: toNumber(entity.members),
+        bureauMembers: toNumber(entity.bureauMembers),
+        coordinators: toNumber(entity.coordinators),
+      }
+    }),
+    totalMembers: toNumber(payload.totalMembers),
+    totalBureauMembers: toNumber(payload.totalBureauMembers),
+    totalCoordinators: toNumber(payload.totalCoordinators),
+    computedAt: toStringValue(payload.computedAt),
+  }
+}
+
+export const getPublicationMetrics = async (): Promise<PublicationMetrics> => {
+  const response = await httpClient.get<unknown>('/v1/analytics/publication-metrics')
+  const payload = asObject(response.data)
+  return {
+    totalPosts: toNumber(payload.totalPosts),
+    postsByEntityTotal: toNumber(payload.postsByEntityTotal),
+    likes: toNumber(payload.likes),
+    comments: toNumber(payload.comments),
+    engagement: toNumber(payload.engagement),
+    postsByEntity: asArray<unknown>(payload.postsByEntity).map(mapMetricPoint),
+    activity: asArray<unknown>(payload.activity).map(mapMetricPoint),
+    computedAt: toStringValue(payload.computedAt),
+  }
+}
+
+export const getEventMetrics = async (): Promise<EventMetrics> => {
+  const response = await httpClient.get<unknown>('/v1/analytics/event-metrics')
+  const payload = asObject(response.data)
+  return {
+    eventsCreated: toNumber(payload.eventsCreated),
+    participationCount: toNumber(payload.participationCount),
+    interestCount: toNumber(payload.interestCount),
+    activity: asArray<unknown>(payload.activity).map(mapMetricPoint),
+    computedAt: toStringValue(payload.computedAt),
+  }
+}
+
+export const getCommunityMetrics = async (): Promise<CommunityMetrics> => {
+  const response = await httpClient.get<unknown>('/v1/analytics/community-metrics')
+  const payload = asObject(response.data)
+  return {
+    communitiesCreated: toNumber(payload.communitiesCreated),
+    activeCommunities: toNumber(payload.activeCommunities),
+    memberCount: toNumber(payload.memberCount),
+    computedAt: toStringValue(payload.computedAt),
+  }
+}
+
+export const getRequestMetrics = async (): Promise<RequestMetrics> => {
+  const response = await httpClient.get<unknown>('/v1/analytics/request-metrics')
+  const payload = asObject(response.data)
+  return {
+    requestsSubmitted: toNumber(payload.requestsSubmitted),
+    approved: toNumber(payload.approved),
+    rejected: toNumber(payload.rejected),
+    pending: toNumber(payload.pending),
+    processing: asArray<unknown>(payload.processing).map(mapMetricPoint),
+    computedAt: toStringValue(payload.computedAt),
   }
 }
 
@@ -293,7 +395,10 @@ export const listAuditLogs = async (limit: number): Promise<AuditLogEntry[]> => 
   return asArray(response.data).map((item) => {
     const payload = asObject(item)
     return {
-      id: toStringValue(payload.id, `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+      id: toStringValue(
+        payload.id,
+        `${toStringValue(payload.createdAt, 'unknown-time')}-${toStringValue(payload.action, 'UNKNOWN_ACTION')}-${toStringValue(payload.resourceType, 'system')}-${toStringValue(payload.resourceId, '-')}`,
+      ),
       action: toStringValue(payload.action, 'UNKNOWN_ACTION'),
       resourceType: toStringValue(payload.resourceType, 'system'),
       resourceId: toStringValue(payload.resourceId, '-'),

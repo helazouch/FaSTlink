@@ -13,15 +13,6 @@ export interface CoordinatorRequest {
   requester: string
 }
 
-export interface CoordinatorEntitySignal {
-  id: number
-  name: string
-  members: number
-  engagement: number
-  pendingRequests: number
-  moderationItems: number
-}
-
 export interface CoordinatorAlert {
   id: number
   title: string
@@ -65,13 +56,6 @@ export const coordinatorRequests: CoordinatorRequest[] = [
   },
 ]
 
-export const coordinatorEntitySignals: CoordinatorEntitySignal[] = [
-  { id: 1, name: 'Founders Hub', members: 12340, engagement: 86, pendingRequests: 4, moderationItems: 1 },
-  { id: 2, name: 'Engineers Circle', members: 9210, engagement: 78, pendingRequests: 7, moderationItems: 3 },
-  { id: 3, name: 'Events Studio', members: 4802, engagement: 69, pendingRequests: 5, moderationItems: 2 },
-  { id: 4, name: 'Design Guild', members: 3188, engagement: 61, pendingRequests: 2, moderationItems: 1 },
-]
-
 export const coordinatorAlerts: CoordinatorAlert[] = [
   {
     id: 1,
@@ -94,14 +78,4 @@ export const coordinatorAlerts: CoordinatorAlert[] = [
     tone: 'info',
     createdAt: hoursAgo(8),
   },
-]
-
-export const coordinatorAnalyticsSeries = [
-  { label: 'Mon', engagement: 62, requests: 8 },
-  { label: 'Tue', engagement: 71, requests: 10 },
-  { label: 'Wed', engagement: 66, requests: 7 },
-  { label: 'Thu', engagement: 84, requests: 14 },
-  { label: 'Fri', engagement: 78, requests: 11 },
-  { label: 'Sat', engagement: 58, requests: 4 },
-  { label: 'Sun', engagement: 73, requests: 6 },
 ]

@@ -14,14 +14,13 @@ import {
   Workflow,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useState } from 'react'
 import { PermissionAwareButton } from '../components/auth/PermissionAwareButton'
 import { EmptyState } from '../components/role/EmptyState'
 import { MetricCard } from '../components/role/MetricCard'
 import {
   coordinatorAlerts,
-  coordinatorAnalyticsSeries,
-  coordinatorEntitySignals,
   coordinatorRequests,
   type CoordinatorAlert,
   type CoordinatorRequest,
@@ -29,6 +28,14 @@ import {
   type CoordinatorRequestType,
 } from '../data/coordinatorMockData'
 import { formatRelativeTime } from '../lib/date'
+import {
+  coordinatorAnalyticsService,
+  type CrossEntityDay,
+  type DecisionTimeAnalytics,
+  type EngagementLiftAnalytics,
+  type EntityHealthAnalytics,
+  type EntityHealthItem,
+} from '../services/coordinatorAnalyticsService'
 
 type Loadable<T> = {
   data: T
@@ -38,6 +45,46 @@ type Loadable<T> = {
 }
 
 type RequestFilter = 'all' | CoordinatorRequestStatus | CoordinatorRequestType
+
+const analyticsQueryOptions = {
+  staleTime: 30_000,
+  refetchInterval: 60_000,
+}
+
+const useCrossEntityWeeklyAnalytics = () =>
+  useQuery({
+    queryKey: ['coordinator-analytics', 'cross-entity-weekly'],
+    queryFn: coordinatorAnalyticsService.getCrossEntityWeekly,
+    ...analyticsQueryOptions,
+  })
+
+const useEngagementLiftAnalytics = () =>
+  useQuery({
+    queryKey: ['coordinator-analytics', 'engagement-lift'],
+    queryFn: coordinatorAnalyticsService.getEngagementLift,
+    ...analyticsQueryOptions,
+  })
+
+const useDecisionTimeAnalytics = () =>
+  useQuery({
+    queryKey: ['coordinator-analytics', 'decision-time'],
+    queryFn: coordinatorAnalyticsService.getDecisionTime,
+    ...analyticsQueryOptions,
+  })
+
+const useEntityHealthAnalytics = () =>
+  useQuery({
+    queryKey: ['coordinator-analytics', 'entity-health'],
+    queryFn: coordinatorAnalyticsService.getEntityHealth,
+    ...analyticsQueryOptions,
+  })
+
+const useRequestMetricsAnalytics = () =>
+  useQuery({
+    queryKey: ['coordinator-analytics', 'request-metrics'],
+    queryFn: coordinatorAnalyticsService.getRequestMetrics,
+    ...analyticsQueryOptions,
+  })
 
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
@@ -101,6 +148,23 @@ const priorityTone = {
   medium: 'bg-sky-50 text-sky-700',
   high: 'bg-rose-50 text-rose-700',
 }
+
+const entityHealthTone: Record<EntityHealthItem['status'], string> = {
+  HEALTHY: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  LOW_PARTICIPATION: 'bg-amber-50 text-amber-700 ring-amber-200',
+  INACTIVE: 'bg-slate-100 text-slate-600 ring-slate-200',
+}
+
+const formatDuration = (seconds: number) => {
+  if (seconds <= 0) return '0m'
+  if (seconds < 3_600) return `${Math.round(seconds / 60)}m`
+  const hours = seconds / 3_600
+  return `${hours.toFixed(hours >= 10 ? 0 : 1)}h`
+}
+
+const formatTrend = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
+
+const analyticsErrorMessage = 'Coordinator analytics could not be loaded from analytics-service. Please retry.'
 
 const requestTypeIcon = {
   room: DoorOpen,
@@ -298,8 +362,8 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
   )
 }
 
-const ResponsiveBarChart = ({ data }: { data: typeof coordinatorAnalyticsSeries }) => {
-  const maxRequests = Math.max(...data.map((point) => point.requests), 1)
+const ResponsiveBarChart = ({ data }: { data: CrossEntityDay[] }) => {
+  const maxValue = Math.max(...data.map((point) => Math.max(point.engagement, point.requests)), 1)
 
   if (data.length === 0) {
     return <EmptyState icon={BarChart3} title="No analytics available" description="Cross-entity analytics will appear when data is available." />
@@ -309,12 +373,12 @@ const ResponsiveBarChart = ({ data }: { data: typeof coordinatorAnalyticsSeries 
     <div className="mt-5 overflow-x-auto">
       <div className="flex h-56 min-w-[520px] items-end gap-3">
         {data.map((point) => (
-          <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+          <div key={point.day} className="flex min-w-0 flex-1 flex-col items-center gap-2">
             <div className="flex h-44 w-full items-end justify-center gap-1 rounded-xl bg-slate-50 px-2 py-2">
-              <div className="w-3 rounded-full bg-brand" style={{ height: `${point.engagement}%` }} title={`Engagement ${point.engagement}%`} />
-              <div className="w-3 rounded-full bg-sky-400" style={{ height: `${Math.max((point.requests / maxRequests) * 100, 12)}%` }} title={`${point.requests} requests`} />
+              <div className="w-3 rounded-full bg-brand" style={{ height: `${Math.max((point.engagement / maxValue) * 100, 8)}%` }} title={`${point.engagement} engagement events`} />
+              <div className="w-3 rounded-full bg-sky-400" style={{ height: `${Math.max((point.requests / maxValue) * 100, 8)}%` }} title={`${point.requests} requests`} />
             </div>
-            <span className="text-xs font-semibold text-slate-500">{point.label}</span>
+            <span className="text-xs font-semibold text-slate-500">{point.day}</span>
           </div>
         ))}
       </div>
@@ -323,10 +387,12 @@ const ResponsiveBarChart = ({ data }: { data: typeof coordinatorAnalyticsSeries 
 }
 
 const AnalyticsChart = () => {
-  const analyticsResource = useCoordinatorResource(coordinatorAnalyticsSeries)
+  const analyticsQuery = useCrossEntityWeeklyAnalytics()
 
-  if (analyticsResource.isLoading) return <LoadingPanel />
-  if (analyticsResource.error) return <ErrorPanel message={analyticsResource.error} onRetry={analyticsResource.reload} />
+  if (analyticsQuery.isLoading) return <LoadingPanel />
+  if (analyticsQuery.isError) return <ErrorPanel message={analyticsErrorMessage} onRetry={() => analyticsQuery.refetch()} />
+
+  const analytics = analyticsQuery.data
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -337,53 +403,87 @@ const AnalyticsChart = () => {
         </div>
         <TrendingUp className="text-brand" size={20} />
       </div>
-      <ResponsiveBarChart data={analyticsResource.data} />
+      <ResponsiveBarChart data={analytics?.days ?? []} />
       <div className="mt-4 flex flex-wrap gap-4 text-xs font-semibold text-slate-500">
         <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-brand" /> Engagement</span>
         <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-sky-400" /> Requests</span>
+        <span>{(analytics?.weeklyEntityActivity ?? 0).toLocaleString()} total weekly activity events</span>
       </div>
     </section>
   )
 }
 
-const EntitySupervisionGrid = () => (
-  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-    <h2 className="text-base font-bold text-slate-900">Entity supervision</h2>
-    <div className="mt-4 grid gap-3 md:grid-cols-2">
-      {coordinatorEntitySignals.map((entity) => (
-        <article key={entity.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="font-bold text-slate-800">{entity.name}</h3>
-              <p className="mt-1 text-xs text-slate-500">{entity.members.toLocaleString()} members</p>
-            </div>
-            <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand">{entity.engagement}% engagement</span>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-xl bg-white p-3">
-              <p className="font-bold text-slate-900">{entity.pendingRequests}</p>
-              <p className="text-xs text-slate-500">Pending requests</p>
-            </div>
-            <div className="rounded-xl bg-white p-3">
-              <p className="font-bold text-slate-900">{entity.moderationItems}</p>
-              <p className="text-xs text-slate-500">Moderation items</p>
-            </div>
-          </div>
-        </article>
-      ))}
-    </div>
-  </section>
-)
+const EntitySupervisionGrid = () => {
+  const entityHealthQuery = useEntityHealthAnalytics()
 
-const OperationalMonitoring = () => {
-  const roomRequests = coordinatorRequests.filter((request) => request.type === 'room').length
-  const equipmentRequests = coordinatorRequests.filter((request) => request.type === 'equipment').length
+  if (entityHealthQuery.isLoading) return <LoadingPanel />
+  if (entityHealthQuery.isError) return <ErrorPanel message={analyticsErrorMessage} onRetry={() => entityHealthQuery.refetch()} />
+
+  const entities = entityHealthQuery.data?.entities ?? []
 
   return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="text-base font-bold text-slate-900">Entity supervision</h2>
+      {entities.length === 0 ? (
+        <div className="mt-4">
+          <EmptyState icon={MonitorCheck} title="No entity health data" description="Entity health will appear when analytics events are available." />
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {entities.map((entity) => (
+            <article key={entity.entityId} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-slate-800">{entity.name}</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {entity.lastActivityAt ? `Last activity ${formatRelativeTime(entity.lastActivityAt)}` : 'No recorded activity'}
+                  </p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${entityHealthTone[entity.status]}`}>
+                  {entity.status.replace('_', ' ').toLowerCase()}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                <div className="rounded-xl bg-white p-3">
+                  <p className="font-bold text-slate-900">{entity.engagement.toLocaleString()}</p>
+                  <p className="text-xs text-slate-500">Engagement</p>
+                </div>
+                <div className="rounded-xl bg-white p-3">
+                  <p className="font-bold text-slate-900">{entity.weeklyActivity.toLocaleString()}</p>
+                  <p className="text-xs text-slate-500">Weekly activity</p>
+                </div>
+                <div className="rounded-xl bg-white p-3">
+                  <p className="font-bold text-slate-900">{entity.pendingRequests.toLocaleString()}</p>
+                  <p className="text-xs text-slate-500">Pending requests</p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+const OperationalMonitoring = () => {
+  const requestMetricsQuery = useRequestMetricsAnalytics()
+  const entityHealthQuery = useEntityHealthAnalytics()
+
+  if (requestMetricsQuery.isLoading || entityHealthQuery.isLoading) return <LoadingPanel />
+  if (requestMetricsQuery.isError || entityHealthQuery.isError) {
+    return <ErrorPanel message={analyticsErrorMessage} onRetry={() => {
+      requestMetricsQuery.refetch()
+      entityHealthQuery.refetch()
+    }} />
+  }
+
+  const requestMetrics = requestMetricsQuery.data
+  const entityHealth = entityHealthQuery.data
+  return (
     <section className="grid gap-3 md:grid-cols-3">
-      <MetricCard icon={DoorOpen} label="Room operations" value={`${roomRequests}`} helper="Room requests in queue" />
-      <MetricCard icon={HardDrive} label="Equipment queue" value={`${equipmentRequests}`} helper="Equipment requests in queue" />
-      <MetricCard icon={MonitorCheck} label="Monitoring" value="Nominal" helper="Operational status" />
+      <MetricCard icon={Workflow} label="Submitted requests" value={`${requestMetrics?.requestsSubmitted ?? 0}`} helper="Total request events" />
+      <MetricCard icon={HardDrive} label="Pending queue" value={`${requestMetrics?.pending ?? 0}`} helper="Submitted minus decisions" />
+      <MetricCard icon={MonitorCheck} label="Active entities" value={`${entityHealth?.activeEntityPercentage ?? 0}%`} helper="With activity in the last 7 days" />
     </section>
   )
 }
@@ -461,9 +561,9 @@ const AlertsCenter = ({ compact = false }: { compact?: boolean }) => {
 }
 
 export const CoordinatorDashboardPage = () => {
-  const pendingRequests = coordinatorRequests.filter((request) => request.status === 'pending').length
-  const monitoredMembers = useMemo(() => coordinatorEntitySignals.reduce((total, entity) => total + entity.members, 0), [])
-  const moderationCount = coordinatorEntitySignals.reduce((total, entity) => total + entity.moderationItems, 0)
+  const crossEntityQuery = useCrossEntityWeeklyAnalytics()
+  const requestMetricsQuery = useRequestMetricsAnalytics()
+  const entityHealthQuery = useEntityHealthAnalytics()
 
   return (
     <div className="space-y-4">
@@ -474,10 +574,10 @@ export const CoordinatorDashboardPage = () => {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Users} label="Members monitored" value={monitoredMembers.toLocaleString()} helper="Across supervised entities" />
-        <MetricCard icon={Workflow} label="Pending requests" value={String(pendingRequests)} helper="Room, equipment, and budget" />
-        <MetricCard icon={BarChart3} label="Avg engagement" value="74%" helper="Cross-entity weekly signal" />
-        <MetricCard icon={MonitorCheck} label="Moderation" value={String(moderationCount)} helper="Items requiring review" />
+        <MetricCard icon={Users} label="Entities monitored" value={(entityHealthQuery.data?.totalEntities ?? 0).toLocaleString()} helper="Loaded from entity analytics" />
+        <MetricCard icon={Workflow} label="Pending requests" value={String(requestMetricsQuery.data?.pending ?? 0)} helper="Submitted minus decisions" />
+        <MetricCard icon={BarChart3} label="Weekly engagement" value={(crossEntityQuery.data?.weeklyEngagement ?? 0).toLocaleString()} helper="Real cross-entity activity" />
+        <MetricCard icon={MonitorCheck} label="Healthy entities" value={`${entityHealthQuery.data?.healthyEntities ?? 0}/${entityHealthQuery.data?.totalEntities ?? 0}`} helper="Above engagement threshold" />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr,0.9fr]">
@@ -501,14 +601,52 @@ export const CoordinatorRequestsPage = () => (
   </div>
 )
 
+const CoordinatorAnalyticsKpis = () => {
+  const engagementLiftQuery = useEngagementLiftAnalytics()
+  const decisionTimeQuery = useDecisionTimeAnalytics()
+  const entityHealthQuery = useEntityHealthAnalytics()
+
+  if (engagementLiftQuery.isLoading || decisionTimeQuery.isLoading || entityHealthQuery.isLoading) return <LoadingPanel />
+  if (engagementLiftQuery.isError || decisionTimeQuery.isError || entityHealthQuery.isError) {
+    return <ErrorPanel message={analyticsErrorMessage} onRetry={() => {
+      engagementLiftQuery.refetch()
+      decisionTimeQuery.refetch()
+      entityHealthQuery.refetch()
+    }} />
+  }
+
+  const engagementLift = engagementLiftQuery.data as EngagementLiftAnalytics
+  const decisionTime = decisionTimeQuery.data as DecisionTimeAnalytics
+  const entityHealth = entityHealthQuery.data as EntityHealthAnalytics
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-3">
+      <MetricCard
+        icon={TrendingUp}
+        label="Engagement lift"
+        value={formatTrend(engagementLift.growthPercentage)}
+        helper={`${engagementLift.currentWeekEngagement.toLocaleString()} this week vs ${engagementLift.previousWeekEngagement.toLocaleString()} prior`}
+      />
+      <MetricCard
+        icon={Clock3}
+        label="Decision time"
+        value={formatDuration(decisionTime.medianProcessingSeconds)}
+        helper={`${decisionTime.processedRequests.toLocaleString()} processed requests`}
+      />
+      <MetricCard
+        icon={BarChart3}
+        label="Healthy entities"
+        value={`${entityHealth.healthyEntities}/${entityHealth.totalEntities}`}
+        helper={`Threshold ${entityHealth.engagementThreshold.toLocaleString()} engagement events`}
+      />
+    </section>
+  )
+}
+
 export const CoordinatorAnalyticsPage = () => (
   <div className="space-y-4">
     <AnalyticsChart />
-    <section className="grid gap-3 sm:grid-cols-3">
-      <MetricCard icon={TrendingUp} label="Engagement lift" value="+12%" helper="Compared with last week" />
-      <MetricCard icon={Clock3} label="Decision time" value="4.2h" helper="Median request processing" />
-      <MetricCard icon={BarChart3} label="Healthy entities" value="3/4" helper="Above engagement threshold" />
-    </section>
+    <CoordinatorAnalyticsKpis />
   </div>
 )
 

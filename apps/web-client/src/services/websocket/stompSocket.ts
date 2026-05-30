@@ -23,7 +23,7 @@ export const createStompSocket = (options: SocketOptions): SocketHandle => {
     reconnectDelay: 4_000,
     heartbeatIncoming: 5_000,
     heartbeatOutgoing: 5_000,
-    webSocketFactory: () => new SockJS(options.url, undefined, { withCredentials: false }),
+    webSocketFactory: () => new SockJS(options.url),
     debug: () => undefined,
   })
 
