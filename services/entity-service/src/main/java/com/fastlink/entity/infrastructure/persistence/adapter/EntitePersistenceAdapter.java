@@ -32,6 +32,11 @@ public class EntitePersistenceAdapter implements EntitePort {
     }
 
     @Override
+    public Optional<Entite> findByNomIgnoreCase(String nom) {
+        return entiteJpaRepository.findByNomIgnoreCase(nom);
+    }
+
+    @Override
     public boolean existsByNomIgnoreCase(String nom) {
         return entiteJpaRepository.existsByNomIgnoreCase(nom);
     }

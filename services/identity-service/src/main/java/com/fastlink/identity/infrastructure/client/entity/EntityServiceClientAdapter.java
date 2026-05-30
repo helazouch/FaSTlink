@@ -1,6 +1,7 @@
 package com.fastlink.identity.infrastructure.client.entity;
 
 import com.fastlink.identity.application.dto.membership.EntityMembershipClaim;
+import com.fastlink.identity.application.port.out.CoordinatorEntityContextPort;
 import com.fastlink.identity.config.EntityServiceProperties;
 import java.util.Arrays;
 import java.util.Collections;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-public class EntityServiceClientAdapter {
+public class EntityServiceClientAdapter implements CoordinatorEntityContextPort {
 
     private final RestTemplate restTemplate;
     private final EntityServiceProperties properties;
@@ -32,5 +33,20 @@ public class EntityServiceClientAdapter {
             return Collections.emptyList();
         }
         return Arrays.asList(response);
+    }
+
+    @Override
+    public void ensureCoordinatorContext(Long userId) {
+        if (properties.getBaseUrl() == null || properties.getBaseUrl().isBlank()) {
+            return;
+        }
+
+        String url = properties.getBaseUrl().replaceAll("/+$", "")
+                + "/api/v1/internal/memberships/coordinator-context";
+
+        restTemplate.postForObject(url, new EnsureCoordinatorContextRequest(userId), Object.class);
+    }
+
+    private record EnsureCoordinatorContextRequest(Long utilisateurId) {
     }
 }

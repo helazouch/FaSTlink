@@ -12,6 +12,8 @@ public interface EntitePort {
 
     Optional<Entite> findById(Long entiteId);
 
+    Optional<Entite> findByNomIgnoreCase(String nom);
+
     boolean existsByNomIgnoreCase(String nom);
 
     boolean existsByNomIgnoreCaseAndIdNot(String nom, Long entiteId);

@@ -132,6 +132,31 @@ const toolMeta = {
     permission: 'ANALYTICS_VIEW',
     icon: BarChart3,
   },
+  '/coordinator/publish': {
+    title: 'Publication Management',
+    permission: 'PUBLICATION_CREATE',
+    icon: Megaphone,
+  },
+  '/coordinator/community': {
+    title: 'Scoped Moderation',
+    permission: 'COMMUNITY_MANAGE',
+    icon: MessageSquare,
+  },
+  '/coordinator/members': {
+    title: 'Member Management',
+    permission: 'ENTITY_MEMBER_MANAGE',
+    icon: UserPlus,
+  },
+  '/coordinator/events': {
+    title: 'Event Management',
+    permission: 'EVENT_CREATE',
+    icon: CalendarPlus,
+  },
+  '/coordinator/statistics': {
+    title: 'Entity Statistics',
+    permission: 'ANALYTICS_VIEW',
+    icon: BarChart3,
+  },
 } as const
 
 const fallbackMeta = {
@@ -941,7 +966,9 @@ export const BureauToolPage = () => {
   const scoped = useScopedPermissions()
   const meta = toolMeta[location.pathname as keyof typeof toolMeta] ?? fallbackMeta
   const Icon = meta.icon
-  const isStatisticsPage = location.pathname === '/bureau/statistics'
+  const isCoordinatorTool = location.pathname.startsWith('/coordinator/')
+  const bureauEquivalentPath = isCoordinatorTool ? location.pathname.replace('/coordinator', '/bureau') : location.pathname
+  const isStatisticsPage = bureauEquivalentPath === '/bureau/statistics'
   const seed = useMemo(
     () => createBureauSeed(currentEntityId, currentMembership?.entityName ?? `Entity ${currentEntityId ?? ''}`),
     [currentEntityId, currentMembership?.entityName],
@@ -950,10 +977,10 @@ export const BureauToolPage = () => {
   const overviewQuery = useEntityOverviewAnalytics(isStatisticsPage ? currentEntityId : null)
   const panelKey = `${currentEntityId ?? 'none'}:${location.pathname}`
   const isRealBureauPage =
-    location.pathname === '/bureau/members' ||
-    location.pathname === '/bureau/community' ||
-    location.pathname === '/bureau/events' ||
-    location.pathname === '/bureau/statistics'
+    bureauEquivalentPath === '/bureau/members' ||
+    bureauEquivalentPath === '/bureau/community' ||
+    bureauEquivalentPath === '/bureau/events' ||
+    bureauEquivalentPath === '/bureau/statistics'
 
   if (!scoped.isBureauMember) {
     return (
@@ -968,9 +995,13 @@ export const BureauToolPage = () => {
   return (
     <div className="space-y-4">
       <RolePanel
-        eyebrow="Bureau only"
+        eyebrow={isCoordinatorTool ? 'Coordinator tools' : 'Bureau only'}
         title={meta.title}
-        description={`${meta.title} is scoped to ${currentMembership?.entityName ?? `entity ${currentEntityId}`} and appears only for BUREAU_MEMBER context.`}
+        description={
+          isCoordinatorTool
+            ? `${meta.title} reuses the bureau workflow in the Dep Info BUREAU_MEMBER context.`
+            : `${meta.title} is scoped to ${currentMembership?.entityName ?? `entity ${currentEntityId}`} and appears only for BUREAU_MEMBER context.`
+        }
       />
       <section className="grid gap-3 sm:grid-cols-3">
         <MetricCard
@@ -979,7 +1010,12 @@ export const BureauToolPage = () => {
           value={overviewQuery.data?.entityName ?? currentMembership?.entityName ?? 'Local'}
           helper="Current entity only"
         />
-        <MetricCard icon={Users} label="Role" value="Bureau" helper="No coordinator inheritance" />
+        <MetricCard
+          icon={Users}
+          label="Role"
+          value={isCoordinatorTool ? 'Coordinator bureau' : 'Bureau'}
+          helper={isCoordinatorTool ? 'Global role plus Dep Info membership' : 'No coordinator inheritance'}
+        />
         <MetricCard
           icon={BarChart3}
           label="Status"
@@ -996,19 +1032,19 @@ export const BureauToolPage = () => {
 
       {!isRealBureauPage && resource.isLoading && <LoadingPanel />}
       {!isRealBureauPage && resource.error && <ErrorPanel message={resource.error} onRetry={resource.reload} />}
-      {location.pathname === '/bureau/members' && currentEntityId !== null && (
+      {bureauEquivalentPath === '/bureau/members' && currentEntityId !== null && (
         <MemberManagement key={panelKey} entityId={currentEntityId} currentUserId={currentUserId} permission={meta.permission} />
       )}
-      {location.pathname === '/bureau/events' && currentEntityId !== null && (
+      {bureauEquivalentPath === '/bureau/events' && currentEntityId !== null && (
         <BureauEventManagement key={panelKey} entityId={currentEntityId} actorUserId={currentUserId} permission={meta.permission} />
       )}
-      {!resource.isLoading && !resource.error && location.pathname === '/bureau/publish' && (
+      {!resource.isLoading && !resource.error && bureauEquivalentPath === '/bureau/publish' && (
         <PublicationManagement key={panelKey} publications={resource.data.publications} permission={meta.permission} />
       )}
-      {location.pathname === '/bureau/statistics' && currentEntityId !== null && (
+      {bureauEquivalentPath === '/bureau/statistics' && currentEntityId !== null && (
         <StatisticsPanel key={panelKey} entityId={currentEntityId} />
       )}
-      {location.pathname === '/bureau/community' && currentEntityId !== null && (
+      {bureauEquivalentPath === '/bureau/community' && currentEntityId !== null && (
         <CommunityManagement key={panelKey} entityId={currentEntityId} actorUserId={currentUserId} permission={meta.permission} />
       )}
     </div>

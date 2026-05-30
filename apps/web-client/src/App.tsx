@@ -117,11 +117,11 @@ export function App() {
                 </PermissionGuard>
               }
             />
-            <Route path="coordinator/community" element={<CoordinatorSupervisionPage />} />
-            <Route path="coordinator/members" element={<CoordinatorSupervisionPage />} />
-            <Route path="coordinator/events" element={<CoordinatorSupervisionPage />} />
-            <Route path="coordinator/publish" element={<CoordinatorSupervisionPage />} />
-            <Route path="coordinator/statistics" element={<CoordinatorAnalyticsPage />} />
+            <Route path="coordinator/community" element={<BureauToolPage />} />
+            <Route path="coordinator/members" element={<BureauToolPage />} />
+            <Route path="coordinator/events" element={<BureauToolPage />} />
+            <Route path="coordinator/publish" element={<BureauToolPage />} />
+            <Route path="coordinator/statistics" element={<BureauToolPage />} />
             <Route path="coordinator/alerts" element={<CoordinatorAlertsPage />} />
           </Route>
         </Route>

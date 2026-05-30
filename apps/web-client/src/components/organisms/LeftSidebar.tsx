@@ -34,14 +34,20 @@ const bureauNavItems = [
 
 const coordinatorNavItems = [
   { to: '/coordinator', label: 'Coordinator Dashboard', icon: ShieldCheck, gate: 'isCoordinator' as const },
-  { to: '/coordinator/requests', label: 'Request Processing', icon: Workflow, gate: 'canProcessRequests' as const },
-  { to: '/coordinator/supervision', label: 'Entity Supervision', icon: MonitorCheck, gate: 'canSuperviseEntities' as const },
-  { to: '/coordinator/analytics', label: 'Advanced Analytics', icon: BarChart3, gate: 'canViewAdvancedAnalytics' as const },
-  { to: '/coordinator/community', label: 'Manage Community', icon: Shapes, gate: 'canManageCommunity' as const },
+]
+
+const coordinatorToolNavItems = [
   { to: '/coordinator/members', label: 'Manage Members', icon: Users, gate: 'canManageMembers' as const },
+  { to: '/coordinator/community', label: 'Manage Community', icon: Shapes, gate: 'canManageCommunity' as const },
   { to: '/coordinator/events', label: 'Manage Events', icon: CalendarRange, gate: 'canManageEvents' as const },
   { to: '/coordinator/publish', label: 'Publish', icon: Megaphone, gate: 'canPublish' as const },
   { to: '/coordinator/statistics', label: 'Entity Statistics', icon: BarChart3, gate: 'canViewStats' as const },
+]
+
+const coordinatorOperationNavItems = [
+  { to: '/coordinator/requests', label: 'Request Processing', icon: Workflow, gate: 'canProcessRequests' as const },
+  { to: '/coordinator/supervision', label: 'Entity Supervision', icon: MonitorCheck, gate: 'canSuperviseEntities' as const },
+  { to: '/coordinator/analytics', label: 'Advanced Analytics', icon: BarChart3, gate: 'canViewAdvancedAnalytics' as const },
 ]
 
 export const LeftSidebar = () => {
@@ -86,6 +92,12 @@ export const LeftSidebar = () => {
   const visibleCoordinatorNavItems = coordinatorNavItems.filter((item) =>
     item.gate ? coordinatorGateMap[item.gate] : true,
   )
+  const visibleCoordinatorToolNavItems = coordinatorToolNavItems.filter((item) =>
+    item.gate ? coordinatorGateMap[item.gate] : true,
+  )
+  const visibleCoordinatorOperationNavItems = coordinatorOperationNavItems.filter((item) =>
+    item.gate ? coordinatorGateMap[item.gate] : true,
+  )
 
   return (
     <aside className="top-20 hidden h-[calc(100vh-5rem)] w-72 flex-col overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:flex">
@@ -111,9 +123,31 @@ export const LeftSidebar = () => {
 
       {showCoordinatorTools && visibleCoordinatorNavItems.length > 0 ? (
         <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator tools</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator</p>
           <div className="mt-3 space-y-1">
             {visibleCoordinatorNavItems.map((item) => (
+              <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {showCoordinatorTools && visibleCoordinatorToolNavItems.length > 0 ? (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator tools</p>
+          <div className="mt-3 space-y-1">
+            {visibleCoordinatorToolNavItems.map((item) => (
+              <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {showCoordinatorTools && visibleCoordinatorOperationNavItems.length > 0 ? (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator operations</p>
+          <div className="mt-3 space-y-1">
+            {visibleCoordinatorOperationNavItems.map((item) => (
               <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
             ))}
           </div>

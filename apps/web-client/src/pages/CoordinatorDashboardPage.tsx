@@ -334,36 +334,34 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
           <EmptyState icon={Workflow} title="No matching requests" description="Change the queue filter or retry loading operations." />
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[860px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-[0.12em] text-slate-400">
-              <tr>
-                <th className="whitespace-nowrap px-3 py-2">Request</th>
-                <th className="whitespace-nowrap px-3 py-2">Entity</th>
-                <th className="whitespace-nowrap px-3 py-2">Type</th>
-                <th className="whitespace-nowrap px-3 py-2">Priority</th>
-                <th className="whitespace-nowrap px-3 py-2">Status</th>
-                <th className="whitespace-nowrap px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRequests.map((request) => {
-                const Icon = requestTypeIcon[request.type]
-                const isProcessing = actionMutation.isPending && actionMutation.variables?.id === request.id
-                const isFinal = request.status === 'approved' || request.status === 'rejected'
-                const canProcess = request.status === 'submitted' || request.status === 'under_review'
-                const noteValue = notes[request.id] ?? request.note ?? ''
-                return (
-                  <tr key={request.id} className="border-t border-slate-100">
-                    <td className="min-w-[280px] px-3 py-3">
-                      <p className="font-semibold text-slate-800">{request.title}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        User #{request.requesterUserId} - {formatRelativeTime(request.createdAt)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">{request.description}</p>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-slate-600">{request.communityName}</td>
-                    <td className="whitespace-nowrap px-3 py-3">
+        <div className="mt-4 grid gap-3">
+          {visibleRequests.map((request) => {
+            const Icon = requestTypeIcon[request.type]
+            const isProcessing = actionMutation.isPending && actionMutation.variables?.id === request.id
+            const isFinal = request.status === 'approved' || request.status === 'rejected'
+            const canProcess = request.status === 'submitted' || request.status === 'under_review'
+            const noteValue = notes[request.id] ?? request.note ?? ''
+            return (
+              <article key={request.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="grid gap-4 lg:grid-cols-[1.35fr,0.8fr,0.95fr]">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={request.status} />
+                      <PriorityBadge priority={request.priority} />
+                    </div>
+                    <h3 className="mt-3 font-bold text-slate-900">{request.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{request.description}</p>
+                    <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-500 sm:grid-cols-2">
+                      <span>Requester: user #{request.requesterUserId}</span>
+                      <span>Created: {formatRelativeTime(request.createdAt)}</span>
+                      <span>Entity: {request.communityName}</span>
+                      <span>Raw status: {request.rawStatus}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Request type</p>
+                    <div className="mt-2 rounded-2xl bg-white p-3">
                       <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                         <Icon size={13} />
                         {request.category}
@@ -385,29 +383,30 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
                               }
                               disabled={isFinal}
                               placeholder={`Room for capacity ${room.capaciteSouhaitee ?? '-'}`}
-                              className="h-8 w-48 rounded-lg border border-slate-200 px-2 text-xs outline-none focus:border-brand disabled:bg-slate-100 disabled:text-slate-500"
+                              className="h-8 w-full rounded-lg border border-slate-200 px-2 text-xs outline-none focus:border-brand disabled:bg-slate-100 disabled:text-slate-500"
                             />
                           ))}
                         </div>
                       ) : null}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3"><PriorityBadge priority={request.priority} /></td>
-                    <td className="whitespace-nowrap px-3 py-3"><StatusBadge status={request.status} /></td>
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <div className="flex flex-col gap-2">
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Treatment note</p>
+                    <div className="mt-2 flex flex-col gap-2 rounded-2xl bg-white p-3">
                         <textarea
                           value={noteValue}
                           onChange={(event) => setNotes((current) => ({ ...current, [request.id]: event.target.value }))}
                           disabled={isFinal}
                           placeholder="Treatment note"
-                          className="min-h-16 w-52 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-brand disabled:bg-slate-100 disabled:text-slate-500"
+                          className="min-h-20 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-brand disabled:bg-slate-100 disabled:text-slate-500"
                         />
                         {isFinal ? (
                           <p className="rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-600">
                             Final decision: {statusLabel[request.status]}
                           </p>
                         ) : (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             {request.status === 'submitted' ? (
                               <PermissionAwareButton
                                 anyEntityPermission="REQUEST_APPROVE"
@@ -443,15 +442,14 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
                               <X size={13} />
                               Reject
                             </PermissionAwareButton>
-                        </div>
+                          </div>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
       {pendingDecision ? (

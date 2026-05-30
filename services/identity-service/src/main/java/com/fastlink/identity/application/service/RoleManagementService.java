@@ -8,6 +8,7 @@ import com.fastlink.identity.application.dto.role.UpdateUserStatusRequest;
 import com.fastlink.identity.application.exception.ConflictException;
 import com.fastlink.identity.application.exception.ResourceNotFoundException;
 import com.fastlink.identity.application.port.in.RoleManagementUseCase;
+import com.fastlink.identity.application.port.out.CoordinatorEntityContextPort;
 import com.fastlink.identity.application.port.out.RolePort;
 import com.fastlink.identity.application.port.out.UtilisateurPort;
 import com.fastlink.identity.domain.model.Role;
@@ -26,10 +27,15 @@ public class RoleManagementService implements RoleManagementUseCase {
 
     private final RolePort rolePort;
     private final UtilisateurPort utilisateurPort;
+    private final CoordinatorEntityContextPort coordinatorEntityContextPort;
 
-    public RoleManagementService(RolePort rolePort, UtilisateurPort utilisateurPort) {
+    public RoleManagementService(
+            RolePort rolePort,
+            UtilisateurPort utilisateurPort,
+            CoordinatorEntityContextPort coordinatorEntityContextPort) {
         this.rolePort = rolePort;
         this.utilisateurPort = utilisateurPort;
+        this.coordinatorEntityContextPort = coordinatorEntityContextPort;
     }
 
     @Override
@@ -78,6 +84,9 @@ public class RoleManagementService implements RoleManagementUseCase {
 
         utilisateur.addRole(role);
         Utilisateur updated = utilisateurPort.save(utilisateur);
+        if ("COORDINATOR".equals(request.roleName().name())) {
+            coordinatorEntityContextPort.ensureCoordinatorContext(updated.getId());
+        }
 
         return toUserResponse(updated);
     }
