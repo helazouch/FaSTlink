@@ -27,9 +27,11 @@ export const CommunitiesPage = () => {
           <article key={community.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800">{community.name}</h2>
             <p className="mt-2 text-sm text-slate-600">{community.description}</p>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand">
-              {community.members.toLocaleString()} members
-            </p>
+            {community.members != null && community.members > 0 ? (
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand">
+                {community.members.toLocaleString()} members
+              </p>
+            ) : null}
             <Link to={`/messages/community/${community.id}`} className="mt-4 inline-flex">
               <Button variant="secondary">
                 <MessageSquare size={15} />

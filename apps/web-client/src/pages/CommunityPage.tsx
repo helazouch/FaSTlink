@@ -51,9 +51,11 @@ export const CommunityPage = () => {
             {communityQuery.data?.name ?? 'Community'}
           </h1>
           <p className="mt-2 text-sm text-slate-600">{communityQuery.data?.description}</p>
-          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-brand">
-            {(communityQuery.data?.members ?? 0).toLocaleString()} members
-          </p>
+          {communityQuery.data?.members != null && communityQuery.data.members > 0 ? (
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-brand">
+              {communityQuery.data.members.toLocaleString()} members
+            </p>
+          ) : null}
         </section>
 
         {posts.map((post) => (

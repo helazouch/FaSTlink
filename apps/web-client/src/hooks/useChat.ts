@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { mockChatMessages } from '../data/mockData'
 import { createChatClient } from '../services/websocket/chatClient'
+import { env } from '../config/env'
 import type { ChatMessage } from '../types/domain'
 
 type ConnectionState = 'connecting' | 'online' | 'offline'
@@ -18,14 +18,12 @@ const createMessageId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
   }
-
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
 const parseIncomingMessage = (body: string): Omit<ChatMessage, 'id' | 'mine'> => {
   try {
     const payload = JSON.parse(body) as Partial<ChatMessage>
-
     return {
       sender: payload.sender ?? 'Teammate',
       content: payload.content ?? body,
@@ -43,8 +41,8 @@ const parseIncomingMessage = (body: string): Omit<ChatMessage, 'id' | 'mine'> =>
 }
 
 export const useChat = (): UseChatResult => {
-  const wsEnabled = (import.meta.env.VITE_ENABLE_CHAT_WS ?? 'true') !== 'false'
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatMessages)
+  const wsEnabled = env.enableWebsocket
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     wsEnabled ? 'connecting' : 'offline',
   )
@@ -56,9 +54,13 @@ export const useChat = (): UseChatResult => {
       return
     }
 
-    const socketUrl = import.meta.env.VITE_WS_URL ?? '/ws-community'
-    const topic = import.meta.env.VITE_CHAT_TOPIC ?? '/topic/chat.general'
-    const destination = import.meta.env.VITE_CHAT_DESTINATION ?? '/app/chat.send'
+    // Uses the community WebSocket proxied through the API Gateway
+    const socketUrl = env.communityWsUrl
+    const topic = `${env.chatTopicPrefix}/${env.defaultCommunityId}`
+    const destination = env.chatDestination.replace(
+      '{communityId}',
+      String(env.defaultCommunityId),
+    )
 
     const client = createChatClient({
       url: socketUrl,
@@ -68,14 +70,9 @@ export const useChat = (): UseChatResult => {
       onDisconnect: () => setConnectionState('offline'),
       onMessage: (body) => {
         const incoming = parseIncomingMessage(body)
-
         setMessages((current) => [
           ...current,
-          {
-            ...incoming,
-            id: createMessageId(),
-            mine: false,
-          },
+          { ...incoming, id: createMessageId(), mine: false },
         ])
       },
       onError: () => setConnectionState('offline'),
@@ -96,11 +93,9 @@ export const useChat = (): UseChatResult => {
 
   const sendMessage = useCallback((content: string) => {
     const sanitizedContent = content.trim()
-    if (!sanitizedContent) {
-      return
-    }
+    if (!sanitizedContent) return
 
-    const optimisticMessage: ChatMessage = {
+    const optimistic: ChatMessage = {
       id: createMessageId(),
       sender: SELF_NAME,
       content: sanitizedContent,
@@ -109,14 +104,14 @@ export const useChat = (): UseChatResult => {
       mine: true,
     }
 
-    setMessages((current) => [...current, optimisticMessage])
+    setMessages((current) => [...current, optimistic])
 
     const socket = clientRef.current
     if (socket?.isConnected()) {
       socket.send({
-        sender: optimisticMessage.sender,
-        content: optimisticMessage.content,
-        sentAt: optimisticMessage.sentAt,
+        sender: optimistic.sender,
+        content: optimistic.content,
+        sentAt: optimistic.sentAt,
         channel: CHAT_CHANNEL,
       })
       return
@@ -129,8 +124,8 @@ export const useChat = (): UseChatResult => {
         ...current,
         {
           id: createMessageId(),
-          sender: 'FastLink Bot',
-          content: 'Message queued locally. It will synchronize once the websocket reconnects.',
+          sender: 'FaST Link Bot',
+          content: 'Message queued locally — will sync once the connection is restored.',
           sentAt: new Date().toISOString(),
           channel: CHAT_CHANNEL,
           mine: false,
@@ -141,9 +136,5 @@ export const useChat = (): UseChatResult => {
     pendingEchoTimeoutIdsRef.current.push(timeoutId)
   }, [])
 
-  return {
-    messages,
-    connectionState,
-    sendMessage,
-  }
+  return { messages, connectionState, sendMessage }
 }

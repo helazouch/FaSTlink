@@ -10,7 +10,7 @@ export interface CommunitySummary {
   id: number
   name: string
   description: string
-  members: number
+  members?: number
   coverUrl?: string
 }
 

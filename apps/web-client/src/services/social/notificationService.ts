@@ -1,6 +1,4 @@
-import { mockNotifications } from '../../data/socialMockData'
 import { httpClient } from '../api/httpClient'
-import { withFallback } from './fallback'
 import type { NotificationItem, NotificationKind } from '../../types/social'
 
 interface NotificationDto {
@@ -17,23 +15,11 @@ interface NotificationDto {
   lu?: boolean
 }
 
-let notificationsCache: NotificationItem[] = [...mockNotifications]
-
 const normalizeKind = (value: string | undefined): NotificationKind => {
   const normalized = (value ?? '').toLowerCase()
-
-  if (normalized.includes('success')) {
-    return 'success'
-  }
-
-  if (normalized.includes('warn')) {
-    return 'warning'
-  }
-
-  if (normalized.includes('alert') || normalized.includes('error')) {
-    return 'alert'
-  }
-
+  if (normalized.includes('success')) return 'success'
+  if (normalized.includes('warn')) return 'warning'
+  if (normalized.includes('alert') || normalized.includes('error')) return 'alert'
   return 'info'
 }
 
@@ -46,65 +32,28 @@ const mapNotification = (payload: NotificationDto): NotificationItem => ({
   read: payload.read ?? payload.lu ?? false,
 })
 
-export const getNotifications = async (userId: number): Promise<NotificationItem[]> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.get<NotificationDto[]>('/v1/notifications', {
-        params: {
-          utilisateurId: userId,
-        },
-      })
-
-      const mapped = response.data.map(mapNotification)
-      notificationsCache = mapped
-      return mapped
-    },
-    () => notificationsCache,
-  )
+export const getNotifications = async (userId: number): Promise<NotificationItem[]> => {
+  const response = await httpClient.get<NotificationDto[]>('/v1/notifications', {
+    params: { utilisateurId: userId },
+  })
+  return response.data.map(mapNotification)
+}
 
 export const markNotificationAsRead = async (id: string, userId: number): Promise<void> => {
-  await withFallback(
-    async () => {
-      await httpClient.post(`/v1/notifications/${id}/read`, null, {
-        params: {
-          utilisateurId: userId,
-        },
-      })
-
-      notificationsCache = notificationsCache.map((item) =>
-        item.id === id ? { ...item, read: true } : item,
-      )
-    },
-    () => {
-      notificationsCache = notificationsCache.map((item) =>
-        item.id === id ? { ...item, read: true } : item,
-      )
-    },
-  )
+  await httpClient.post(`/v1/notifications/${id}/read`, null, {
+    params: { utilisateurId: userId },
+  })
 }
 
 export const markAllNotificationsAsRead = async (
   userId: number,
   notificationIds: string[],
 ): Promise<void> => {
-  await withFallback(
-    async () => {
-      await Promise.all(
-        notificationIds.map((id) =>
-          httpClient.post(`/v1/notifications/${id}/read`, null, {
-            params: {
-              utilisateurId: userId,
-            },
-          }),
-        ),
-      )
-
-      notificationsCache = notificationsCache.map((item) =>
-        notificationIds.includes(item.id) ? { ...item, read: true } : item,
-      )
-    },
-    () => {
-      notificationsCache = notificationsCache.map((item) => ({ ...item, read: true }))
-    },
+  await Promise.all(
+    notificationIds.map((id) =>
+      httpClient.post(`/v1/notifications/${id}/read`, null, {
+        params: { utilisateurId: userId },
+      }),
+    ),
   )
 }

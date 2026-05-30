@@ -3,12 +3,12 @@ import {
   Activity,
   BellRing,
   CalendarClock,
+  LoaderCircle,
   MessageSquareText,
   UsersRound,
 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatCard } from '../components/ui/StatCard'
-import { mockDashboardSummary } from '../data/mockData'
 import { useNotifications as useRealtimeNotifications } from '../hooks/useNotifications'
 import {
   useDashboardSummary,
@@ -17,45 +17,44 @@ import {
 } from '../hooks/usePlatformData'
 import { useNotificationStore } from '../stores/notificationStore'
 
-const fallbackTimeline = [24, 35, 31, 47, 58, 53, 66, 44]
-
 const formatRelativeDate = (value: string): string => {
-  const parsedDate = new Date(value)
-  if (Number.isNaN(parsedDate.getTime())) {
-    return 'just now'
-  }
-
-  return formatDistanceToNow(parsedDate, { addSuffix: true })
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'just now'
+  return formatDistanceToNow(parsed, { addSuffix: true })
 }
 
 export const DashboardPage = () => {
   const configuredEntityId = Number(import.meta.env.VITE_DEFAULT_ENTITY_ID ?? '1')
-  const entityId = Number.isFinite(configuredEntityId) ? configuredEntityId : 1
+  const entityId =
+    Number.isFinite(configuredEntityId) && configuredEntityId > 0 ? configuredEntityId : 1
 
-  const { data: summary, isLoading: summaryLoading } = useDashboardSummary(entityId)
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } =
+    useDashboardSummary(entityId)
   const { data: publications = [], isLoading: feedLoading } = usePublications()
   const { data: events = [], isLoading: eventsLoading } = useEvents()
   const notificationsQuery = useRealtimeNotifications()
   const notifications = useNotificationStore((state) => state.items)
-
-  const dashboard = summary ?? mockDashboardSummary
-  const timeline =
-    dashboard.activityTimeline.length > 0 ? dashboard.activityTimeline : fallbackTimeline
-
-  const unreadNotifications = notifications.filter((item) => !item.read)
-  const featuredPublications = publications.slice(0, 3)
-  const upcomingEvents = events.slice(0, 3)
 
   const isBootstrapping =
     summaryLoading && feedLoading && eventsLoading && notificationsQuery.isLoading
 
   if (isBootstrapping) {
     return (
-      <div className="glass-panel animate-pulse p-8 text-center text-slate-300">
-        Loading platform overview...
+      <div className="glass-panel flex items-center justify-center gap-3 p-8 text-slate-300">
+        <LoaderCircle className="animate-spin" size={18} />
+        <span>Loading platform overview…</span>
       </div>
     )
   }
+
+  const timeline =
+    summary && summary.activityTimeline.length > 0
+      ? summary.activityTimeline
+      : Array<number>(8).fill(0)
+
+  const unreadNotifications = notifications.filter((item) => !item.read)
+  const featuredPublications = publications.slice(0, 3)
+  const upcomingEvents = events.slice(0, 3)
 
   return (
     <div className="space-y-6">
@@ -70,32 +69,36 @@ export const DashboardPage = () => {
         }
       />
 
+      {summaryError ? (
+        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
+          Analytics data temporarily unavailable. Stats will reload automatically.
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Members"
-          value={dashboard.totalMembers.toLocaleString()}
-          delta={dashboard.growthRate}
+          value={summary ? summary.totalMembers.toLocaleString() : '—'}
+          delta={summary?.growthRate}
           icon={UsersRound}
-          hint="vs last month"
+          hint="vs last period"
         />
         <StatCard
           label="Active Communities"
-          value={dashboard.activeCommunities.toString()}
-          delta={4.2}
+          value={summary ? summary.activeCommunities.toString() : '—'}
           icon={Activity}
-          hint="weekly increase"
+          hint="platform total"
         />
         <StatCard
           label="Weekly Events"
-          value={dashboard.weeklyEvents.toString()}
-          delta={6.7}
+          value={summary ? summary.weeklyEvents.toString() : '—'}
           icon={CalendarClock}
           hint="planned this week"
         />
         <StatCard
           label="Publications Today"
-          value={dashboard.publicationsToday.toString()}
-          delta={dashboard.engagementRate / 10}
+          value={summary ? summary.publicationsToday.toString() : '—'}
+          delta={summary?.engagementRate}
           icon={MessageSquareText}
           hint="engagement trend"
         />
@@ -104,7 +107,9 @@ export const DashboardPage = () => {
       <section className="grid gap-4 xl:grid-cols-[1.45fr,1fr]">
         <article className="glass-panel p-6">
           <p className="text-sm uppercase tracking-[0.15em] text-slate-400">Activity Pulse</p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">{dashboard.activeNow.toLocaleString()} active right now</h3>
+          <h3 className="mt-2 text-2xl font-semibold text-white">
+            {summary ? summary.activeNow.toLocaleString() : '—'} active right now
+          </h3>
           <p className="mt-2 text-sm text-slate-300">
             Real-time contribution intensity based on publications, chat activity and event check-ins.
           </p>
@@ -115,7 +120,7 @@ export const DashboardPage = () => {
                 <div className="flex h-28 w-full items-end rounded-xl bg-white/5 p-1">
                   <div
                     className="w-full rounded-lg bg-gradient-to-t from-brand-700 via-brand-500 to-brand-300"
-                    style={{ height: `${Math.max(value, 18)}px` }}
+                    style={{ height: `${Math.max(value, 2)}px` }}
                   />
                 </div>
                 <span className="text-[10px] font-medium text-slate-400">H{index + 9}</span>
@@ -126,26 +131,32 @@ export const DashboardPage = () => {
 
         <article className="glass-panel p-6">
           <p className="text-sm uppercase tracking-[0.15em] text-slate-400">Attention Radar</p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">{unreadNotifications.length} unread alerts</h3>
+          <h3 className="mt-2 text-2xl font-semibold text-white">
+            {unreadNotifications.length} unread alerts
+          </h3>
 
           <div className="mt-5 space-y-3">
-            {(unreadNotifications.length > 0 ? unreadNotifications : notifications)
-              .slice(0, 4)
-              .map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-100">{item.title}</p>
-                    <BellRing size={14} className="text-brand-300" />
+            {notificationsQuery.isLoading ? (
+              <p className="text-sm text-slate-400">Loading notifications…</p>
+            ) : (
+              (unreadNotifications.length > 0 ? unreadNotifications : notifications)
+                .slice(0, 4)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-100">{item.title}</p>
+                      <BellRing size={14} className="text-brand-300" />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-300">{item.message}</p>
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      {formatRelativeDate(item.createdAt)}
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-slate-300">{item.message}</p>
-                  <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                    {formatRelativeDate(item.createdAt)}
-                  </p>
-                </div>
-              ))}
+                ))
+            )}
           </div>
         </article>
       </section>
@@ -154,32 +165,47 @@ export const DashboardPage = () => {
         <article className="glass-panel p-6">
           <h3 className="text-lg font-semibold text-white">Latest Publications</h3>
           <div className="mt-4 space-y-3">
-            {featuredPublications.map((post) => (
-              <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-semibold text-white">{post.title}</p>
-                <p className="mt-1 text-xs text-slate-300">{post.community} · {post.author}</p>
-                <p className="mt-2 line-clamp-2 text-sm text-slate-300">{post.excerpt}</p>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                  {formatRelativeDate(post.createdAt)}
-                </p>
-              </div>
-            ))}
+            {feedLoading ? (
+              <p className="text-sm text-slate-400">Loading publications…</p>
+            ) : featuredPublications.length === 0 ? (
+              <p className="text-sm text-slate-400">No publications yet.</p>
+            ) : (
+              featuredPublications.map((post) => (
+                <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm font-semibold text-white">{post.title}</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    {post.community} · {post.author}
+                  </p>
+                  <p className="mt-2 line-clamp-2 text-sm text-slate-300">{post.excerpt}</p>
+                  <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                    {formatRelativeDate(post.createdAt)}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
         <article className="glass-panel p-6">
           <h3 className="text-lg font-semibold text-white">Upcoming Events</h3>
           <div className="mt-4 space-y-3">
-            {upcomingEvents.map((event) => (
-              <div key={event.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-semibold text-white">{event.title}</p>
-                <p className="mt-1 text-xs text-slate-300">{event.community} · {event.location}</p>
-                <p className="mt-2 text-sm text-slate-300">{event.attendees}/{event.capacity} attendees</p>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                  starts {formatRelativeDate(event.startsAt)}
-                </p>
-              </div>
-            ))}
+            {eventsLoading ? (
+              <p className="text-sm text-slate-400">Loading events…</p>
+            ) : upcomingEvents.length === 0 ? (
+              <p className="text-sm text-slate-400">No events scheduled.</p>
+            ) : (
+              upcomingEvents.map((event) => (
+                <div key={event.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm font-semibold text-white">{event.title}</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    {event.community} · {event.location}
+                  </p>
+                  <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                    starts {formatRelativeDate(event.startsAt)}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </article>
       </section>

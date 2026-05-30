@@ -1,6 +1,4 @@
-import { mockCommunities } from '../../data/socialMockData'
 import { httpClient } from '../api/httpClient'
-import { withFallback } from './fallback'
 import type { CommunitySummary, MyCommunity } from '../../types/social'
 
 interface CommunityDto {
@@ -21,14 +19,10 @@ interface MyCommunityDto {
   lastMessageAt: string | null
 }
 
-let communitiesCache: CommunitySummary[] = [...mockCommunities]
-
 const mapCommunity = (payload: CommunityDto): CommunitySummary => ({
   id: payload.id,
   name: payload.nom,
-  description: payload.description,
-  members: communitiesCache.find((item) => item.id === payload.id)?.members ?? 0,
-  coverUrl: communitiesCache.find((item) => item.id === payload.id)?.coverUrl,
+  description: payload.description ?? '',
 })
 
 const mapMyCommunity = (payload: MyCommunityDto): MyCommunity => ({
@@ -42,52 +36,19 @@ const mapMyCommunity = (payload: MyCommunityDto): MyCommunity => ({
   lastMessageAt: payload.lastMessageAt ?? undefined,
 })
 
-export const getSuggestedCommunities = async (): Promise<CommunitySummary[]> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.get<CommunityDto[]>('/v1/communities')
-      const mapped = response.data.map(mapCommunity)
+export const getSuggestedCommunities = async (): Promise<CommunitySummary[]> => {
+  const response = await httpClient.get<CommunityDto[]>('/v1/communities')
+  return response.data.map(mapCommunity)
+}
 
-      if (mapped.length > 0) {
-        communitiesCache = mapped
-      }
+export const getMyCommunities = async (userId: number): Promise<MyCommunity[]> => {
+  const response = await httpClient.get<MyCommunityDto[]>('/v1/communities', {
+    params: { utilisateurId: userId },
+  })
+  return response.data.map(mapMyCommunity)
+}
 
-      return communitiesCache
-    },
-    () => communitiesCache,
-  )
-
-export const getMyCommunities = async (userId: number): Promise<MyCommunity[]> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.get<MyCommunityDto[]>('/v1/communities', {
-        params: { utilisateurId: userId },
-      })
-      return response.data.map(mapMyCommunity)
-    },
-    () =>
-      communitiesCache.map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        creatorUserId: 0,
-        role: 'MEMBER' as const,
-        createdAt: new Date().toISOString(),
-      })),
-  )
-
-export const getCommunityById = async (communityId: number): Promise<CommunitySummary> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.get<CommunityDto>(`/v1/communities/${communityId}`)
-      return mapCommunity(response.data)
-    },
-    () => {
-      const community = communitiesCache.find((item) => item.id === communityId)
-      if (!community) {
-        throw new Error('Community not found')
-      }
-
-      return community
-    },
-  )
+export const getCommunityById = async (communityId: number): Promise<CommunitySummary> => {
+  const response = await httpClient.get<CommunityDto>(`/v1/communities/${communityId}`)
+  return mapCommunity(response.data)
+}
