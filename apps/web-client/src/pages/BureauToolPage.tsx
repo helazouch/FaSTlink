@@ -27,6 +27,7 @@ import {
 } from '../data/bureauMockData'
 import { BureauEventManagement } from '../components/organisms/BureauEventManagement'
 import { useCurrentEntityContext } from '../hooks/useCurrentEntityContext'
+import { useEntityActivityAnalytics, useEntityOverviewAnalytics } from '../hooks/useEntityAnalytics'
 import { useScopedPermissions } from '../hooks/useScopedPermissions'
 import {
   addBureauCommunityMember,
@@ -536,26 +537,85 @@ const PublicationManagement = ({ publications, permission }: { publications: Bur
   )
 }
 
-const StatisticsPanel = ({ data }: { data: BureauSeed }) => {
-  const maxValue = Math.max(...data.trend.map((item) => item.value), 1)
+const StatisticsPanel = ({ entityId }: { entityId: number }) => {
+  const overviewQuery = useEntityOverviewAnalytics(entityId)
+  const activityQuery = useEntityActivityAnalytics(entityId)
+
+  if (overviewQuery.isLoading || activityQuery.isLoading) {
+    return <LoadingPanel />
+  }
+
+  if (overviewQuery.isError || activityQuery.isError) {
+    return (
+      <ErrorPanel
+        message={getErrorMessage(
+          overviewQuery.error ?? activityQuery.error,
+          'Entity statistics could not be loaded for this entity.',
+        )}
+        onRetry={() => {
+          void overviewQuery.refetch()
+          void activityQuery.refetch()
+        }}
+      />
+    )
+  }
+
+  const overview = overviewQuery.data
+  const activity = activityQuery.data
+
+  if (!overview || !activity) {
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="No analytics available"
+        description="Entity statistics will appear once activity is recorded for this entity."
+      />
+    )
+  }
+
+  const maxValue = Math.max(...activity.categories.map((item) => item.value), 1)
 
   return (
     <div className="space-y-4">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Users} label="Members" value={String(data.members.length)} helper="Current entity only" />
-        <MetricCard icon={CalendarPlus} label="Events" value={String(data.events.length)} helper="Entity events" />
-        <MetricCard icon={Megaphone} label="Publications" value={String(data.publications.length)} helper="Local content" />
-        <MetricCard icon={AlertTriangle} label="Moderation" value={String(data.moderation.filter((item) => item.status === 'pending').length)} helper="Pending review" />
+        <MetricCard
+          icon={Users}
+          label="Members"
+          value={String(overview.members.totalMembers)}
+          helper={`${overview.members.activeMembers} active · ${overview.members.newMembersThisMonth} new this month`}
+        />
+        <MetricCard
+          icon={CalendarPlus}
+          label="Events"
+          value={String(overview.events.totalEvents)}
+          helper={`${overview.events.upcomingEvents} upcoming · ${overview.events.completedEvents} completed`}
+        />
+        <MetricCard
+          icon={Megaphone}
+          label="Publications"
+          value={String(overview.publications.totalPublications)}
+          helper={`${overview.publications.publicationsThisMonth} this month · ${overview.publications.engagementTotal} engagements`}
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          label="Moderation"
+          value={String(overview.moderation.pendingReviews)}
+          helper={`${overview.moderation.approvedContent} approved · ${overview.moderation.rejectedContent} rejected`}
+        />
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-base font-bold text-slate-900">Entity activity</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          {data.trend.map((item) => (
+          {activity.categories.map((item) => (
             <div key={item.label} className="rounded-2xl bg-slate-50 p-3">
               <div className="flex h-32 items-end rounded-xl bg-white px-4 py-3">
-                <div className="w-full rounded-t-xl bg-brand" style={{ height: `${Math.max((item.value / maxValue) * 100, 10)}%` }} />
+                <div
+                  className="w-full rounded-t-xl bg-brand"
+                  style={{ height: `${Math.max((item.value / maxValue) * 100, item.value > 0 ? 10 : 0)}%` }}
+                />
               </div>
               <p className="mt-2 text-sm font-bold text-slate-700">{item.label}</p>
+              <p className="text-xs font-semibold text-slate-500">{item.value}</p>
             </div>
           ))}
         </div>
@@ -881,16 +941,19 @@ export const BureauToolPage = () => {
   const scoped = useScopedPermissions()
   const meta = toolMeta[location.pathname as keyof typeof toolMeta] ?? fallbackMeta
   const Icon = meta.icon
+  const isStatisticsPage = location.pathname === '/bureau/statistics'
   const seed = useMemo(
     () => createBureauSeed(currentEntityId, currentMembership?.entityName ?? `Entity ${currentEntityId ?? ''}`),
     [currentEntityId, currentMembership?.entityName],
   )
   const resource = useBureauResource(seed, `${currentEntityId ?? 'none'}:${location.pathname}`)
+  const overviewQuery = useEntityOverviewAnalytics(isStatisticsPage ? currentEntityId : null)
   const panelKey = `${currentEntityId ?? 'none'}:${location.pathname}`
   const isRealBureauPage =
     location.pathname === '/bureau/members' ||
     location.pathname === '/bureau/community' ||
-    location.pathname === '/bureau/events'
+    location.pathname === '/bureau/events' ||
+    location.pathname === '/bureau/statistics'
 
   if (!scoped.isBureauMember) {
     return (
@@ -910,9 +973,25 @@ export const BureauToolPage = () => {
         description={`${meta.title} is scoped to ${currentMembership?.entityName ?? `entity ${currentEntityId}`} and appears only for BUREAU_MEMBER context.`}
       />
       <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard icon={Icon} label="Scope" value="Local" helper="Current entity only" />
+        <MetricCard
+          icon={Icon}
+          label="Scope"
+          value={overviewQuery.data?.entityName ?? currentMembership?.entityName ?? 'Local'}
+          helper="Current entity only"
+        />
         <MetricCard icon={Users} label="Role" value="Bureau" helper="No coordinator inheritance" />
-        <MetricCard icon={BarChart3} label="Status" value="Scoped" helper="Backend validates every write" />
+        <MetricCard
+          icon={BarChart3}
+          label="Status"
+          value={
+            overviewQuery.data
+              ? overviewQuery.data.activeStatus
+                ? 'Active'
+                : 'Inactive'
+              : 'Scoped'
+          }
+          helper="Backend-validated analytics"
+        />
       </section>
 
       {!isRealBureauPage && resource.isLoading && <LoadingPanel />}
@@ -926,8 +1005,8 @@ export const BureauToolPage = () => {
       {!resource.isLoading && !resource.error && location.pathname === '/bureau/publish' && (
         <PublicationManagement key={panelKey} publications={resource.data.publications} permission={meta.permission} />
       )}
-      {!resource.isLoading && !resource.error && location.pathname === '/bureau/statistics' && (
-        <StatisticsPanel key={panelKey} data={resource.data} />
+      {location.pathname === '/bureau/statistics' && currentEntityId !== null && (
+        <StatisticsPanel key={panelKey} entityId={currentEntityId} />
       )}
       {location.pathname === '/bureau/community' && currentEntityId !== null && (
         <CommunityManagement key={panelKey} entityId={currentEntityId} actorUserId={currentUserId} permission={meta.permission} />

@@ -74,11 +74,23 @@ public class SecurityConfig {
                     .noneMatch(authority -> "ROLE_COORDINATOR".equals(authority.getAuthority()))) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_COORDINATOR"));
             }
+            if (hasBureauMembership(jwt.getClaims()) && authorities.stream()
+                    .noneMatch(authority -> "ROLE_BUREAU_MEMBER".equals(authority.getAuthority()))) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_BUREAU_MEMBER"));
+            }
             return authorities;
         };
     }
 
     private boolean hasCoordinatorMembership(Map<String, Object> claims) {
+        return hasActiveEntityRole(claims, "COORDINATOR");
+    }
+
+    private boolean hasBureauMembership(Map<String, Object> claims) {
+        return hasActiveEntityRole(claims, "BUREAU_MEMBER");
+    }
+
+    private boolean hasActiveEntityRole(Map<String, Object> claims, String expectedRole) {
         Object memberships = claims.get("entityMemberships");
         if (!(memberships instanceof List<?> list)) {
             return false;
@@ -88,7 +100,7 @@ public class SecurityConfig {
                 Object status = membership.get("status");
                 Object role = membership.get("role");
                 boolean active = status == null || "ACTIVE".equalsIgnoreCase(status.toString());
-                if (active && role != null && "COORDINATOR".equalsIgnoreCase(role.toString())) {
+                if (active && role != null && expectedRole.equalsIgnoreCase(role.toString())) {
                     return true;
                 }
             }
