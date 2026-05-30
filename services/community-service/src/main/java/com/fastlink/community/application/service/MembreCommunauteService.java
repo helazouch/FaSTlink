@@ -1,5 +1,6 @@
 package com.fastlink.community.application.service;
 
+import com.fastlink.community.application.dto.communaute.MyCommunauteResponse;
 import com.fastlink.community.application.dto.membre.AddMembreRequest;
 import com.fastlink.community.application.dto.membre.MembreCommunauteResponse;
 import com.fastlink.community.application.exception.ConflictException;
@@ -8,10 +9,13 @@ import com.fastlink.community.application.exception.ResourceNotFoundException;
 import com.fastlink.community.application.port.in.MembreCommunauteUseCase;
 import com.fastlink.community.application.port.out.CommunautePort;
 import com.fastlink.community.application.port.out.MembreCommunautePort;
+import com.fastlink.community.application.port.out.MessageCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.domain.model.MembreCommunaute;
 import com.fastlink.community.domain.model.MembreRole;
+import com.fastlink.community.domain.model.MessageCommunaute;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +25,15 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
 
     private final CommunautePort communautePort;
     private final MembreCommunautePort membreCommunautePort;
+    private final MessageCommunautePort messageCommunautePort;
 
-    public MembreCommunauteService(CommunautePort communautePort, MembreCommunautePort membreCommunautePort) {
+    public MembreCommunauteService(
+            CommunautePort communautePort,
+            MembreCommunautePort membreCommunautePort,
+            MessageCommunautePort messageCommunautePort) {
         this.communautePort = communautePort;
         this.membreCommunautePort = membreCommunautePort;
+        this.messageCommunautePort = messageCommunautePort;
     }
 
     @Override
@@ -66,6 +75,28 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
         return membreCommunautePort.findByCommunauteId(communauteId)
                 .stream()
                 .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MyCommunauteResponse> getMyCommunautes(Long utilisateurId) {
+        return membreCommunautePort.findByUtilisateurId(utilisateurId)
+                .stream()
+                .map(membre -> {
+                    Communaute communaute = membre.getCommunaute();
+                    Optional<MessageCommunaute> lastMessage =
+                            messageCommunautePort.findLastByCommunauteId(communaute.getId());
+                    return new MyCommunauteResponse(
+                            communaute.getId(),
+                            communaute.getNom(),
+                            communaute.getDescription(),
+                            communaute.getCreateurUtilisateurId(),
+                            membre.getRole(),
+                            communaute.getCreatedAt(),
+                            lastMessage.map(MessageCommunaute::getContenu).orElse(null),
+                            lastMessage.map(MessageCommunaute::getCreatedAt).orElse(null));
+                })
                 .toList();
     }
 

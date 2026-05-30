@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { NotificationItem } from '../types/social'
 
-interface NotificationStoreState {
+export interface NotificationStoreState {
   items: NotificationItem[]
   setItems: (items: NotificationItem[]) => void
   prependNotification: (item: NotificationItem) => void

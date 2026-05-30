@@ -7,6 +7,7 @@ interface ChatMessageDto {
   id: string | number
   communauteId: number
   utilisateurId: number
+  senderName: string | null
   contenu: string
   createdAt: string
 }
@@ -16,7 +17,7 @@ const mapMessage = (payload: ChatMessageDto, userId: number): ChatMessage => ({
   communityId: payload.communauteId,
   sender: {
     id: payload.utilisateurId,
-    fullName: `User #${payload.utilisateurId}`,
+    fullName: payload.senderName ?? `User #${payload.utilisateurId}`,
     headline: 'Community member',
   },
   content: payload.contenu,
@@ -39,7 +40,7 @@ export const getCommunityMessages = async (
         },
       )
 
-      return response.data.map((item) => mapMessage(item, userId))
+      return response.data.map((item: ChatMessageDto) => mapMessage(item, userId))
     },
     () =>
       mockChatMessages.filter((item) => item.communityId === communityId || communityId === 1),

@@ -2,8 +2,10 @@ package com.fastlink.community.presentation.controller;
 
 import com.fastlink.community.application.dto.communaute.CommunauteResponse;
 import com.fastlink.community.application.dto.communaute.CreateCommunauteRequest;
+import com.fastlink.community.application.dto.communaute.MyCommunauteResponse;
 import com.fastlink.community.application.dto.communaute.UpdateCommunauteRequest;
 import com.fastlink.community.application.port.in.CommunauteUseCase;
+import com.fastlink.community.application.port.in.MembreCommunauteUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -28,14 +30,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommunauteController {
 
     private final CommunauteUseCase communauteUseCase;
+    private final MembreCommunauteUseCase membreCommunauteUseCase;
 
-    public CommunauteController(CommunauteUseCase communauteUseCase) {
+    public CommunauteController(CommunauteUseCase communauteUseCase, MembreCommunauteUseCase membreCommunauteUseCase) {
         this.communauteUseCase = communauteUseCase;
+        this.membreCommunauteUseCase = membreCommunauteUseCase;
     }
 
+    /**
+     * Without utilisateurId: returns all communities (discovery).
+     * With utilisateurId:    returns only communities the user belongs to, with last-message preview.
+     */
     @GetMapping
-    public ResponseEntity<List<CommunauteResponse>> list() {
-        return ResponseEntity.ok(communauteUseCase.listCommunautes());
+    public ResponseEntity<?> list(@RequestParam(required = false) Long utilisateurId) {
+        if (utilisateurId != null) {
+            List<MyCommunauteResponse> myCommunautes = membreCommunauteUseCase.getMyCommunautes(utilisateurId);
+            return ResponseEntity.ok(myCommunautes);
+        }
+        List<CommunauteResponse> all = communauteUseCase.listCommunautes();
+        return ResponseEntity.ok(all);
     }
 
     @GetMapping("/{communauteId}")

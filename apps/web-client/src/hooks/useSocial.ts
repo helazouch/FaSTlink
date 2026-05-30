@@ -1,14 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getCommunityById, getSuggestedCommunities } from '../services/social/communityService'
+import { getCommunityById, getMyCommunities, getSuggestedCommunities } from '../services/social/communityService'
 import { getRequestEntities } from '../services/social/entityService'
 import { getUpcomingEvents, updateEventParticipation } from '../services/social/eventService'
 import { getMyProfile } from '../services/social/profileService'
 import { getMyRequests, submitRequest } from '../services/social/requestService'
 import { useAuthStore } from '../stores/authStore'
+import type { AuthStoreState } from '../stores/authStore'
 import type { SubmitRequestInput, UpdateParticipationInput } from '../types/social'
+
+const selectUserId = (state: AuthStoreState) => state.user?.id
 
 const queryKeys = {
   communities: ['communities', 'suggested'] as const,
+  myCommunities: (userId: number) => ['communities', 'mine', userId] as const,
   communityById: (communityId: number) => ['communities', communityId] as const,
   events: ['events', 'upcoming'] as const,
   requestEntities: ['requests', 'entities'] as const,
@@ -21,6 +25,19 @@ export const useSuggestedCommunities = () =>
     queryKey: queryKeys.communities,
     queryFn: getSuggestedCommunities,
   })
+
+export const useMyCommunities = () => {
+  const userId = useAuthStore(selectUserId)
+
+  return useQuery({
+    queryKey: userId ? queryKeys.myCommunities(userId) : ['communities', 'mine', 'none'],
+    queryFn: () => {
+      if (!userId) return Promise.resolve([])
+      return getMyCommunities(userId)
+    },
+    enabled: Boolean(userId),
+  })
+}
 
 export const useCommunity = (communityId: number) =>
   useQuery({
@@ -35,33 +52,28 @@ export const useEvents = () =>
     queryFn: getUpcomingEvents,
   })
 
-export const useRequestEntities = () =>
-  {
-    const userId = useAuthStore((state) => state.user?.id)
+export const useRequestEntities = () => {
+  const userId = useAuthStore(selectUserId)
 
-    return useQuery({
-      queryKey: [...queryKeys.requestEntities, userId] as const,
-      queryFn: () => {
-        if (!userId) {
-          return Promise.resolve([])
-        }
-
-        return getRequestEntities(userId)
-      },
-      enabled: Boolean(userId),
-    })
-  }
+  return useQuery({
+    queryKey: [...queryKeys.requestEntities, userId] as const,
+    queryFn: () => {
+      if (!userId) return Promise.resolve([])
+      return getRequestEntities(userId)
+    },
+    enabled: Boolean(userId),
+  })
+}
 
 export const useUpdateParticipation = () => {
   const queryClient = useQueryClient()
-  const userId = useAuthStore((state) => state.user?.id)
+  const userId = useAuthStore(selectUserId)
 
   return useMutation({
     mutationFn: (input: UpdateParticipationInput) => {
       if (!userId) {
         throw new Error('You must be signed in to update participation')
       }
-
       return updateEventParticipation(input, userId)
     },
     onSuccess: () => {
@@ -71,15 +83,12 @@ export const useUpdateParticipation = () => {
 }
 
 export const useRequests = () => {
-  const userId = useAuthStore((state) => state.user?.id)
+  const userId = useAuthStore(selectUserId)
 
   return useQuery({
     queryKey: [...queryKeys.requests, userId] as const,
     queryFn: () => {
-      if (!userId) {
-        return Promise.resolve([])
-      }
-
+      if (!userId) return Promise.resolve([])
       return getMyRequests(userId)
     },
     enabled: Boolean(userId),
@@ -88,14 +97,13 @@ export const useRequests = () => {
 
 export const useSubmitRequest = () => {
   const queryClient = useQueryClient()
-  const userId = useAuthStore((state) => state.user?.id)
+  const userId = useAuthStore(selectUserId)
 
   return useMutation({
     mutationFn: (input: SubmitRequestInput) => {
       if (!userId) {
         throw new Error('You must be signed in to submit a request')
       }
-
       return submitRequest(input, userId)
     },
     onSuccess: () => {

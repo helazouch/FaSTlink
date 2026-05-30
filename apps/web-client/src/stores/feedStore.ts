@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-interface FeedStoreState {
+export interface FeedStoreState {
   searchQuery: string
   activeCommunityId: number | null
   expandedCommentsByPostId: Record<string, boolean>

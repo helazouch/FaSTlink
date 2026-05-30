@@ -28,6 +28,9 @@ public class MessageCommunaute {
     @Column(name = "utilisateur_id", nullable = false)
     private Long utilisateurId;
 
+    @Column(name = "sender_name", length = 255)
+    private String senderName;
+
     @Column(name = "contenu", nullable = false, length = 1500)
     private String contenu;
 
@@ -37,9 +40,10 @@ public class MessageCommunaute {
     protected MessageCommunaute() {
     }
 
-    public MessageCommunaute(Communaute communaute, Long utilisateurId, String contenu) {
+    public MessageCommunaute(Communaute communaute, Long utilisateurId, String senderName, String contenu) {
         this.communaute = communaute;
         this.utilisateurId = utilisateurId;
+        this.senderName = senderName;
         this.contenu = contenu;
     }
 
@@ -66,6 +70,14 @@ public class MessageCommunaute {
 
     public void setUtilisateurId(Long utilisateurId) {
         this.utilisateurId = utilisateurId;
+    }
+
+    public String getSenderName() {
+        return senderName;
+    }
+
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
     }
 
     public String getContenu() {

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { MessageSquare } from 'lucide-react'
 import { Button } from '../components/atoms/Button'
 import { useSuggestedCommunities } from '../hooks/useSocial'
+import type { CommunitySummary } from '../types/social'
 
 export const CommunitiesPage = () => {
   const { data: communities = [], isLoading } = useSuggestedCommunities()
@@ -21,15 +23,18 @@ export const CommunitiesPage = () => {
       ) : null}
 
       <section className="grid gap-3 md:grid-cols-2">
-        {communities.map((community) => (
+        {communities.map((community: CommunitySummary) => (
           <article key={community.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800">{community.name}</h2>
             <p className="mt-2 text-sm text-slate-600">{community.description}</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand">
               {community.members.toLocaleString()} members
             </p>
-            <Link to={`/communities/${community.id}`} className="mt-4 inline-block">
-              <Button variant="secondary">Open community</Button>
+            <Link to={`/messages/community/${community.id}`} className="mt-4 inline-flex">
+              <Button variant="secondary">
+                <MessageSquare size={15} />
+                Open community
+              </Button>
             </Link>
           </article>
         ))}

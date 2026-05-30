@@ -15,6 +15,7 @@ interface CommunityChatSocketOptions {
 
 interface OutgoingMessage {
   utilisateurId: number
+  senderName: string
   contenu: string
 }
 
@@ -22,6 +23,7 @@ interface IncomingMessage {
   id: number
   communauteId: number
   utilisateurId: number
+  senderName: string | null
   contenu: string
   createdAt: string
 }
@@ -65,7 +67,7 @@ export const createCommunityChatSocket = (options: CommunityChatSocketOptions) =
               communityId: payload.communauteId ?? options.communityId,
               sender: {
                 id: payload.utilisateurId,
-                fullName: `User #${payload.utilisateurId}`,
+                fullName: payload.senderName ?? `User #${payload.utilisateurId}`,
                 headline: 'Community member',
               },
               content: payload.contenu,

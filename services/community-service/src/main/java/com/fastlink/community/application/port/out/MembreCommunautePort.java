@@ -10,6 +10,8 @@ public interface MembreCommunautePort {
 
     List<MembreCommunaute> findByCommunauteId(Long communauteId);
 
+    List<MembreCommunaute> findByUtilisateurId(Long utilisateurId);
+
     MembreCommunaute save(MembreCommunaute membreCommunaute);
 
     void delete(MembreCommunaute membreCommunaute);

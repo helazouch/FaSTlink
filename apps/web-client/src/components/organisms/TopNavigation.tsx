@@ -4,20 +4,31 @@ import { IconButton } from '../atoms/IconButton'
 import { SearchField } from '../molecules/SearchField'
 import { UserDropdown } from '../molecules/UserDropdown'
 import { useFeedStore } from '../../stores/feedStore'
+import type { FeedStoreState } from '../../stores/feedStore'
 import { useNotificationStore } from '../../stores/notificationStore'
+import type { NotificationStoreState } from '../../stores/notificationStore'
 import { useChatStore } from '../../stores/chatStore'
+import type { ChatStoreState } from '../../stores/chatStore'
+import type { NotificationItem } from '../../types/social'
+
+const selectSearchQuery = (state: FeedStoreState) => state.searchQuery
+const selectSetSearchQuery = (state: FeedStoreState) => state.setSearchQuery
+const selectNotificationItems = (state: NotificationStoreState) => state.items
+const selectUnreadCounts = (state: ChatStoreState) => state.unreadCountByCommunity
 
 export const TopNavigation = () => {
-  const searchQuery = useFeedStore((state) => state.searchQuery)
-  const setSearchQuery = useFeedStore((state) => state.setSearchQuery)
-  const unreadNotifications = useNotificationStore(
-    (state) => state.items.filter((item) => !item.read).length,
-  )
-  const unreadMessages = useChatStore((state) =>
-    Object.values(state.messagesByCommunity).reduce((accumulator, messages) => {
-      const unread = messages.filter((message) => !message.mine).length
-      return accumulator + unread
-    }, 0),
+  const searchQuery = useFeedStore(selectSearchQuery)
+  const setSearchQuery = useFeedStore(selectSetSearchQuery)
+  const notificationItems = useNotificationStore(selectNotificationItems)
+  const unreadCountByCommunity = useChatStore(selectUnreadCounts)
+
+  const unreadNotifications = notificationItems.filter(
+    (item: NotificationItem) => !item.read,
+  ).length
+
+  const totalUnreadMessages = (Object.values(unreadCountByCommunity) as number[]).reduce(
+    (sum: number, count: number) => sum + count,
+    0,
   )
 
   return (
@@ -48,9 +59,9 @@ export const TopNavigation = () => {
 
           <Link to="/messages" className="relative">
             <IconButton icon={<MessageCircle size={18} />} label="Messages" />
-            {unreadMessages > 0 ? (
+            {totalUnreadMessages > 0 ? (
               <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
-                {Math.min(unreadMessages, 99)}
+                {Math.min(totalUnreadMessages, 99)}
               </span>
             ) : null}
           </Link>
