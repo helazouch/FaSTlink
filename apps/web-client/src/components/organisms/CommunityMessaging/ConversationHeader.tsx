@@ -13,7 +13,7 @@ interface ConversationHeaderProps {
 const statusLabel: Record<ConnectionStatus, string> = {
   online: 'Live',
   connecting: 'Connecting',
-  offline: 'Offline',
+  offline: 'Realtime Unavailable',
 }
 
 const statusClasses: Record<ConnectionStatus, string> = {

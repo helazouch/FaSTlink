@@ -143,6 +143,7 @@ public class AuthService implements AuthUseCase {
                         LinkedHashMap::new));
 
         return Map.of(
+                "name", utilisateur.getNomComplet(),
                 "permissions", permissions,
                 "entityMemberships", toSerializableMembershipClaims(memberships),
                 "entityPermissions", serializableEntityPermissions);

@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface MessageCommunauteUseCase {
 
-    MessageCommunauteResponse sendMessage(Long communauteId, SendMessageRequest request);
+    MessageCommunauteResponse sendMessage(Long communauteId, Long utilisateurId, String senderName, SendMessageRequest request);
 
     List<MessageCommunauteResponse> getMessages(Long communauteId, Long utilisateurId);
 }

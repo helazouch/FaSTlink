@@ -21,6 +21,6 @@ public class CommunityChatWebSocketController {
     public void sendMessage(
             @DestinationVariable Long communauteId,
             @Valid @Payload SendMessageRequest request) {
-        messageCommunauteUseCase.sendMessage(communauteId, request);
+        throw new UnsupportedOperationException("WebSocket message sending is disabled. Use the secure HTTP REST API instead.");
     }
 }

@@ -20,6 +20,7 @@ export const CommunityMessagingPage = () => {
     if (urlCommunityId) {
       const found = communities.find((c) => c.id === urlCommunityId)
       if (found) return found
+      return null // Security: Return null if user has no membership/visibility
     }
     return communities[0] ?? null
   }
@@ -27,10 +28,18 @@ export const CommunityMessagingPage = () => {
   const activeCommunity = resolveActiveCommunity()
 
   useEffect(() => {
-    if (!isLoading && communities.length > 0 && !urlCommunityId) {
-      const first = communities[0]
-      if (first) {
-        navigate(`/messages/community/${first.id}`, { replace: true })
+    if (!isLoading) {
+      if (urlCommunityId) {
+        const hasAccess = communities.some((c) => c.id === urlCommunityId)
+        if (!hasAccess) {
+          // Access Denied: redirect to safe default path
+          navigate('/messages', { replace: true })
+        }
+      } else if (communities.length > 0) {
+        const first = communities[0]
+        if (first) {
+          navigate(`/messages/community/${first.id}`, { replace: true })
+        }
       }
     }
   }, [isLoading, communities, urlCommunityId, navigate])

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { env } from '../config/env'
-import { getCommunityMessages } from '../services/social/chatService'
+import { getCommunityMessages, sendCommunityMessage } from '../services/social/chatService'
 import { createCommunityChatSocket } from '../services/websocket/communityChatSocket'
 import { useAuthStore } from '../stores/authStore'
 import type { AuthStoreState } from '../stores/authStore'
@@ -124,25 +124,20 @@ export const useCommunityChat = (communityId: number) => {
         mine: true,
       }
 
+      // Add message optimistically
       appendMessage(communityId, optimistic)
 
-      if (!env.enableWebsocket) {
-        return
-      }
-
-      const socket = socketRef.current
-      if (!socket || !socket.isConnected()) {
-        setConnectionStatus('offline')
-        return
-      }
-
-      socket.send({
-        utilisateurId: user.id,
-        senderName: user.fullName,
-        contenu: optimistic.content,
-      })
+      // Send to backend securely via JWT-authenticated REST HTTP API
+      void sendCommunityMessage(communityId, user.id, sanitized)
+        .then((realMessage) => {
+          // Optimistically replace with backend-persisted database entry
+          appendMessage(communityId, realMessage)
+        })
+        .catch((error) => {
+          console.error('Failed to securely persist community message:', error)
+        })
     },
-    [appendMessage, communityId, setConnectionStatus, user],
+    [appendMessage, communityId, user],
   )
 
   return useMemo(

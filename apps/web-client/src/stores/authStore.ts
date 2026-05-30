@@ -3,6 +3,7 @@ import { normalizeApiError } from '../lib/errors'
 import { loginWithCredentials, registerAccount, validateCurrentUser } from '../services/auth/authService'
 import { clearStoredSession, readStoredSession, saveStoredSession } from '../services/auth/authStorage'
 import type { AuthSession, LoginPayload, RegisterPayload } from '../types/auth'
+import { useChatStore } from './chatStore'
 
 type AuthStatus = 'bootstrapping' | 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -48,6 +49,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   },
   logout: () => {
     clearStoredSession()
+    useChatStore.getState().resetStore()
     set({
       status: 'unauthenticated',
       session: null,

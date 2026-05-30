@@ -42,15 +42,15 @@ public class MessageCommunauteService implements MessageCommunauteUseCase {
     }
 
     @Override
-    public MessageCommunauteResponse sendMessage(Long communauteId, SendMessageRequest request) {
+    public MessageCommunauteResponse sendMessage(Long communauteId, Long utilisateurId, String senderName, SendMessageRequest request) {
         Communaute communaute = findCommunaute(communauteId);
-        entityPermissionPort.checkPermission(request.utilisateurId(), communaute.getEntiteId(), ACTION_COMMUNITY_MESSAGE);
-        requireMembre(communauteId, request.utilisateurId());
+        entityPermissionPort.checkPermission(utilisateurId, communaute.getEntiteId(), ACTION_COMMUNITY_MESSAGE);
+        requireMembre(communauteId, utilisateurId);
 
         MessageCommunaute message = new MessageCommunaute(
                 communaute,
-                request.utilisateurId(),
-                normalizeOptional(request.senderName()),
+                utilisateurId,
+                normalizeOptional(senderName),
                 normalizeRequired(request.contenu()));
 
         MessageCommunaute saved = messageCommunautePort.save(message);

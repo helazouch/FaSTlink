@@ -1,6 +1,4 @@
-import { mockChatMessages } from '../../data/socialMockData'
 import { httpClient } from '../api/httpClient'
-import { withFallback } from './fallback'
 import type { ChatMessage } from '../../types/social'
 
 interface ChatMessageDto {
@@ -28,20 +26,28 @@ const mapMessage = (payload: ChatMessageDto, userId: number): ChatMessage => ({
 export const getCommunityMessages = async (
   communityId: number,
   userId: number,
-): Promise<ChatMessage[]> =>
-  withFallback(
-    async () => {
-      const response = await httpClient.get<ChatMessageDto[]>(
-        `/v1/communities/${communityId}/messages`,
-        {
-          params: {
-            utilisateurId: userId,
-          },
-        },
-      )
+): Promise<ChatMessage[]> => {
+  try {
+    const response = await httpClient.get<ChatMessageDto[]>(
+      `/v1/communities/${communityId}/messages`
+    )
+    return response.data.map((item: ChatMessageDto) => mapMessage(item, userId))
+  } catch (error) {
+    console.error('Failed to fetch community messages:', error)
+    return []
+  }
+}
 
-      return response.data.map((item: ChatMessageDto) => mapMessage(item, userId))
-    },
-    () =>
-      mockChatMessages.filter((item) => item.communityId === communityId || communityId === 1),
+export const sendCommunityMessage = async (
+  communityId: number,
+  userId: number,
+  content: string,
+): Promise<ChatMessage> => {
+  const response = await httpClient.post<ChatMessageDto>(
+    `/v1/communities/${communityId}/messages`,
+    {
+      contenu: content,
+    }
   )
+  return mapMessage(response.data, userId)
+}

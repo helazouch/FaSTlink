@@ -20,10 +20,14 @@ export interface SocketHandle {
 export const createStompSocket = (options: SocketOptions): SocketHandle => {
   const subscriptions = new Set<StompSubscription>()
 
+  let retryDelay = 1000
+  let reconnectTimer: number | null = null
+  let isConnectingOrConnected = false
+
   const client = new Client({
-    reconnectDelay: 4_000,
-    heartbeatIncoming: 5_000,
-    heartbeatOutgoing: 5_000,
+    reconnectDelay: 0, // Manage reconnects manually for exponential backoff
+    heartbeatIncoming: 5000,
+    heartbeatOutgoing: 5000,
     webSocketFactory: () => new SockJS(options.url),
     debug: (message) => {
       if (options.debugLabel) {
@@ -32,7 +36,51 @@ export const createStompSocket = (options: SocketOptions): SocketHandle => {
     },
   })
 
+  const getNextDelay = (current: number): number => {
+    if (current <= 1000) return 2000
+    if (current <= 2000) return 5000
+    if (current <= 5000) return 10000
+    return 30000 // Capped at 30 seconds
+  }
+
+  const scheduleReconnect = () => {
+    if (reconnectTimer !== null) {
+      return
+    }
+
+    if (options.debugLabel) {
+      console.warn(`[${options.debugLabel}] Scheduling reconnect in ${retryDelay}ms...`)
+    }
+
+    reconnectTimer = window.setTimeout(() => {
+      reconnectTimer = null
+      if (options.debugLabel) {
+        console.info(`[${options.debugLabel}] Attempting reconnect...`)
+      }
+      try {
+        client.activate()
+      } catch (err) {
+        console.error('Reconnect activation failed:', err)
+        handleFailure()
+      }
+    }, retryDelay)
+
+    retryDelay = getNextDelay(retryDelay)
+  }
+
+  const handleFailure = () => {
+    isConnectingOrConnected = false
+    options.onDisconnect?.()
+    scheduleReconnect()
+  }
+
   client.onConnect = () => {
+    retryDelay = 1000 // Reset backoff on successful connection
+    isConnectingOrConnected = true
+    if (reconnectTimer !== null) {
+      window.clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
     if (options.debugLabel) {
       console.info(`[${options.debugLabel}] connected`)
     }
@@ -41,9 +89,9 @@ export const createStompSocket = (options: SocketOptions): SocketHandle => {
 
   client.onWebSocketClose = () => {
     if (options.debugLabel) {
-      console.info(`[${options.debugLabel}] disconnected`)
+      console.info(`[${options.debugLabel}] websocket closed`)
     }
-    options.onDisconnect?.()
+    handleFailure()
   }
 
   client.onStompError = (frame) => {
@@ -51,17 +99,25 @@ export const createStompSocket = (options: SocketOptions): SocketHandle => {
     if (options.debugLabel) {
       console.error(`[${options.debugLabel}] stomp error`, message, frame.body)
     }
-    options.onError?.(message)
+    handleFailure()
   }
 
   return {
     connect: () => {
+      if (isConnectingOrConnected) return
+      isConnectingOrConnected = true
+      retryDelay = 1000
       if (options.debugLabel) {
         console.info(`[${options.debugLabel}] connecting`, options.url)
       }
       client.activate()
     },
     disconnect: () => {
+      isConnectingOrConnected = false
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
       for (const subscription of subscriptions) {
         subscription.unsubscribe()
       }
