@@ -38,6 +38,13 @@ public interface StatistiquesEntitePort {
 
     List<EntityActivityCount> countActivityByEntiteSince(java.time.Instant startInclusive);
 
+    long countByEntiteIdAndSourceEventType(Long entiteId, String sourceEventType);
+
+    long countByEntiteIdAndSourceEventTypeSince(
+            Long entiteId,
+            String sourceEventType,
+            java.time.Instant startInclusive);
+
     record EventTypeCount(String sourceEventType, long total) {
     }
 

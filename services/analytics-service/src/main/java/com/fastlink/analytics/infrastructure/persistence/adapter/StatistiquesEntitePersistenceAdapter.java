@@ -132,4 +132,20 @@ public class StatistiquesEntitePersistenceAdapter implements StatistiquesEntiteP
                 .map(item -> new EntityActivityCount(item.getEntiteId(), item.getTotal()))
                 .toList();
     }
+
+    @Override
+    public long countByEntiteIdAndSourceEventType(Long entiteId, String sourceEventType) {
+        return statistiquesEntiteJpaRepository.countByEntiteIdAndSourceEventType(entiteId, sourceEventType);
+    }
+
+    @Override
+    public long countByEntiteIdAndSourceEventTypeSince(
+            Long entiteId,
+            String sourceEventType,
+            Instant startInclusive) {
+        return statistiquesEntiteJpaRepository.countByEntiteIdAndSourceEventTypeSince(
+                entiteId,
+                sourceEventType,
+                startInclusive);
+    }
 }

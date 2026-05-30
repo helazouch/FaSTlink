@@ -184,6 +184,28 @@ public interface StatistiquesEntiteJpaRepository extends JpaRepository<Statistiq
             """, nativeQuery = true)
     List<EntityActivityCountProjection> countActivityByEntiteSince(@Param("startInclusive") Instant startInclusive);
 
+    @Query("""
+            select count(distinct coalesce(s.sourceEventId, concat('snapshot-', str(s.id))))
+            from StatistiquesEntite s
+            where s.entiteId = :entiteId
+              and s.sourceEventType = :sourceEventType
+            """)
+    long countByEntiteIdAndSourceEventType(
+            @Param("entiteId") Long entiteId,
+            @Param("sourceEventType") String sourceEventType);
+
+    @Query("""
+            select count(distinct coalesce(s.sourceEventId, concat('snapshot-', str(s.id))))
+            from StatistiquesEntite s
+            where s.entiteId = :entiteId
+              and s.sourceEventType = :sourceEventType
+              and s.occurredAt >= :startInclusive
+            """)
+    long countByEntiteIdAndSourceEventTypeSince(
+            @Param("entiteId") Long entiteId,
+            @Param("sourceEventType") String sourceEventType,
+            @Param("startInclusive") Instant startInclusive);
+
     interface EventTypeCountProjection {
         String getSourceEventType();
 

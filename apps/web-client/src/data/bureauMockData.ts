@@ -65,11 +65,5 @@ export const createBureauSeed = (entityId: number | string | null, entityName = 
       { id: offset + 32, title: 'Duplicate event announcement', source: 'publication', reporter: 'System', status: 'pending' },
       { id: offset + 33, title: 'Message needs review', source: 'message', reporter: 'Amine K.', status: 'pending' },
     ] satisfies BureauModerationItem[],
-    trend: [
-      { label: 'Members', value: 72 },
-      { label: 'Events', value: 48 },
-      { label: 'Posts', value: 86 },
-      { label: 'Reports', value: 28 },
-    ],
   }
 }
