@@ -55,16 +55,6 @@ public class EntiteMembershipController {
         return ResponseEntity.ok(membershipUseCase.assignUserToEntite(entiteId, normalized));
     }
 
-    @PostMapping("/coordinator")
-    public ResponseEntity<EntityMembershipResponse> assignCoordinator(
-            @PathVariable Long entiteId,
-            @Valid @RequestBody AssignUtilisateurRoleRequest request) {
-        AssignUtilisateurRoleRequest normalized = new AssignUtilisateurRoleRequest(
-                request.utilisateurId(),
-                EntityMemberRole.COORDINATOR);
-        return ResponseEntity.ok(membershipUseCase.assignUserToEntite(entiteId, normalized));
-    }
-
     @PatchMapping("/{userId}")
     public ResponseEntity<EntityMembershipResponse> updateRole(
             @PathVariable Long entiteId,

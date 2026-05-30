@@ -39,4 +39,12 @@ public interface UtilisateurJpaRepository extends JpaRepository<Utilisateur, Lon
             @Param("roleName") RoleName roleName,
             @Param("enabled") Boolean enabled,
             Pageable pageable);
+
+    @Query("""
+            select distinct u from Utilisateur u
+            join u.roles r
+            where r.name = :roleName
+            and u.enabled = true
+            """)
+    java.util.List<Utilisateur> findEnabledUsersByRole(@Param("roleName") RoleName roleName);
 }

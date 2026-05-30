@@ -53,7 +53,7 @@ const buildExpiry = (expiresAt?: string, expiresInSeconds?: number): string => {
 }
 
 const isEntityRole = (role: string): role is EntityRole =>
-  role === 'SIMPLE_MEMBER' || role === 'BUREAU_MEMBER' || role === 'COORDINATOR'
+  role === 'SIMPLE_MEMBER' || role === 'BUREAU_MEMBER'
 
 const toMemberships = (value: unknown): EntityMembershipClaim[] => {
   if (!Array.isArray(value)) {

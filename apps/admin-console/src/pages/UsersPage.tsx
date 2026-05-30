@@ -19,7 +19,9 @@ import {
   createRole,
   listRoles,
   listUsers,
+  removeUserRole,
   updateUserStatus,
+  type GlobalRoleName,
 } from '../services/admin/adminService'
 import { useAuthStore } from '../stores/authStore'
 
@@ -34,9 +36,13 @@ export const UsersPage = () => {
 
   const [roleTargetUserId, setRoleTargetUserId] = useState<number | null>(null)
   const [selectedRole, setSelectedRole] = useState('USER')
+  const [removeRoleTarget, setRemoveRoleTarget] = useState<{ userId: number; roleName: GlobalRoleName } | null>(null)
 
   const [statusTarget, setStatusTarget] = useState<{ userId: number; enabled: boolean } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
+  const [isEnsuringCoordinatorRole, setIsEnsuringCoordinatorRole] = useState(false)
+  const [assigningCoordinatorUserId, setAssigningCoordinatorUserId] = useState<number | null>(null)
 
   const [manualUserId, setManualUserId] = useState('')
   const [manualRole, setManualRole] = useState('USER')
@@ -61,22 +67,59 @@ export const UsersPage = () => {
     retry: false,
   })
 
+  const coordinatorUsersQuery = useQuery({
+    queryKey: ['admin-users', 'coordinator-active'],
+    queryFn: () =>
+      listUsers({
+        page: 0,
+        pageSize: 5,
+        search: '',
+        role: 'COORDINATOR',
+        status: 'ACTIVE',
+      }),
+    retry: false,
+  })
+
   const roleNames = useMemo(() => {
     return (rolesQuery.data ?? []).map((role) => role.name)
   }, [rolesQuery.data])
+  const hasAdminRole = useAuthStore((state) => state.hasRole('ADMIN'))
+  const coordinatorRoleExists = roleNames.includes('COORDINATOR')
+  const activeCoordinator = useMemo(() => {
+    return (coordinatorUsersQuery.data?.items ?? []).find((user) => user.enabled && user.roles.includes('COORDINATOR')) ?? null
+  }, [coordinatorUsersQuery.data])
 
   const assignRoleMutation = useMutation({
-    mutationFn: ({ userId, roleName }: { userId: number; roleName: 'ADMIN' | 'USER' }) =>
+    mutationFn: ({ userId, roleName }: { userId: number; roleName: GlobalRoleName }) =>
       assignUserRole(userId, roleName),
     onSuccess: (_, variables) => {
       appendAuditEntry('ASSIGN_ROLE', 'user', String(variables.userId), 'SUCCESS', `Role ${variables.roleName}`)
       setActionError(null)
+      setActionNotice(`Role ${variables.roleName} assigned.`)
       setRoleTargetUserId(null)
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     },
     onError: (error, variables) => {
       appendAuditEntry('ASSIGN_ROLE', 'user', String(variables.userId), 'FAILED', normalizeApiError(error).message)
       setActionError(normalizeApiError(error).message)
+      setActionNotice(null)
+    },
+  })
+
+  const removeRoleMutation = useMutation({
+    mutationFn: ({ userId, roleName }: { userId: number; roleName: GlobalRoleName }) =>
+      removeUserRole(userId, roleName),
+    onSuccess: (_, variables) => {
+      appendAuditEntry('REMOVE_ROLE', 'user', String(variables.userId), 'SUCCESS', `Role ${variables.roleName}`)
+      setActionError(null)
+      setActionNotice(`Role ${variables.roleName} removed.`)
+      setRemoveRoleTarget(null)
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: (error, variables) => {
+      appendAuditEntry('REMOVE_ROLE', 'user', String(variables.userId), 'FAILED', normalizeApiError(error).message)
+      setActionError(normalizeApiError(error).message)
+      setActionNotice(null)
     },
   })
 
@@ -92,6 +135,7 @@ export const UsersPage = () => {
         variables.enabled ? 'User activated' : 'User banned',
       )
       setActionError(null)
+      setActionNotice(variables.enabled ? 'User activated.' : 'User banned.')
       setStatusTarget(null)
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     },
@@ -104,15 +148,71 @@ export const UsersPage = () => {
         normalizeApiError(error).message,
       )
       setActionError(normalizeApiError(error).message)
+      setActionNotice(null)
     },
   })
 
-  const createRoleMutation = useMutation({
-    mutationFn: (roleName: 'ADMIN' | 'USER') => createRole(roleName),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin-roles'] })
-    },
-  })
+  const ensureCoordinatorRole = async () => {
+    if (!hasAdminRole || isEnsuringCoordinatorRole) {
+      return
+    }
+
+    setIsEnsuringCoordinatorRole(true)
+    setActionError(null)
+    setActionNotice(null)
+
+    try {
+      await createRole('COORDINATOR')
+      await queryClient.invalidateQueries({ queryKey: ['admin-roles'] })
+      setActionError(null)
+      setActionNotice(
+        coordinatorRoleExists
+          ? 'COORDINATOR role already exists.'
+          : 'COORDINATOR role ensured successfully.',
+      )
+    } catch (error) {
+      setActionError(normalizeApiError(error).message)
+      setActionNotice(null)
+    } finally {
+      setIsEnsuringCoordinatorRole(false)
+    }
+  }
+
+  const assignCoordinatorToUser = async (userId: number, userLabel: string) => {
+    if (!hasAdminRole || assigningCoordinatorUserId !== null) {
+      return
+    }
+
+    if (activeCoordinator && activeCoordinator.id !== userId) {
+      setActionError(
+        `Only one active coordinator is allowed. Current coordinator: ${activeCoordinator.fullName} (#${activeCoordinator.id}).`,
+      )
+      setActionNotice(null)
+      return
+    }
+
+    setAssigningCoordinatorUserId(userId)
+    setActionError(null)
+    setActionNotice(null)
+
+    try {
+      await createRole('COORDINATOR')
+      await assignUserRole(userId, 'COORDINATOR')
+      appendAuditEntry('ASSIGN_ROLE', 'user', String(userId), 'SUCCESS', 'Role COORDINATOR')
+      setActionError(null)
+      setActionNotice(`${userLabel} is now assigned as global COORDINATOR.`)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-roles'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+      ])
+    } catch (error) {
+      appendAuditEntry('ASSIGN_ROLE', 'user', String(userId), 'FAILED', normalizeApiError(error).message)
+      setActionError(normalizeApiError(error).message)
+      setActionNotice(null)
+    } finally {
+      setAssigningCoordinatorUserId(null)
+    }
+  }
 
   const onManualAssign = () => {
     const parsedUserId = Number(manualUserId)
@@ -123,7 +223,7 @@ export const UsersPage = () => {
 
     assignRoleMutation.mutate({
       userId: parsedUserId,
-      roleName: (manualRole as 'ADMIN' | 'USER') ?? 'USER',
+      roleName: (manualRole as GlobalRoleName) ?? 'USER',
     })
   }
 
@@ -134,10 +234,15 @@ export const UsersPage = () => {
           {actionError}
         </p>
       ) : null}
+      {actionNotice ? (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+          {actionNotice}
+        </p>
+      ) : null}
 
       <DataTableShell
         title="User management"
-        subtitle="Assign roles, activate accounts, and apply access controls from ADMIN endpoints."
+        subtitle="Ensure COORDINATOR role only creates the global role if missing. Use Assign coordinator on a user row to give that user the global COORDINATOR role."
         toolbar={
           <>
             <Button variant="secondary" onClick={() => void queryClient.invalidateQueries({ queryKey: ['admin-users'] })}>
@@ -146,15 +251,27 @@ export const UsersPage = () => {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => createRoleMutation.mutate('ADMIN')}
-              disabled={createRoleMutation.isPending}
+              onClick={() => void ensureCoordinatorRole()}
+              disabled={!hasAdminRole || isEnsuringCoordinatorRole}
+              title={!hasAdminRole ? 'ADMIN role required' : undefined}
             >
               <Plus size={14} />
-              Ensure ADMIN role
+              {isEnsuringCoordinatorRole ? 'Ensuring...' : 'Ensure COORDINATOR role'}
             </Button>
           </>
         }
       >
+        <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-600 dark:border-surface-700 dark:bg-surface-800/70 dark:text-slate-300">
+          <p>
+            <span className="font-semibold text-slate-800 dark:text-slate-100">Ensure COORDINATOR role</span> creates
+            the global role if it is missing. It does not assign the role to anyone.
+          </p>
+          <p className="mt-1">
+            <span className="font-semibold text-slate-800 dark:text-slate-100">Assign coordinator</span> gives the
+            selected user the global COORDINATOR role. Active coordinator:{' '}
+            {activeCoordinator ? `${activeCoordinator.fullName} (#${activeCoordinator.id})` : 'none'}
+          </p>
+        </div>
         <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-surface-700 md:grid-cols-4">
           <TextInput
             label="Search users"
@@ -269,6 +386,34 @@ export const UsersPage = () => {
                           >
                             Role
                           </Button>
+                          {!user.roles.includes('COORDINATOR') ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => void assignCoordinatorToUser(user.id, user.fullName)}
+                              disabled={
+                                !hasAdminRole ||
+                                assigningCoordinatorUserId !== null ||
+                                Boolean(activeCoordinator && activeCoordinator.id !== user.id)
+                              }
+                              title={
+                                activeCoordinator && activeCoordinator.id !== user.id
+                                  ? `Only one active coordinator is allowed: ${activeCoordinator.fullName}`
+                                  : 'Assign COORDINATOR to user'
+                              }
+                            >
+                              {assigningCoordinatorUserId === user.id ? 'Assigning...' : 'Assign coordinator'}
+                            </Button>
+                          ) : null}
+                          {user.roles.includes('COORDINATOR') ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setRemoveRoleTarget({ userId: user.id, roleName: 'COORDINATOR' })}
+                            >
+                              Remove coordinator
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             variant={user.enabled ? 'danger' : 'secondary'}
@@ -354,7 +499,7 @@ export const UsersPage = () => {
 
                 assignRoleMutation.mutate({
                   userId: roleTargetUserId,
-                  roleName: (selectedRole as 'ADMIN' | 'USER') ?? 'USER',
+                  roleName: (selectedRole as GlobalRoleName) ?? 'USER',
                 })
               }}
               disabled={assignRoleMutation.isPending}
@@ -371,6 +516,21 @@ export const UsersPage = () => {
           options={roleNames.map((role) => ({ label: role, value: role }))}
         />
       </Modal>
+
+      <ConfirmDialog
+        open={removeRoleTarget !== null}
+        title="Remove coordinator role"
+        description={`Remove ${removeRoleTarget?.roleName ?? 'role'} from user #${removeRoleTarget?.userId ?? '-'}.`}
+        confirmLabel="Remove role"
+        tone="danger"
+        busy={removeRoleMutation.isPending}
+        onCancel={() => setRemoveRoleTarget(null)}
+        onConfirm={() => {
+          if (removeRoleTarget) {
+            removeRoleMutation.mutate(removeRoleTarget)
+          }
+        }}
+      />
 
       <ConfirmDialog
         open={statusTarget !== null}

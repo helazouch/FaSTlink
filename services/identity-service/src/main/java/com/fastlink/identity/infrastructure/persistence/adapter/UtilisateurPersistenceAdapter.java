@@ -59,6 +59,11 @@ public class UtilisateurPersistenceAdapter implements UtilisateurPort {
     }
 
     @Override
+    public List<Utilisateur> findEnabledUsersByRole(String role) {
+        return utilisateurJpaRepository.findEnabledUsersByRole(RoleName.valueOf(role.trim().toUpperCase()));
+    }
+
+    @Override
     public Utilisateur save(Utilisateur utilisateur) {
         return utilisateurJpaRepository.save(utilisateur);
     }

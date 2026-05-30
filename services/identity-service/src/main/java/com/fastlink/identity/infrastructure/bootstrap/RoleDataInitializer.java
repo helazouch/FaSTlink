@@ -22,6 +22,7 @@ public class RoleDataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         seedRole(RoleName.USER);
         seedRole(RoleName.ADMIN);
+        seedRole(RoleName.COORDINATOR);
     }
 
     private void seedRole(RoleName roleName) {

@@ -35,7 +35,9 @@ public class RoleManagementService implements RoleManagementUseCase {
     @Override
     public RoleResponse createRole(CreateRoleRequest request) {
         if (rolePort.existsByName(request.roleName())) {
-            throw new ConflictException("Le role existe deja: " + request.roleName());
+            Role existingRole = rolePort.findByName(request.roleName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Role introuvable: " + request.roleName()));
+            return toRoleResponse(existingRole);
         }
 
         Role savedRole = rolePort.save(new Role(request.roleName()));
@@ -65,9 +67,31 @@ public class RoleManagementService implements RoleManagementUseCase {
         Role role = rolePort.findByName(request.roleName())
                 .orElseThrow(() -> new ResourceNotFoundException("Role introuvable: " + request.roleName()));
 
+        if ("COORDINATOR".equals(request.roleName().name())) {
+            List<Utilisateur> activeCoordinators = utilisateurPort.findEnabledUsersByRole("COORDINATOR");
+            boolean anotherActiveCoordinatorExists = activeCoordinators.stream()
+                    .anyMatch(existing -> !existing.getId().equals(userId));
+            if (anotherActiveCoordinatorExists) {
+                throw new ConflictException("Un coordinateur actif existe deja");
+            }
+        }
+
         utilisateur.addRole(role);
         Utilisateur updated = utilisateurPort.save(utilisateur);
 
+        return toUserResponse(updated);
+    }
+
+    @Override
+    public UserResponse removeRole(Long userId, String roleName) {
+        Utilisateur utilisateur = utilisateurPort.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable: " + userId));
+
+        Role role = rolePort.findByName(com.fastlink.identity.domain.model.RoleName.valueOf(roleName.trim().toUpperCase()))
+                .orElseThrow(() -> new ResourceNotFoundException("Role introuvable: " + roleName));
+
+        utilisateur.removeRole(role);
+        Utilisateur updated = utilisateurPort.save(utilisateur);
         return toUserResponse(updated);
     }
 

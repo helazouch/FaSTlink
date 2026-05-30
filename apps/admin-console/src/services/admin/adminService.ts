@@ -246,13 +246,20 @@ export const listRoles = async (): Promise<RoleOption[]> => {
   return asArray(response.data).map(mapRole)
 }
 
-export const createRole = async (roleName: 'USER' | 'ADMIN'): Promise<RoleOption> => {
+export type GlobalRoleName = 'USER' | 'ADMIN' | 'COORDINATOR'
+
+export const createRole = async (roleName: GlobalRoleName): Promise<RoleOption> => {
   const response = await httpClient.post<unknown>('/v1/admin/roles', { roleName })
   return mapRole(response.data)
 }
 
-export const assignUserRole = async (userId: number, roleName: 'USER' | 'ADMIN'): Promise<AdminUser> => {
+export const assignUserRole = async (userId: number, roleName: GlobalRoleName): Promise<AdminUser> => {
   const response = await httpClient.post<unknown>(`/v1/admin/users/${userId}/roles`, { roleName })
+  return mapAdminUser(response.data)
+}
+
+export const removeUserRole = async (userId: number, roleName: GlobalRoleName): Promise<AdminUser> => {
+  const response = await httpClient.delete<unknown>(`/v1/admin/users/${userId}/roles/${roleName}`)
   return mapAdminUser(response.data)
 }
 

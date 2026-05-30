@@ -70,20 +70,12 @@ public class SecurityConfig {
                         .map(GrantedAuthority.class::cast)
                         .toList());
             }
-            if (hasCoordinatorMembership(jwt.getClaims()) && authorities.stream()
-                    .noneMatch(authority -> "ROLE_COORDINATOR".equals(authority.getAuthority()))) {
-                authorities.add(new SimpleGrantedAuthority("ROLE_COORDINATOR"));
-            }
             if (hasBureauMembership(jwt.getClaims()) && authorities.stream()
                     .noneMatch(authority -> "ROLE_BUREAU_MEMBER".equals(authority.getAuthority()))) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_BUREAU_MEMBER"));
             }
             return authorities;
         };
-    }
-
-    private boolean hasCoordinatorMembership(Map<String, Object> claims) {
-        return hasActiveEntityRole(claims, "COORDINATOR");
     }
 
     private boolean hasBureauMembership(Map<String, Object> claims) {

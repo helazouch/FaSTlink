@@ -9,7 +9,7 @@ export interface AuthUser {
   avatarUrl?: string
 }
 
-export type EntityRole = 'SIMPLE_MEMBER' | 'BUREAU_MEMBER' | 'COORDINATOR'
+export type EntityRole = 'SIMPLE_MEMBER' | 'BUREAU_MEMBER'
 
 export interface EntityMembershipClaim {
   entityId: number

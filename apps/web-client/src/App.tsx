@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleAwareRoute } from './auth/RoleAwareRoute'
 import { PermissionGuard } from './components/auth/PermissionGuard'
-import { CoordinatorLayout } from './components/coordinator/CoordinatorLayout'
 import { SocialLayout } from './components/templates/SocialLayout'
 import { BureauDashboardPage } from './pages/BureauDashboardPage'
 import { BureauToolPage } from './pages/BureauToolPage'
@@ -92,13 +91,10 @@ export function App() {
           <Route element={<RoleAwareRoute currentEntityRole="BUREAU_MEMBER" />}>
             <Route path="requests" element={<RequestsPage />} />
           </Route>
-        </Route>
-
-        <Route element={<RoleAwareRoute anyEntityRole="COORDINATOR" />}>
-          <Route path="/coordinator" element={<CoordinatorLayout />}>
-            <Route index element={<CoordinatorDashboardPage />} />
+          <Route element={<RoleAwareRoute globalRole="COORDINATOR" />}>
+            <Route path="coordinator" element={<CoordinatorDashboardPage />} />
             <Route
-              path="requests"
+              path="coordinator/requests"
               element={
                 <PermissionGuard anyEntityPermission="REQUEST_APPROVE" fallback={<Navigate to="/unauthorized" replace />}>
                   <CoordinatorRequestsPage />
@@ -106,7 +102,7 @@ export function App() {
               }
             />
             <Route
-              path="analytics"
+              path="coordinator/analytics"
               element={
                 <PermissionGuard anyEntityPermission="ANALYTICS_VIEW" fallback={<Navigate to="/unauthorized" replace />}>
                   <CoordinatorAnalyticsPage />
@@ -114,14 +110,19 @@ export function App() {
               }
             />
             <Route
-              path="supervision"
+              path="coordinator/supervision"
               element={
                 <PermissionGuard anyEntityPermission="PUBLICATION_MODERATE" fallback={<Navigate to="/unauthorized" replace />}>
                   <CoordinatorSupervisionPage />
                 </PermissionGuard>
               }
             />
-            <Route path="alerts" element={<CoordinatorAlertsPage />} />
+            <Route path="coordinator/community" element={<CoordinatorSupervisionPage />} />
+            <Route path="coordinator/members" element={<CoordinatorSupervisionPage />} />
+            <Route path="coordinator/events" element={<CoordinatorSupervisionPage />} />
+            <Route path="coordinator/publish" element={<CoordinatorSupervisionPage />} />
+            <Route path="coordinator/statistics" element={<CoordinatorAnalyticsPage />} />
+            <Route path="coordinator/alerts" element={<CoordinatorAlertsPage />} />
           </Route>
         </Route>
       </Route>

@@ -52,7 +52,7 @@ public class CommunauteController {
             return ResponseEntity.ok(communauteUseCase.listCommunautesByEntite(
                     scopedEntityId,
                     activeEntityIds(jwt),
-                    isAdmin(authentication)));
+                    isAdminOrCoordinator(authentication)));
         }
         return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(resolveUserId(jwt)));
     }
@@ -94,6 +94,12 @@ public class CommunauteController {
         return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private boolean isAdminOrCoordinator(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority) || "ROLE_COORDINATOR".equals(authority));
     }
 
     private Long resolveUserId(Jwt jwt) {

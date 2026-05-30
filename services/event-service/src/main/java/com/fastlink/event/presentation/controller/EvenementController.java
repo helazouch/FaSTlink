@@ -69,7 +69,7 @@ public class EvenementController {
             @RequestParam(defaultValue = "asc") String direction) {
         Long scopedEntityId = entityId != null ? entityId : entiteId;
         Long userId = resolveUserId(jwt);
-        boolean admin = isAdmin(authentication);
+        boolean admin = isAdminOrCoordinator(authentication);
         Set<Long> activeEntityIds = activeEntityIds(jwt);
 
         if (Boolean.TRUE.equals(manage) && scopedEntityId != null) {
@@ -104,7 +104,7 @@ public class EvenementController {
         return ResponseEntity.ok(evenementUseCase.getVisibleEvenement(
                 evenementId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt)));
     }
 
@@ -142,7 +142,7 @@ public class EvenementController {
         return ResponseEntity.ok(evenementInteractionUseCase.setParticipation(
                 evenementId,
                 request,
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt)));
     }
 
@@ -156,7 +156,7 @@ public class EvenementController {
         return ResponseEntity.ok(evenementInteractionUseCase.submitFeedback(
                 evenementId,
                 request,
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt)));
     }
 
@@ -194,6 +194,12 @@ public class EvenementController {
         return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private boolean isAdminOrCoordinator(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority) || "ROLE_COORDINATOR".equals(authority));
     }
 
     private Long resolveUserId(Jwt jwt) {

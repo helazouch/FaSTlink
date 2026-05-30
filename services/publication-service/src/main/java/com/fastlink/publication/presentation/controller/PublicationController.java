@@ -117,6 +117,12 @@ public class PublicationController {
                 .anyMatch("ROLE_ADMIN"::equals);
     }
 
+    private boolean isAdminOrCoordinator(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority) || "ROLE_COORDINATOR".equals(authority));
+    }
+
     private java.util.Set<Long> activeEntityIds(Jwt jwt) {
         Object memberships = jwt.getClaims().get("entityMemberships");
         if (!(memberships instanceof java.util.List<?> list)) {
@@ -167,7 +173,7 @@ public class PublicationController {
                 Sort.by(Sort.Direction.DESC, "createdAt"));
         return ResponseEntity.ok(publicationUseCase.feedForUser(
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt),
                 pageable));
     }
@@ -185,7 +191,7 @@ public class PublicationController {
                 Sort.by(Sort.Direction.DESC, "createdAt"));
         return ResponseEntity.ok(publicationUseCase.savedForUser(
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt),
                 pageable));
     }
@@ -209,7 +215,7 @@ public class PublicationController {
         CommentaireResponse created = interactionUseCase.addCommentaire(
                 publicationId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt),
                 request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -223,7 +229,7 @@ public class PublicationController {
             @PathVariable Long publicationId) {
         return ResponseEntity.ok(interactionUseCase.listCommentaires(
                 publicationId,
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt)));
     }
 
@@ -246,7 +252,7 @@ public class PublicationController {
         ReactionResponse created = interactionUseCase.addReaction(
                 publicationId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt),
                 request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -262,7 +268,7 @@ public class PublicationController {
         interactionUseCase.removeReaction(
                 publicationId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt),
                 type);
         return ResponseEntity.noContent().build();
@@ -277,7 +283,7 @@ public class PublicationController {
         interactionUseCase.removeReaction(
                 publicationId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt),
                 ReactionType.LIKE);
         return ResponseEntity.noContent().build();
@@ -292,7 +298,7 @@ public class PublicationController {
         interactionUseCase.savePublication(
                 publicationId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt));
         return ResponseEntity.noContent().build();
     }
@@ -306,7 +312,7 @@ public class PublicationController {
         interactionUseCase.unsavePublication(
                 publicationId,
                 resolveUserId(jwt),
-                isAdmin(authentication),
+                isAdminOrCoordinator(authentication),
                 activeEntityIds(jwt));
         return ResponseEntity.noContent().build();
     }

@@ -24,7 +24,7 @@ import {
   updateEntity,
 } from '../services/domain/operationsService'
 
-const ENTITY_ROLES = ['SIMPLE_MEMBER', 'BUREAU_MEMBER', 'COORDINATOR'] as const
+const ENTITY_ROLES = ['SIMPLE_MEMBER', 'BUREAU_MEMBER'] as const
 
 export const EntitiesPage = () => {
   const queryClient = useQueryClient()
@@ -292,7 +292,7 @@ export const EntitiesPage = () => {
                         </div>
                       </td>
                       <td className="table-cell">
-                        <Badge tone={member.role === 'COORDINATOR' || member.role === 'BUREAU_MEMBER' ? 'info' : 'neutral'}>
+                        <Badge tone={member.role === 'BUREAU_MEMBER' ? 'info' : 'neutral'}>
                           {member.role}
                         </Badge>
                       </td>

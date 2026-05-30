@@ -35,8 +35,13 @@ const bureauNavItems = [
 const coordinatorNavItems = [
   { to: '/coordinator', label: 'Coordinator Dashboard', icon: ShieldCheck, gate: 'isCoordinator' as const },
   { to: '/coordinator/requests', label: 'Request Processing', icon: Workflow, gate: 'canProcessRequests' as const },
-  { to: '/coordinator/analytics', label: 'Advanced Analytics', icon: BarChart3, gate: 'canViewAdvancedAnalytics' as const },
   { to: '/coordinator/supervision', label: 'Entity Supervision', icon: MonitorCheck, gate: 'canSuperviseEntities' as const },
+  { to: '/coordinator/analytics', label: 'Advanced Analytics', icon: BarChart3, gate: 'canViewAdvancedAnalytics' as const },
+  { to: '/coordinator/community', label: 'Manage Community', icon: Shapes, gate: 'canManageCommunity' as const },
+  { to: '/coordinator/members', label: 'Manage Members', icon: Users, gate: 'canManageMembers' as const },
+  { to: '/coordinator/events', label: 'Manage Events', icon: CalendarRange, gate: 'canManageEvents' as const },
+  { to: '/coordinator/publish', label: 'Publish', icon: Megaphone, gate: 'canPublish' as const },
+  { to: '/coordinator/statistics', label: 'Entity Statistics', icon: BarChart3, gate: 'canViewStats' as const },
 ]
 
 export const LeftSidebar = () => {
@@ -63,6 +68,11 @@ export const LeftSidebar = () => {
     canProcessRequests: permissions.canProcessRequests,
     canViewAdvancedAnalytics: permissions.canViewAdvancedAnalytics,
     canSuperviseEntities: permissions.canSuperviseEntities,
+    canManageCommunity: permissions.canManageCommunity,
+    canManageMembers: permissions.canManageMembers,
+    canManageEvents: permissions.canManageEvents,
+    canPublish: permissions.canPublish,
+    canViewStats: permissions.canViewStats,
   }
 
   const visibleMemberNavItems = memberNavItems.filter((item) =>
@@ -101,7 +111,7 @@ export const LeftSidebar = () => {
 
       {showCoordinatorTools && visibleCoordinatorNavItems.length > 0 ? (
         <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Coordinator tools</p>
           <div className="mt-3 space-y-1">
             {visibleCoordinatorNavItems.map((item) => (
               <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />

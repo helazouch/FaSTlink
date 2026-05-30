@@ -10,7 +10,6 @@ import com.fastlink.request.domain.model.DemandeType;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -224,29 +223,8 @@ public class DemandeController {
 
     private boolean isCoordinator(Jwt jwt) {
         List<String> roles = jwt.getClaimAsStringList("roles");
-        if (roles != null && roles.stream()
+        return roles != null && roles.stream()
                 .map(role -> role.toUpperCase(Locale.ROOT))
-                .anyMatch(role -> role.equals("COORDINATOR") || role.equals("ROLE_COORDINATOR"))) {
-            return true;
-        }
-
-        Object claim = jwt.getClaim("entityMemberships");
-        if (claim == null) {
-            claim = jwt.getClaim("memberships");
-        }
-        if (!(claim instanceof List<?> memberships)) {
-            return false;
-        }
-
-        return memberships.stream().anyMatch(item -> {
-            if (!(item instanceof Map<?, ?> membership)) {
-                return false;
-            }
-            Object role = membership.get("role");
-            Object status = membership.get("status");
-            return role != null
-                    && "COORDINATOR".equalsIgnoreCase(String.valueOf(role))
-                    && (status == null || "ACTIVE".equalsIgnoreCase(String.valueOf(status)));
-        });
+                .anyMatch(role -> role.equals("COORDINATOR") || role.equals("ROLE_COORDINATOR"));
     }
 }

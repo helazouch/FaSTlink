@@ -6,7 +6,9 @@ export const hasGlobalRole = (user: AuthUser | null | undefined, role: string): 
   Boolean(user?.roles.some((item) => normalizeRole(item) === normalizeRole(role)))
 
 export const activeMemberships = (user: AuthUser | null | undefined): EntityMembershipClaim[] =>
-  user?.entityMemberships.filter((membership) => membership.status.toUpperCase() === 'ACTIVE') ?? []
+  user?.entityMemberships.filter((membership) =>
+    membership.status.toUpperCase() === 'ACTIVE',
+  ) ?? []
 
 export const hasEntityRole = (
   user: AuthUser | null | undefined,
@@ -54,23 +56,40 @@ export const hasAnyEntityPermission = (
   user: AuthUser | null | undefined,
   permission: string,
 ): boolean => {
+  const normalizedPermission = normalizeRole(permission)
   if (hasGlobalRole(user, 'ADMIN')) {
+    return true
+  }
+
+  if (
+    hasGlobalRole(user, 'COORDINATOR') &&
+    [
+      'REQUEST_APPROVE',
+      'REQUEST_REJECT',
+      'ANALYTICS_VIEW',
+      'PUBLICATION_MODERATE',
+      'OPERATIONS_OVERSIGHT',
+      'PUBLICATION_CREATE',
+      'COMMUNITY_MANAGE',
+      'ENTITY_MEMBER_MANAGE',
+      'EVENT_CREATE',
+      'EVENT_UPDATE',
+      'EVENT_DELETE',
+    ].includes(normalizedPermission)
+  ) {
     return true
   }
 
   const entries = Object.values(user?.entityPermissions ?? {})
   if (entries.some((permissions) =>
-    permissions.some((item) => normalizeRole(item) === normalizeRole(permission)),
+    permissions.some((item) => normalizeRole(item) === normalizedPermission),
   )) {
     return true
   }
 
   return activeMemberships(user).some((membership) =>
     membership.role === 'BUREAU_MEMBER' &&
-    ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE', 'REQUEST_SUBMIT'].includes(normalizeRole(permission)),
-  ) || activeMemberships(user).some((membership) =>
-    membership.role === 'COORDINATOR' &&
-    ['REQUEST_APPROVE', 'REQUEST_REJECT'].includes(normalizeRole(permission)),
+    ['ENTITY_MEMBER_MANAGE', 'COMMUNITY_MANAGE', 'PUBLICATION_CREATE', 'REQUEST_SUBMIT'].includes(normalizedPermission),
   )
 }
 
@@ -90,6 +109,6 @@ export const bureauEntityIds = (user: AuthUser | null | undefined): number[] =>
     .map((membership) => membership.entityId)
 
 export const coordinatorEntityIds = (user: AuthUser | null | undefined): number[] =>
-  activeMemberships(user)
-    .filter((membership) => membership.role === 'COORDINATOR')
-    .map((membership) => membership.entityId)
+  hasGlobalRole(user, 'COORDINATOR')
+    ? activeMemberships(user).map((membership) => membership.entityId)
+    : []

@@ -39,31 +39,27 @@ public class PermissionCheckService implements PermissionCheckUseCase {
             case "PUBLICATION_CREATE", "PUBLICATION_UPDATE", "PUBLICATION_DELETE", "PUBLICATION_MEDIA_ADD" ->
                 canBureauManage(role);
             case "PUBLICATION_MODERATE" ->
-                canBureauManage(role) || canCoordinate(role);
+                canBureauManage(role);
             case "PUBLICATION_COMMENT_ADD", "PUBLICATION_REACTION_ADD" ->
                 canContribute(role);
             case "EVENT_CREATE", "EVENT_UPDATE", "EVENT_DELETE" ->
-                canBureauManage(role) || canCoordinate(role);
+                canBureauManage(role);
             case "EVENT_PARTICIPATE", "EVENT_FEEDBACK" ->
                 canContribute(role);
             case "COMMUNITY_MANAGE", "ENTITY_MEMBER_MANAGE" ->
                 canBureauManage(role);
             case "COMMUNITY_MODERATE" ->
-                canBureauManage(role) || canCoordinate(role);
+                canBureauManage(role);
             case "COMMUNITY_MESSAGE" ->
                 canContribute(role);
             case "ANALYTICS_VIEW" ->
-                canBureauManage(role) || canCoordinate(role);
+                canBureauManage(role);
             case "REQUEST_APPROVE", "REQUEST_REJECT", "ROOM_MANAGE" ->
-                canCoordinate(role);
+                false;
             case "REQUEST_SUBMIT" ->
                 canBureauManage(role);
             default -> false;
         };
-    }
-
-    private boolean canCoordinate(EntityMemberRole role) {
-        return role == EntityMemberRole.COORDINATOR;
     }
 
     private boolean canBureauManage(EntityMemberRole role) {

@@ -34,7 +34,6 @@ public class PermissionCatalog {
             Set<String> permissions = switch (membership.role()) {
                 case "SIMPLE_MEMBER" -> simpleMemberPermissions();
                 case "BUREAU_MEMBER" -> bureauMemberPermissions();
-                case "COORDINATOR" -> coordinatorPermissions();
                 default -> Set.of();
             };
             permissionsByEntity.put(membership.entityId(), permissions);

@@ -117,6 +117,10 @@ public class Utilisateur {
         this.roles.add(role);
     }
 
+    public void removeRole(Role role) {
+        this.roles.remove(role);
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

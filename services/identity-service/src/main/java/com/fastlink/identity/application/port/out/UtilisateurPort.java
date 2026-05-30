@@ -20,5 +20,7 @@ public interface UtilisateurPort {
 
     Page<Utilisateur> searchUsers(String search, String role, Boolean enabled, Pageable pageable);
 
+    List<Utilisateur> findEnabledUsersByRole(String role);
+
     Utilisateur save(Utilisateur utilisateur);
 }

@@ -101,14 +101,13 @@ public class SecurityConfig {
     private ReactiveAuthorizationManager<AuthorizationContext> adminOrCoordinator() {
         return (authentication, context) -> authentication
                 .map(auth -> {
-                    Jwt jwt = (Jwt) auth.getPrincipal();
                     if (hasRole(auth.getAuthorities(), "ROLE_ADMIN")) {
                         return new AuthorizationDecision(true);
                     }
                     if (hasRole(auth.getAuthorities(), "ROLE_COORDINATOR")) {
                         return new AuthorizationDecision(true);
                     }
-                    return new AuthorizationDecision(hasCoordinatorMembership(jwt.getClaims()));
+                    return new AuthorizationDecision(false);
                 })
                 .defaultIfEmpty(new AuthorizationDecision(false));
     }
@@ -118,6 +117,10 @@ public class SecurityConfig {
                 .map(auth -> {
                     Jwt jwt = (Jwt) auth.getPrincipal();
                     if (hasRole(auth.getAuthorities(), "ROLE_ADMIN")) {
+                        return new AuthorizationDecision(true);
+                    }
+                    if (hasRole(auth.getAuthorities(), "ROLE_COORDINATOR")
+                            && coordinatorAllowsPermission(requiredPermission)) {
                         return new AuthorizationDecision(true);
                     }
                     Long entityId = extractEntityId(context.getExchange());
@@ -170,22 +173,6 @@ public class SecurityConfig {
         }
     }
 
-    private boolean hasCoordinatorMembership(Map<String, Object> claims) {
-        Object memberships = claims.get("entityMemberships");
-        if (!(memberships instanceof List<?> list)) {
-            return false;
-        }
-        for (Object item : list) {
-            if (item instanceof Map<?, ?> membership) {
-                Object role = membership.get("role");
-                if (role != null && "COORDINATOR".equals(role.toString())) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     @SuppressWarnings("unchecked")
     private boolean hasEntityPermission(Map<String, Object> claims, Long entityId, String permission) {
         Object permissions = claims.get("entityPermissions");
@@ -234,6 +221,10 @@ public class SecurityConfig {
         if (!"BUREAU_MEMBER".equals(role)) {
             return false;
         }
+        return "ENTITY_MEMBER_MANAGE".equals(permission) || "COMMUNITY_MANAGE".equals(permission);
+    }
+
+    private boolean coordinatorAllowsPermission(String permission) {
         return "ENTITY_MEMBER_MANAGE".equals(permission) || "COMMUNITY_MANAGE".equals(permission);
     }
 }

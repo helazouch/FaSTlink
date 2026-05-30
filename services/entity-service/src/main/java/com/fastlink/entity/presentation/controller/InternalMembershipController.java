@@ -26,6 +26,7 @@ public class InternalMembershipController {
     @GetMapping
     public ResponseEntity<List<EntityMembershipSummary>> list(@RequestParam @NotNull @Positive Long userId) {
         List<EntityMembershipSummary> response = membershipPort.findByUtilisateurId(userId).stream()
+                .filter(membership -> !"COORDINATOR".equalsIgnoreCase(membership.getRole().name()))
                 .map(membership -> new EntityMembershipSummary(
                         membership.getEntite().getId(),
                         membership.getRole(),

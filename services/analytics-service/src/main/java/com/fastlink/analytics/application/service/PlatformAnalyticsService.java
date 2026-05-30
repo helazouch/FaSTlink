@@ -263,7 +263,7 @@ public class PlatformAnalyticsService implements PlatformAnalyticsUseCase {
                 platformMetricsPort.listEntityMembers(entity.id(), bearerToken);
 
         long bureauMembers = countRole(members, "BUREAU_MEMBER");
-        long coordinators = countRole(members, "COORDINATOR");
+        long coordinators = 0;
 
         return new EntityDistributionItemResponse(
                 entity.id(),

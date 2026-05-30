@@ -19,5 +19,7 @@ public interface RoleManagementUseCase {
 
     UserResponse assignRole(Long userId, AssignRoleRequest request);
 
+    UserResponse removeRole(Long userId, String roleName);
+
     UserResponse updateUserStatus(Long userId, UpdateUserStatusRequest request);
 }

@@ -130,7 +130,9 @@ public class AuthService implements AuthUseCase {
     }
 
     private Map<String, Object> buildClaims(Utilisateur utilisateur) {
-        List<EntityMembershipClaim> memberships = entityServiceClient.getMemberships(utilisateur.getId());
+        List<EntityMembershipClaim> memberships = entityServiceClient.getMemberships(utilisateur.getId()).stream()
+                .filter(membership -> !"COORDINATOR".equalsIgnoreCase(membership.role()))
+                .toList();
         Set<String> permissions = PermissionCatalog.globalPermissions(utilisateur);
         Map<Long, Set<String>> entityPermissions = PermissionCatalog.entityPermissions(memberships);
         Map<String, Set<String>> serializableEntityPermissions = entityPermissions.entrySet().stream()
