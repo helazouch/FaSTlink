@@ -4,6 +4,7 @@ import com.fastlink.community.application.dto.communaute.CommunauteResponse;
 import com.fastlink.community.application.dto.communaute.CreateCommunauteRequest;
 import com.fastlink.community.application.dto.communaute.MyCommunauteResponse;
 import com.fastlink.community.application.dto.communaute.UpdateCommunauteRequest;
+import com.fastlink.community.application.dto.membre.MembreCommunauteResponse;
 import com.fastlink.community.application.port.in.CommunauteUseCase;
 import com.fastlink.community.application.port.in.MembreCommunauteUseCase;
 import jakarta.validation.Valid;
@@ -67,6 +68,14 @@ public class CommunauteController {
             @PathVariable Long communauteId,
             @Valid @RequestBody UpdateCommunauteRequest request) {
         return ResponseEntity.ok(communauteUseCase.updateCommunaute(communauteId, request));
+    }
+
+    @PostMapping("/{communauteId}/join")
+    public ResponseEntity<MembreCommunauteResponse> join(
+            @PathVariable Long communauteId,
+            @RequestParam @NotNull @Positive Long utilisateurId) {
+        MembreCommunauteResponse response = membreCommunauteUseCase.joinCommunaute(communauteId, utilisateurId);
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{communauteId}")

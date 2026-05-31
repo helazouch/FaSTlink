@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getCommunityById, getMyCommunities, getSuggestedCommunities } from '../services/social/communityService'
+import { getCommunityById, getMyCommunities, getSuggestedCommunities, joinCommunity } from '../services/social/communityService'
 import { getRequestEntities } from '../services/social/entityService'
 import { getUpcomingEvents, updateEventParticipation } from '../services/social/eventService'
 import { getMyProfile } from '../services/social/profileService'
@@ -108,6 +108,23 @@ export const useSubmitRequest = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.requests })
+    },
+  })
+}
+
+export const useJoinCommunity = () => {
+  const queryClient = useQueryClient()
+  const userId = useAuthStore(selectUserId)
+
+  return useMutation({
+    mutationFn: (communityId: number) => {
+      if (!userId) throw new Error('You must be signed in to join a community')
+      return joinCommunity(communityId, userId)
+    },
+    onSuccess: (_data, communityId) => {
+      // Invalidate "my communities" and the specific community query so the UI refreshes
+      void queryClient.invalidateQueries({ queryKey: ['communities', 'mine'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.communityById(communityId) })
     },
   })
 }

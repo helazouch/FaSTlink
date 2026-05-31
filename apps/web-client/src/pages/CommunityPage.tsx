@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
+import { Check, LoaderCircle, UserPlus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
+import { Button } from '../components/atoms/Button'
 import { CommunityChatPanel } from '../components/organisms/CommunityChatPanel'
 import { PostCard } from '../components/organisms/PostCard'
 import { useAddComment, useInfiniteFeed, useToggleLike, useToggleSavedPost } from '../hooks/useFeed'
-import { useCommunity } from '../hooks/useSocial'
+import { useCommunity, useJoinCommunity, useMyCommunities } from '../hooks/useSocial'
 import { useAuthStore } from '../stores/authStore'
 import { useFeedStore } from '../stores/feedStore'
 import type { UserSummary } from '../types/social'
@@ -26,10 +28,14 @@ export const CommunityPage = () => {
   const currentUser = toCurrentUser(user)
 
   const communityQuery = useCommunity(communityId)
+  const { data: myCommunities = [] } = useMyCommunities()
+  const joinMutation = useJoinCommunity()
   const feedQuery = useInfiniteFeed()
   const likeMutation = useToggleLike()
   const addCommentMutation = useAddComment()
   const savedMutation = useToggleSavedPost()
+
+  const isMember = myCommunities.some((c) => c.id === communityId)
 
   useEffect(() => {
     if (Number.isFinite(communityId)) {
@@ -47,15 +53,35 @@ export const CommunityPage = () => {
     <div className="grid gap-4 xl:grid-cols-[1fr,360px]">
       <div className="space-y-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-800">
-            {communityQuery.data?.name ?? 'Community'}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">{communityQuery.data?.description}</p>
-          {communityQuery.data?.members != null && communityQuery.data.members > 0 ? (
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-brand">
-              {communityQuery.data.members.toLocaleString()} members
-            </p>
-          ) : null}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">
+                {communityQuery.data?.name ?? 'Community'}
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">{communityQuery.data?.description}</p>
+            </div>
+
+            {isMember ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand">
+                <Check size={12} />
+                Member
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={joinMutation.isPending}
+                onClick={() => joinMutation.mutate(communityId)}
+              >
+                {joinMutation.isPending ? (
+                  <LoaderCircle size={13} className="animate-spin" />
+                ) : (
+                  <UserPlus size={13} />
+                )}
+                {joinMutation.isPending ? 'Joining…' : 'Join community'}
+              </Button>
+            )}
+          </div>
         </section>
 
         {posts.map((post) => (

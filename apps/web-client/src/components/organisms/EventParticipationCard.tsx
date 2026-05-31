@@ -13,7 +13,9 @@ export const EventParticipationCard = ({
   event,
   onUpdateParticipation,
 }: EventParticipationCardProps) => {
-  const occupancy = Math.round((event.attendees / event.capacity) * 100)
+  // capacity is not returned by the event-service API — guard against division by zero
+  const occupancy = event.capacity > 0 ? Math.round((event.attendees / event.capacity) * 100) : 0
+  const hasCapacity = event.capacity > 0
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -34,18 +36,20 @@ export const EventParticipationCard = ({
         <p>{event.location}</p>
       </div>
 
-      <div className="mt-3">
-        <p className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
-          <Users size={13} />
-          {event.attendees} / {event.capacity} attendees
-        </p>
-        <div className="mt-2 h-2 rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-brand to-brand-700"
-            style={{ width: `${Math.min(occupancy, 100)}%` }}
-          />
+      {hasCapacity ? (
+        <div className="mt-3">
+          <p className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+            <Users size={13} />
+            {event.attendees} / {event.capacity} attendees
+          </p>
+          <div className="mt-2 h-2 rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand to-brand-700"
+              style={{ width: `${Math.min(occupancy, 100)}%` }}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button

@@ -2,6 +2,7 @@ import { ImagePlus, X } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Avatar } from '../atoms/Avatar'
 import { Button } from '../atoms/Button'
+import { useRequestEntities } from '../../hooks/useSocial'
 import type { CreatePostInput, LocalMediaInput, UserSummary } from '../../types/social'
 
 interface CreatePostComposerProps {
@@ -15,25 +16,24 @@ const createMediaId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
   }
-
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
 export const CreatePostComposer = ({
   currentUser,
-  defaultCommunityId,
   onSubmit,
   isSubmitting,
 }: CreatePostComposerProps) => {
   const [content, setContent] = useState('')
   const [media, setMedia] = useState<LocalMediaInput[]>([])
+  const [selectedEntityId, setSelectedEntityId] = useState<number>(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const { data: entities = [] } = useRequestEntities()
 
   const handleMediaChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (!files || files.length === 0) {
-      return
-    }
+    if (!files || files.length === 0) return
 
     const nextMedia = Array.from(files).map((file) => ({
       id: createMediaId(),
@@ -48,10 +48,7 @@ export const CreatePostComposer = ({
   const removeMedia = (id: string) => {
     setMedia((current) => {
       const target = current.find((item) => item.id === id)
-      if (target) {
-        URL.revokeObjectURL(target.previewUrl)
-      }
-
+      if (target) URL.revokeObjectURL(target.previewUrl)
       return current.filter((item) => item.id !== id)
     })
   }
@@ -60,24 +57,20 @@ export const CreatePostComposer = ({
     event.preventDefault()
 
     const sanitized = content.trim()
-    if (!sanitized) {
-      return
-    }
+    if (!sanitized) return
 
     await onSubmit({
       content: sanitized,
-      communityId: defaultCommunityId,
-      entity: 'FaST Link',
+      // Send 0 when no entity selected — feedService maps 0 to entiteIds: []
+      communityId: selectedEntityId,
+      entity: entities.find((e) => e.id === selectedEntityId)?.name ?? 'FaST Link',
       author: currentUser,
       media,
     })
 
     setContent('')
     setMedia((current) => {
-      for (const item of current) {
-        URL.revokeObjectURL(item.previewUrl)
-      }
-
+      for (const item of current) URL.revokeObjectURL(item.previewUrl)
       return []
     })
   }
@@ -95,6 +88,23 @@ export const CreatePostComposer = ({
           />
         </div>
       </div>
+
+      {entities.length > 0 ? (
+        <div className="mt-3">
+          <select
+            value={selectedEntityId}
+            onChange={(e) => setSelectedEntityId(Number(e.target.value))}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand"
+          >
+            <option value={0}>No entity (general post)</option>
+            {entities.map((entity) => (
+              <option key={entity.id} value={entity.id}>
+                {entity.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       {media.length > 0 ? (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">

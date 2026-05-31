@@ -14,4 +14,6 @@ public interface MembreCommunauteUseCase {
     List<MembreCommunauteResponse> getMembres(Long communauteId);
 
     List<MyCommunauteResponse> getMyCommunautes(Long utilisateurId);
+
+    MembreCommunauteResponse joinCommunaute(Long communauteId, Long utilisateurId);
 }

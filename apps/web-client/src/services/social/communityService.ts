@@ -19,6 +19,15 @@ interface MyCommunityDto {
   lastMessageAt: string | null
 }
 
+interface JoinResponseDto {
+  id: number
+  communauteId: number
+  utilisateurId: number
+  role: 'ADMIN' | 'MEMBER'
+  createdAt: string
+  updatedAt: string
+}
+
 const mapCommunity = (payload: CommunityDto): CommunitySummary => ({
   id: payload.id,
   name: payload.nom,
@@ -51,4 +60,16 @@ export const getMyCommunities = async (userId: number): Promise<MyCommunity[]> =
 export const getCommunityById = async (communityId: number): Promise<CommunitySummary> => {
   const response = await httpClient.get<CommunityDto>(`/v1/communities/${communityId}`)
   return mapCommunity(response.data)
+}
+
+export const joinCommunity = async (
+  communityId: number,
+  userId: number,
+): Promise<JoinResponseDto> => {
+  const response = await httpClient.post<JoinResponseDto>(
+    `/v1/communities/${communityId}/join`,
+    null,
+    { params: { utilisateurId: userId } },
+  )
+  return response.data
 }

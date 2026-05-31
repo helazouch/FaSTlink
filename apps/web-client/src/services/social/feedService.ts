@@ -161,7 +161,8 @@ export const getFeedPage = async (
   const userIds = serverItems
     .map((item) => item.utilisateurId ?? 0)
     .filter((id) => id > 0)
-  await Promise.all([hydrateUserDirectory(userIds), hydrateEntityDirectory()])
+  // allSettled: name-resolution failures must never block the feed
+  await Promise.allSettled([hydrateUserDirectory(userIds), hydrateEntityDirectory()])
 
   const mapped = serverItems.map(mapPost)
   feedCache = mapped
@@ -170,10 +171,14 @@ export const getFeedPage = async (
 }
 
 export const createPost = async (input: CreatePostInput): Promise<FeedPost> => {
+  // entiteIds is optional on the backend: send only when the user explicitly targets an entity.
+  // An empty array means a general (unaffiliated) publication — no entity permission check.
+  const entiteIds = input.communityId && input.communityId > 0 ? [input.communityId] : []
+
   const publicationResponse = await httpClient.post<PublicationResponseDto>('/v1/publications', {
     utilisateurId: input.author.id,
     contenu: input.content,
-    entiteIds: [input.communityId],
+    entiteIds,
   })
 
   const persistedMedia: MediaAttachment[] = []

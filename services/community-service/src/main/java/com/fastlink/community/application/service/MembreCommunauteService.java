@@ -79,6 +79,18 @@ public class MembreCommunauteService implements MembreCommunauteUseCase {
     }
 
     @Override
+    public MembreCommunauteResponse joinCommunaute(Long communauteId, Long utilisateurId) {
+        Communaute communaute = findCommunaute(communauteId);
+
+        MembreCommunaute membre = membreCommunautePort
+                .findByCommunauteIdAndUtilisateurId(communauteId, utilisateurId)
+                .orElseGet(() -> new MembreCommunaute(communaute, utilisateurId, MembreRole.MEMBER));
+
+        MembreCommunaute saved = membreCommunautePort.save(membre);
+        return toResponse(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<MyCommunauteResponse> getMyCommunautes(Long utilisateurId) {
         return membreCommunautePort.findByUtilisateurId(utilisateurId)
