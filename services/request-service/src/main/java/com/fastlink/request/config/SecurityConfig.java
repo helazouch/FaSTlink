@@ -2,7 +2,9 @@ package com.fastlink.request.config;
 
 import java.util.Base64;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
@@ -59,10 +61,11 @@ public class SecurityConfig {
 
     private Converter<Jwt, Collection<GrantedAuthority>> jwtRolesConverter() {
         return jwt -> {
-            List<String> roles = jwt.getClaimAsStringList("roles");
-            if (roles == null) {
-                return List.of();
-            }
+            Set<String> roles = new LinkedHashSet<>();
+            addClaimValues(jwt, roles, "roles");
+            addClaimValues(jwt, roles, "authorities");
+            addClaimValues(jwt, roles, "scopes");
+            addClaimValues(jwt, roles, "scope");
             return roles.stream()
                     .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
                     .map(String::toUpperCase)
@@ -70,5 +73,24 @@ public class SecurityConfig {
                     .map(GrantedAuthority.class::cast)
                     .toList();
         };
+    }
+
+    private void addClaimValues(Jwt jwt, Set<String> roles, String claimName) {
+        Object value = jwt.getClaim(claimName);
+        if (value instanceof Collection<?> collection) {
+            collection.stream()
+                    .map(Object::toString)
+                    .map(String::trim)
+                    .filter(item -> !item.isBlank())
+                    .forEach(roles::add);
+            return;
+        }
+        if (value instanceof String text) {
+            for (String item : text.split("\\s+")) {
+                if (!item.isBlank()) {
+                    roles.add(item.trim());
+                }
+            }
+        }
     }
 }

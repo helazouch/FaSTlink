@@ -8,6 +8,8 @@ import com.fastlink.request.application.port.in.DemandeUseCase;
 import com.fastlink.request.domain.model.DemandeStatus;
 import com.fastlink.request.domain.model.DemandeType;
 import jakarta.validation.Valid;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -56,28 +58,36 @@ public class DemandeController {
     }
 
     @GetMapping("/queue")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<List<DemandeResponse>> queue(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) DemandeStatus status,
             @RequestParam(required = false) DemandeType type) {
+        Long userId = currentUserId(jwt);
+        boolean admin = isAdmin(jwt);
+        boolean coordinator = isCoordinator(jwt);
+        logProcessingEndpoint("GET /api/v1/requests/queue", null, userId, jwtRoleClaims(jwt), admin, coordinator);
         return ResponseEntity.ok(demandeUseCase.listProcessingQueue(
-                currentUserId(jwt),
-                isAdmin(jwt),
-                isCoordinator(jwt),
+                userId,
+                admin,
+                coordinator,
                 status,
                 type));
     }
 
     @GetMapping("/{demandeId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('USER') or hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<DemandeResponse> get(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long demandeId) {
+        Long userId = currentUserId(jwt);
+        boolean admin = isAdmin(jwt);
+        boolean coordinator = isCoordinator(jwt);
+        logProcessingEndpoint("GET /api/v1/requests/{requestId}", demandeId, userId, jwtRoleClaims(jwt), admin, coordinator);
         return ResponseEntity.ok(demandeUseCase.getDemande(
-                currentUserId(jwt),
-                isAdmin(jwt),
-                isCoordinator(jwt),
+                userId,
+                admin,
+                coordinator,
                 demandeId));
     }
 
@@ -91,21 +101,25 @@ public class DemandeController {
     }
 
     @PatchMapping("/{demandeId}/under-review")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<DemandeResponse> underReview(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long demandeId,
             @Valid @RequestBody(required = false) DecisionDemandeRequest request) {
+        Long userId = currentUserId(jwt);
+        boolean admin = isAdmin(jwt);
+        boolean coordinator = isCoordinator(jwt);
+        logProcessingEndpoint("PATCH /api/v1/requests/{requestId}/under-review", demandeId, userId, jwtRoleClaims(jwt), admin, coordinator);
         return ResponseEntity.ok(demandeUseCase.markUnderReview(
                 demandeId,
-                currentUserId(jwt),
-                isAdmin(jwt),
-                isCoordinator(jwt),
+                userId,
+                admin,
+                coordinator,
                 request));
     }
 
     @PatchMapping("/{demandeId}/approve")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<DemandeResponse> approvePatch(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long demandeId,
@@ -114,7 +128,7 @@ public class DemandeController {
     }
 
     @PostMapping("/{demandeId}/approve")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<DemandeResponse> approvePost(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long demandeId,
@@ -123,7 +137,7 @@ public class DemandeController {
     }
 
     @PatchMapping("/{demandeId}/reject")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<DemandeResponse> rejectPatch(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long demandeId,
@@ -132,7 +146,7 @@ public class DemandeController {
     }
 
     @PostMapping("/{demandeId}/reject")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<DemandeResponse> rejectPost(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long demandeId,
@@ -144,11 +158,15 @@ public class DemandeController {
             Jwt jwt,
             Long demandeId,
             DecisionDemandeRequest request) {
+        Long userId = currentUserId(jwt);
+        boolean admin = isAdmin(jwt);
+        boolean coordinator = isCoordinator(jwt);
+        logProcessingEndpoint("APPROVE /api/v1/requests/{requestId}/approve", demandeId, userId, jwtRoleClaims(jwt), admin, coordinator);
         return ResponseEntity.ok(demandeUseCase.approveDemande(
                 demandeId,
-                currentUserId(jwt),
-                isAdmin(jwt),
-                isCoordinator(jwt),
+                userId,
+                admin,
+                coordinator,
                 request));
     }
 
@@ -156,11 +174,15 @@ public class DemandeController {
             Jwt jwt,
             Long demandeId,
             DecisionDemandeRequest request) {
+        Long userId = currentUserId(jwt);
+        boolean admin = isAdmin(jwt);
+        boolean coordinator = isCoordinator(jwt);
+        logProcessingEndpoint("REJECT /api/v1/requests/{requestId}/reject", demandeId, userId, jwtRoleClaims(jwt), admin, coordinator);
         return ResponseEntity.ok(demandeUseCase.rejectDemande(
                 demandeId,
-                currentUserId(jwt),
-                isAdmin(jwt),
-                isCoordinator(jwt),
+                userId,
+                admin,
+                coordinator,
                 request));
     }
 
@@ -215,16 +237,62 @@ public class DemandeController {
     }
 
     private boolean isAdmin(Jwt jwt) {
-        List<String> roles = jwt.getClaimAsStringList("roles");
-        return roles != null && roles.stream()
-                .map(role -> role.toUpperCase(Locale.ROOT))
+        return jwtRoleClaims(jwt).stream()
                 .anyMatch(role -> role.equals("ADMIN") || role.equals("ROLE_ADMIN"));
     }
 
     private boolean isCoordinator(Jwt jwt) {
-        List<String> roles = jwt.getClaimAsStringList("roles");
-        return roles != null && roles.stream()
-                .map(role -> role.toUpperCase(Locale.ROOT))
+        return jwtRoleClaims(jwt).stream()
                 .anyMatch(role -> role.equals("COORDINATOR") || role.equals("ROLE_COORDINATOR"));
+    }
+
+    private Set<String> jwtRoleClaims(Jwt jwt) {
+        Set<String> roles = new LinkedHashSet<>();
+        addClaimValues(jwt, roles, "roles");
+        addClaimValues(jwt, roles, "authorities");
+        addClaimValues(jwt, roles, "scopes");
+        addClaimValues(jwt, roles, "scope");
+        return roles;
+    }
+
+    private void addClaimValues(Jwt jwt, Set<String> roles, String claimName) {
+        Object value = jwt.getClaim(claimName);
+        if (value instanceof Collection<?> collection) {
+            collection.stream()
+                    .map(Object::toString)
+                    .map(this::normalizeRole)
+                    .filter(role -> !role.isBlank())
+                    .forEach(roles::add);
+            return;
+        }
+        if (value instanceof String text) {
+            for (String item : text.split("\\s+")) {
+                String normalized = normalizeRole(item);
+                if (!normalized.isBlank()) {
+                    roles.add(normalized);
+                }
+            }
+        }
+    }
+
+    private String normalizeRole(String role) {
+        return role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void logProcessingEndpoint(
+            String endpoint,
+            Long requestId,
+            Long userId,
+            Set<String> roles,
+            boolean admin,
+            boolean coordinator) {
+        LOGGER.debug(
+                "request_processing_endpoint endpoint={} requestId={} userId={} roles={} isAdmin={} isCoordinator={}",
+                endpoint,
+                requestId,
+                userId,
+                roles,
+                admin,
+                coordinator);
     }
 }

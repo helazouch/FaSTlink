@@ -409,7 +409,7 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
                           <div className="flex flex-wrap gap-2">
                             {request.status === 'submitted' ? (
                               <PermissionAwareButton
-                                anyEntityPermission="REQUEST_APPROVE"
+                                globalRole="COORDINATOR"
                                 disabled={isProcessing}
                                 onClick={() => actionMutation.mutate({ id: request.id, action: 'under_review' })}
                                 className="inline-flex h-8 items-center gap-1 rounded-lg bg-sky-50 px-2.5 text-xs font-bold text-sky-700 transition hover:bg-sky-100 disabled:opacity-40"
@@ -419,7 +419,7 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
                               </PermissionAwareButton>
                             ) : null}
                             <PermissionAwareButton
-                              anyEntityPermission="REQUEST_APPROVE"
+                              globalRole="COORDINATOR"
                               disabled={!canProcess || isProcessing}
                               onClick={() => {
                                 setModalNote(noteValue)
@@ -431,7 +431,7 @@ const RequestQueue = ({ compact = false }: { compact?: boolean }) => {
                               Approve
                             </PermissionAwareButton>
                             <PermissionAwareButton
-                              anyEntityPermission="REQUEST_REJECT"
+                              globalRole="COORDINATOR"
                               disabled={!canProcess || isProcessing}
                               onClick={() => {
                                 setModalNote(noteValue)

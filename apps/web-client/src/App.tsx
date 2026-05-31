@@ -97,7 +97,7 @@ export function App() {
             <Route
               path="coordinator/requests"
               element={
-                <PermissionGuard anyEntityPermission="REQUEST_APPROVE" fallback={<Navigate to="/unauthorized" replace />}>
+                <PermissionGuard globalRole="COORDINATOR" fallback={<Navigate to="/unauthorized" replace />}>
                   <CoordinatorRequestsPage />
                 </PermissionGuard>
               }

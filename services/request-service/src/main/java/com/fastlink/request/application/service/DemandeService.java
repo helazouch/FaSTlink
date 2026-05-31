@@ -33,12 +33,16 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
 public class DemandeService implements DemandeUseCase {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DemandeService.class);
 
     private static final String ACTION_REQUEST_SUBMIT = "REQUEST_SUBMIT";
     private static final String ACTION_REQUEST_APPROVE = "REQUEST_APPROVE";
@@ -155,7 +159,8 @@ public class DemandeService implements DemandeUseCase {
             DecisionDemandeRequest request) {
         Demande demande = findDemande(demandeId);
         requireCoordinatorOrAdmin(admin, coordinator);
-        if (!admin) {
+        logProcessingAuthorization("under-review", demande, actorUserId, admin, coordinator, !admin && !coordinator);
+        if (!admin && !coordinator) {
             entityPermissionPort.checkPermission(actorUserId, demande.getEntiteId(), ACTION_REQUEST_APPROVE);
         }
         ensureSubmitted(demande);
@@ -174,7 +179,8 @@ public class DemandeService implements DemandeUseCase {
             DecisionDemandeRequest request) {
         Demande demande = findDemande(demandeId);
         requireCoordinatorOrAdmin(admin, coordinator);
-        if (!admin) {
+        logProcessingAuthorization("approve", demande, actorUserId, admin, coordinator, !admin && !coordinator);
+        if (!admin && !coordinator) {
             entityPermissionPort.checkPermission(actorUserId, demande.getEntiteId(), ACTION_REQUEST_APPROVE);
         }
         ensureProcessable(demande);
@@ -199,7 +205,8 @@ public class DemandeService implements DemandeUseCase {
             DecisionDemandeRequest request) {
         Demande demande = findDemande(demandeId);
         requireCoordinatorOrAdmin(admin, coordinator);
-        if (!admin) {
+        logProcessingAuthorization("reject", demande, actorUserId, admin, coordinator, !admin && !coordinator);
+        if (!admin && !coordinator) {
             entityPermissionPort.checkPermission(actorUserId, demande.getEntiteId(), ACTION_REQUEST_REJECT);
         }
         ensureProcessable(demande);
@@ -390,6 +397,24 @@ public class DemandeService implements DemandeUseCase {
         if (!admin && !coordinator) {
             throw new ForbiddenOperationException("Seul un coordinateur peut traiter les demandes");
         }
+    }
+
+    private void logProcessingAuthorization(
+            String operation,
+            Demande demande,
+            Long actorUserId,
+            boolean admin,
+            boolean coordinator,
+            boolean entityPermissionCheckExecuted) {
+        LOGGER.debug(
+                "request_processing_authorization operation={} requestId={} entityId={} userId={} isAdmin={} isCoordinator={} entityPermissionCheck={}",
+                operation,
+                demande.getId(),
+                demande.getEntiteId(),
+                actorUserId,
+                admin,
+                coordinator,
+                entityPermissionCheckExecuted ? "executed" : "skipped");
     }
 
     private DemandeType resolveType(Demande demande) {
