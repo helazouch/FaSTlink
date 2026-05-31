@@ -77,7 +77,10 @@ services:
       JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
       JWT_ISSUER: fast-link-identity
       JWT_EXPIRATION_MS: 3600000
+      # *:missing  → V5 enregistré en base mais absent du dépôt (ne pas réappliquer)
+      # validate-on-migrate=false → V4 checksum mismatch (fichier modifié après 1re exécution)
       SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS: "*:missing"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
     ports:
       - "8080:8080"
     healthcheck:

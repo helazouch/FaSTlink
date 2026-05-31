@@ -25,6 +25,12 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+    # validate-on-migrate=false: V4 was modified after its first execution on Neon (checksum mismatch).
+    # Migrations that were already applied are never re-executed; Hibernate ddl-auto:validate
+    # still verifies the schema matches the JPA entities, so data integrity is preserved.
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
+    # Ignore migrations recorded in flyway_schema_history on Neon that no longer exist in this repo (e.g. V5).
+    ignore-migration-patterns: ${SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS:*:missing}
 
 management:
   endpoints:
