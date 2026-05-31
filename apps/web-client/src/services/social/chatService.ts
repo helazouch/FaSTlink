@@ -27,15 +27,10 @@ export const getCommunityMessages = async (
   communityId: number,
   userId: number,
 ): Promise<ChatMessage[]> => {
-  try {
-    const response = await httpClient.get<ChatMessageDto[]>(
-      `/v1/communities/${communityId}/messages`
-    )
-    return response.data.map((item: ChatMessageDto) => mapMessage(item, userId))
-  } catch (error) {
-    console.error('Failed to fetch community messages:', error)
-    return []
-  }
+  const response = await httpClient.get<ChatMessageDto[]>(
+    `/v1/communities/${communityId}/messages`
+  )
+  return response.data.map((item: ChatMessageDto) => mapMessage(item, userId))
 }
 
 export const sendCommunityMessage = async (
@@ -46,7 +41,7 @@ export const sendCommunityMessage = async (
   const response = await httpClient.post<ChatMessageDto>(
     `/v1/communities/${communityId}/messages`,
     {
-      contenu: content,
+      content,
     }
   )
   return mapMessage(response.data, userId)

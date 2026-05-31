@@ -1,10 +1,12 @@
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
+ENV MAVEN_RETRY_OPTS="-Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true"
+
 COPY pom.xml .
 COPY src ./src
 
-RUN mvn -B -DskipTests clean package
+RUN mvn -B $MAVEN_RETRY_OPTS -DskipTests clean package
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /opt/app

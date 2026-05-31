@@ -4,9 +4,10 @@ import { SendHorizontal } from 'lucide-react'
 interface MessageComposerProps {
   onSend: (content: string) => void
   disabled?: boolean
+  errorMessage?: string | null
 }
 
-export const MessageComposer = ({ onSend, disabled }: MessageComposerProps) => {
+export const MessageComposer = ({ onSend, disabled, errorMessage }: MessageComposerProps) => {
   const [draft, setDraft] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -60,6 +61,11 @@ export const MessageComposer = ({ onSend, disabled }: MessageComposerProps) => {
         {' · '}
         <kbd className="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium text-slate-500">Shift+Enter</kbd> for newline
       </p>
+      {errorMessage ? (
+        <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   )
 }

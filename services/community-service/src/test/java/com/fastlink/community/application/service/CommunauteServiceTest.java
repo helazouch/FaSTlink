@@ -22,14 +22,13 @@ class CommunauteServiceTest {
     void communityListingReturnsOnlyCreatorOrMemberCommunities() {
         CommunautePort communautePort = mock(CommunautePort.class);
         MembreCommunautePort membreCommunautePort = mock(MembreCommunautePort.class);
-        CommunauteService service = new CommunauteService(
-                communautePort,
-                membreCommunautePort,
-                mock(EntityPermissionPort.class));
+        CommunityAccessPolicy communityAccessPolicy = mock(CommunityAccessPolicy.class);
+        CommunauteService service = service(communautePort, membreCommunautePort, communityAccessPolicy);
         Communaute ownedCommunity = new Communaute("Owned", "Mine", 1L, 20L);
         Communaute memberCommunity = new Communaute("Joined", "Shared", 2L, 99L);
 
-        when(communautePort.findVisibleForUtilisateur(20L)).thenReturn(List.of(ownedCommunity, memberCommunity));
+        when(communautePort.findAll()).thenReturn(List.of(ownedCommunity, memberCommunity));
+        when(communityAccessPolicy.canAccessCommunity(20L, null, false)).thenReturn(true);
         when(membreCommunautePort.countByCommunauteId(any())).thenReturn(1L);
 
         var communities = service.listVisibleCommunautes(20L);
@@ -39,10 +38,10 @@ class CommunauteServiceTest {
 
     @Test
     void entityScopedCommunityListingRejectsUsersOutsideEntity() {
-        CommunauteService service = new CommunauteService(
+        CommunauteService service = service(
                 mock(CommunautePort.class),
                 mock(MembreCommunautePort.class),
-                mock(EntityPermissionPort.class));
+                mock(CommunityAccessPolicy.class));
 
         assertThatThrownBy(() -> service.listCommunautesByEntite(1L, Set.of(2L), false))
                 .isInstanceOf(ForbiddenOperationException.class);
@@ -52,14 +51,12 @@ class CommunauteServiceTest {
     void directCommunityLookupRejectsUsersWithoutRelation() {
         CommunautePort communautePort = mock(CommunautePort.class);
         MembreCommunautePort membreCommunautePort = mock(MembreCommunautePort.class);
-        CommunauteService service = new CommunauteService(
-                communautePort,
-                membreCommunautePort,
-                mock(EntityPermissionPort.class));
+        CommunityAccessPolicy communityAccessPolicy = mock(CommunityAccessPolicy.class);
+        CommunauteService service = service(communautePort, membreCommunautePort, communityAccessPolicy);
         Communaute community = new Communaute("Entity 1", "Hidden", 1L, 20L);
 
         when(communautePort.findById(10L)).thenReturn(Optional.of(community));
-        when(membreCommunautePort.existsByCommunauteIdAndUtilisateurId(10L, 30L)).thenReturn(false);
+        when(communityAccessPolicy.canAccessCommunity(30L, 10L, false)).thenReturn(false);
 
         assertThatThrownBy(() -> service.getVisibleCommunaute(10L, 30L))
                 .isInstanceOf(ForbiddenOperationException.class);
@@ -69,18 +66,28 @@ class CommunauteServiceTest {
     void directCommunityLookupAllowsCreator() {
         CommunautePort communautePort = mock(CommunautePort.class);
         MembreCommunautePort membreCommunautePort = mock(MembreCommunautePort.class);
-        CommunauteService service = new CommunauteService(
-                communautePort,
-                membreCommunautePort,
-                mock(EntityPermissionPort.class));
+        CommunityAccessPolicy communityAccessPolicy = mock(CommunityAccessPolicy.class);
+        CommunauteService service = service(communautePort, membreCommunautePort, communityAccessPolicy);
         Communaute community = new Communaute("Entity 1", "Visible", 1L, 20L);
 
         when(communautePort.findById(10L)).thenReturn(Optional.of(community));
+        when(communityAccessPolicy.canAccessCommunity(20L, 10L, false)).thenReturn(true);
         when(membreCommunautePort.countByCommunauteId(any())).thenReturn(1L);
 
         var response = service.getVisibleCommunaute(10L, 20L);
 
         assertThat(response.memberCount()).isEqualTo(1L);
         assertThat(response.createurUtilisateurId()).isEqualTo(20L);
+    }
+
+    private CommunauteService service(
+            CommunautePort communautePort,
+            MembreCommunautePort membreCommunautePort,
+            CommunityAccessPolicy communityAccessPolicy) {
+        return new CommunauteService(
+                communautePort,
+                membreCommunautePort,
+                mock(EntityPermissionPort.class),
+                communityAccessPolicy);
     }
 }

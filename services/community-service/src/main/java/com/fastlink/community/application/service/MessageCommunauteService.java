@@ -7,12 +7,12 @@ import com.fastlink.community.application.exception.ResourceNotFoundException;
 import com.fastlink.community.application.port.in.MessageCommunauteUseCase;
 import com.fastlink.community.application.port.out.CommunautePort;
 import com.fastlink.community.application.port.out.CommunityRealtimePort;
-import com.fastlink.community.application.port.out.EntityPermissionPort;
-import com.fastlink.community.application.port.out.MembreCommunautePort;
 import com.fastlink.community.application.port.out.MessageCommunautePort;
 import com.fastlink.community.domain.model.Communaute;
 import com.fastlink.community.domain.model.MessageCommunaute;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,32 +20,33 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class MessageCommunauteService implements MessageCommunauteUseCase {
 
-    private static final String ACTION_COMMUNITY_MESSAGE = "COMMUNITY_MESSAGE";
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageCommunauteService.class);
 
     private final CommunautePort communautePort;
-    private final MembreCommunautePort membreCommunautePort;
+    private final CommunityAccessPolicy communityAccessPolicy;
     private final MessageCommunautePort messageCommunautePort;
     private final CommunityRealtimePort communityRealtimePort;
-    private final EntityPermissionPort entityPermissionPort;
 
     public MessageCommunauteService(
             CommunautePort communautePort,
-            MembreCommunautePort membreCommunautePort,
+            CommunityAccessPolicy communityAccessPolicy,
             MessageCommunautePort messageCommunautePort,
-            CommunityRealtimePort communityRealtimePort,
-            EntityPermissionPort entityPermissionPort) {
+            CommunityRealtimePort communityRealtimePort) {
         this.communautePort = communautePort;
-        this.membreCommunautePort = membreCommunautePort;
+        this.communityAccessPolicy = communityAccessPolicy;
         this.messageCommunautePort = messageCommunautePort;
         this.communityRealtimePort = communityRealtimePort;
-        this.entityPermissionPort = entityPermissionPort;
     }
 
     @Override
-    public MessageCommunauteResponse sendMessage(Long communauteId, Long utilisateurId, String senderName, SendMessageRequest request) {
+    public MessageCommunauteResponse sendMessage(
+            Long communauteId,
+            Long utilisateurId,
+            String senderName,
+            boolean admin,
+            SendMessageRequest request) {
         Communaute communaute = findCommunaute(communauteId);
-        entityPermissionPort.checkPermission(utilisateurId, communaute.getEntiteId(), ACTION_COMMUNITY_MESSAGE);
-        requireMembre(communauteId, utilisateurId);
+        requireCanAccessMessages(communauteId, utilisateurId, admin, "send");
 
         MessageCommunaute message = new MessageCommunaute(
                 communaute,
@@ -62,9 +63,9 @@ public class MessageCommunauteService implements MessageCommunauteUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MessageCommunauteResponse> getMessages(Long communauteId, Long utilisateurId) {
+    public List<MessageCommunauteResponse> getMessages(Long communauteId, Long utilisateurId, boolean admin) {
         findCommunaute(communauteId);
-        requireMembre(communauteId, utilisateurId);
+        requireCanAccessMessages(communauteId, utilisateurId, admin, "load");
 
         return messageCommunautePort.findByCommunauteIdOrderByCreatedAtAsc(communauteId)
                 .stream()
@@ -77,10 +78,25 @@ public class MessageCommunauteService implements MessageCommunauteUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("Communaute introuvable: " + communauteId));
     }
 
-    private void requireMembre(Long communauteId, Long utilisateurId) {
-        if (membreCommunautePort.findByCommunauteIdAndUtilisateurId(communauteId, utilisateurId).isEmpty()) {
-            throw new ForbiddenOperationException("Seuls les membres peuvent envoyer des messages");
+    private void requireCanAccessMessages(Long communauteId, Long utilisateurId, boolean admin, String operation) {
+        CommunityAccessPolicy.CommunityAccessDecision decision =
+                communityAccessPolicy.evaluateCommunity(utilisateurId, communauteId, admin);
+
+        LOGGER.info(
+                "community_message_authorization operation={} communityId={} userId={} member={} creator={} admin={} allowed={}",
+                operation,
+                decision.communityId(),
+                decision.userId(),
+                decision.member(),
+                decision.creator(),
+                decision.admin(),
+                decision.allowed());
+
+        if (decision.allowed()) {
+            return;
         }
+
+        throw new ForbiddenOperationException("You are not a member of this community.");
     }
 
     private MessageCommunauteResponse toResponse(MessageCommunaute message) {

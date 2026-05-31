@@ -27,14 +27,17 @@ public class CommunauteService implements CommunauteUseCase {
     private final CommunautePort communautePort;
     private final MembreCommunautePort membreCommunautePort;
     private final EntityPermissionPort entityPermissionPort;
+    private final CommunityAccessPolicy communityAccessPolicy;
 
     public CommunauteService(
             CommunautePort communautePort,
             MembreCommunautePort membreCommunautePort,
-            EntityPermissionPort entityPermissionPort) {
+            EntityPermissionPort entityPermissionPort,
+            CommunityAccessPolicy communityAccessPolicy) {
         this.communautePort = communautePort;
         this.membreCommunautePort = membreCommunautePort;
         this.entityPermissionPort = entityPermissionPort;
+        this.communityAccessPolicy = communityAccessPolicy;
     }
 
     @Override
@@ -72,7 +75,10 @@ public class CommunauteService implements CommunauteUseCase {
         if (utilisateurId == null || utilisateurId <= 0) {
             return List.of();
         }
-        return communautePort.findVisibleForUtilisateur(utilisateurId).stream().map(this::toResponse).toList();
+        return communautePort.findAll().stream()
+                .filter(communaute -> communityAccessPolicy.canAccessCommunity(utilisateurId, communaute.getId(), false))
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
@@ -100,7 +106,7 @@ public class CommunauteService implements CommunauteUseCase {
     @Transactional(readOnly = true)
     public CommunauteResponse getVisibleCommunaute(Long communauteId, Long utilisateurId) {
         Communaute communaute = findCommunaute(communauteId);
-        if (!isAccessibleToUser(communaute, utilisateurId)) {
+        if (!communityAccessPolicy.canAccessCommunity(utilisateurId, communauteId, false)) {
             throw new ForbiddenOperationException("Communaute non accessible pour cet utilisateur");
         }
         return toResponse(communaute);
@@ -144,16 +150,6 @@ public class CommunauteService implements CommunauteUseCase {
         if (membre.getRole() != MembreRole.ADMIN) {
             throw new ForbiddenOperationException("Action reservee aux admins de la communaute");
         }
-    }
-
-    private boolean isAccessibleToUser(Communaute communaute, Long utilisateurId) {
-        if (utilisateurId == null || utilisateurId <= 0) {
-            return false;
-        }
-        if (utilisateurId.equals(communaute.getCreateurUtilisateurId())) {
-            return true;
-        }
-        return membreCommunautePort.existsByCommunauteIdAndUtilisateurId(communaute.getId(), utilisateurId);
     }
 
     private CommunauteResponse toResponse(Communaute communaute) {

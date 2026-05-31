@@ -12,6 +12,7 @@ export interface ChatStoreState {
   setActiveCommunityId: (communityId: number | null) => void
   setMessages: (communityId: number, messages: ChatMessage[]) => void
   appendMessage: (communityId: number, message: ChatMessage) => void
+  removeMessage: (communityId: number, messageId: string) => void
   resetUnread: (communityId: number) => void
   resetStore: () => void
 }
@@ -71,6 +72,16 @@ export const useChatStore = create<ChatStoreState>((set) => ({
               [communityId]: (state.unreadCountByCommunity[communityId] ?? 0) + 1,
             }
           : state.unreadCountByCommunity,
+      }
+    }),
+  removeMessage: (communityId, messageId) =>
+    set((state) => {
+      const existing = state.messagesByCommunity[communityId] ?? []
+      return {
+        messagesByCommunity: {
+          ...state.messagesByCommunity,
+          [communityId]: existing.filter((message) => message.id !== messageId),
+        },
       }
     }),
   resetUnread: (communityId) =>

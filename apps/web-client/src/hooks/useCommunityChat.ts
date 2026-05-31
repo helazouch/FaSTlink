@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { env } from '../config/env'
+import { normalizeApiError } from '../lib/errors'
 import { getCommunityMessages, sendCommunityMessage } from '../services/social/chatService'
 import { createCommunityChatSocket } from '../services/websocket/communityChatSocket'
 import { useAuthStore } from '../stores/authStore'
@@ -20,6 +21,7 @@ const selectUser = (state: AuthStoreState) => state.user
 const selectMessagesByCommunity = (state: ChatStoreState) => state.messagesByCommunity
 const selectSetMessages = (state: ChatStoreState) => state.setMessages
 const selectAppendMessage = (state: ChatStoreState) => state.appendMessage
+const selectRemoveMessage = (state: ChatStoreState) => state.removeMessage
 const selectSetConnectionStatus = (state: ChatStoreState) => state.setConnectionStatus
 const selectSetActiveCommunityId = (state: ChatStoreState) => state.setActiveCommunityId
 const selectResetUnread = (state: ChatStoreState) => state.resetUnread
@@ -27,6 +29,7 @@ const selectConnectionStatus = (state: ChatStoreState) => state.connectionStatus
 
 export const useCommunityChat = (communityId: number) => {
   const socketRef = useRef<ReturnType<typeof createCommunityChatSocket> | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
   const user = useAuthStore(selectUser)
   const messagesByCommunity = useChatStore(selectMessagesByCommunity)
   const messages = useMemo(
@@ -35,6 +38,7 @@ export const useCommunityChat = (communityId: number) => {
   )
   const setMessages = useChatStore(selectSetMessages)
   const appendMessage = useChatStore(selectAppendMessage)
+  const removeMessage = useChatStore(selectRemoveMessage)
   const setConnectionStatus = useChatStore(selectSetConnectionStatus)
   const setActiveCommunityId = useChatStore(selectSetActiveCommunityId)
   const resetUnread = useChatStore(selectResetUnread)
@@ -58,12 +62,20 @@ export const useCommunityChat = (communityId: number) => {
       }
     }
 
-    void getCommunityMessages(communityId, user.id).then((history) => {
-      if (!cancelled) {
-        setMessages(communityId, history)
-        resetUnread(communityId)
-      }
-    })
+    void getCommunityMessages(communityId, user.id)
+      .then((history) => {
+        if (!cancelled) {
+          setMessages(communityId, history)
+          resetUnread(communityId)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('Failed to load persisted community messages:', error)
+          setMessages(communityId, [])
+          setSendError(normalizeApiError(error).message)
+        }
+      })
 
     return () => {
       cancelled = true
@@ -109,6 +121,7 @@ export const useCommunityChat = (communityId: number) => {
       if (!sanitized || !user) {
         return
       }
+      setSendError(null)
 
       const optimistic: ChatMessage = {
         id: createMessageId(),
@@ -135,13 +148,22 @@ export const useCommunityChat = (communityId: number) => {
         })
         .catch((error) => {
           console.error('Failed to securely persist community message:', error)
+          removeMessage(communityId, optimistic.id)
+          const normalized = normalizeApiError(error)
+          setSendError(
+            normalized.statusCode === 403
+              ? (normalized.message && !normalized.message.startsWith('Request failed')
+                  ? normalized.message
+                  : 'You are not a member of this community.')
+              : normalized.message,
+          )
         })
     },
-    [appendMessage, communityId, user],
+    [appendMessage, communityId, removeMessage, user],
   )
 
   return useMemo(
-    () => ({ messages, sendMessage, connectionStatus }),
-    [connectionStatus, messages, sendMessage],
+    () => ({ messages, sendMessage, connectionStatus, sendError }),
+    [connectionStatus, messages, sendError, sendMessage],
   )
 }

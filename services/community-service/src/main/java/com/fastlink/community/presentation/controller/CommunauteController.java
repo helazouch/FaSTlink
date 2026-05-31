@@ -4,6 +4,7 @@ import com.fastlink.community.application.dto.communaute.CommunauteResponse;
 import com.fastlink.community.application.dto.communaute.CreateCommunauteRequest;
 import com.fastlink.community.application.dto.communaute.UpdateCommunauteRequest;
 import com.fastlink.community.application.port.in.CommunauteUseCase;
+import com.fastlink.community.presentation.security.JwtPrincipalResolver;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -35,9 +36,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommunauteController {
 
     private final CommunauteUseCase communauteUseCase;
+    private final JwtPrincipalResolver jwtPrincipalResolver;
 
-    public CommunauteController(CommunauteUseCase communauteUseCase) {
+    public CommunauteController(
+            CommunauteUseCase communauteUseCase,
+            JwtPrincipalResolver jwtPrincipalResolver) {
         this.communauteUseCase = communauteUseCase;
+        this.jwtPrincipalResolver = jwtPrincipalResolver;
     }
 
     @GetMapping
@@ -54,7 +59,7 @@ public class CommunauteController {
                     activeEntityIds(jwt),
                     isAdminOrCoordinator(authentication)));
         }
-        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(resolveUserId(jwt)));
+        return ResponseEntity.ok(communauteUseCase.listVisibleCommunautes(jwtPrincipalResolver.resolveUserId(jwt)));
     }
 
     @GetMapping("/{communauteId}")
@@ -63,7 +68,9 @@ public class CommunauteController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication,
             @PathVariable Long communauteId) {
-        return ResponseEntity.ok(communauteUseCase.getVisibleCommunaute(communauteId, resolveUserId(jwt)));
+        return ResponseEntity.ok(communauteUseCase.getVisibleCommunaute(
+                communauteId,
+                jwtPrincipalResolver.resolveUserId(jwt)));
     }
 
     @PostMapping
@@ -100,20 +107,6 @@ public class CommunauteController {
         return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority) || "ROLE_COORDINATOR".equals(authority));
-    }
-
-    private Long resolveUserId(Jwt jwt) {
-        Object uid = jwt.getClaims().get("uid");
-        if (uid == null) {
-            uid = jwt.getClaims().get("userId");
-        }
-        if (uid == null) {
-            uid = jwt.getClaims().get("utilisateurId");
-        }
-        if (uid != null) {
-            return Long.parseLong(uid.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
     }
 
     private Set<Long> activeEntityIds(Jwt jwt) {

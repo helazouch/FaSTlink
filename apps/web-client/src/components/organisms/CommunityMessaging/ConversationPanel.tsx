@@ -9,7 +9,7 @@ interface ConversationPanelProps {
 }
 
 export const ConversationPanel = ({ community }: ConversationPanelProps) => {
-  const { messages, sendMessage, connectionStatus } = useCommunityChat(community.id)
+  const { messages, sendMessage, connectionStatus, sendError } = useCommunityChat(community.id)
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-none bg-slate-50">
@@ -22,7 +22,7 @@ export const ConversationPanel = ({ community }: ConversationPanelProps) => {
 
       <MessageComposer
         onSend={sendMessage}
-        disabled={connectionStatus === 'offline'}
+        errorMessage={sendError}
       />
     </div>
   )

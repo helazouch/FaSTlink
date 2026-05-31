@@ -63,6 +63,10 @@ public class SecurityConfig {
                         .access(entityPermission("ENTITY_MEMBER_MANAGE"))
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/entities/*/members/**")
                         .access(entityPermission("ENTITY_MEMBER_MANAGE"))
+                        .pathMatchers(HttpMethod.GET, "/api/v1/communities/*/messages",
+                                "/api/v1/communities/*/messages/**").authenticated()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/communities/*/messages",
+                                "/api/v1/communities/*/messages/**").authenticated()
                         .pathMatchers(HttpMethod.POST, "/api/v1/communities", "/api/v1/communities/**")
                         .access(entityPermission("COMMUNITY_MANAGE"))
                         .pathMatchers(HttpMethod.PUT, "/api/v1/communities/**")
