@@ -47,7 +47,13 @@ const mapEvent = (payload: EvenementDto): EventItem => ({
 })
 
 export const getUpcomingEvents = async (): Promise<EventItem[]> => {
-  await hydrateEntityDirectory()
+  // Entity name resolution is best-effort: events must load even if entity-service is temporarily unavailable
+  try {
+    await hydrateEntityDirectory()
+  } catch {
+    // Entity names will fall back to "Entity #id" — events still render
+  }
+
   const response = await httpClient.get<EvenementDto[]>('/v1/events')
   const mapped = response.data.map(mapEvent)
   eventsCache = mapped

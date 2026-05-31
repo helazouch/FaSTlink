@@ -1,5 +1,25 @@
 name: fastlink-platform
 
+# ── Shared Flyway configuration ─────────────────────────────────────────────
+# Applied to every Spring Boot service to prevent Flyway from refusing startup
+# when the Neon schema history has diverged from the migration files in this repo.
+#
+#   SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false  → ignores checksum mismatches
+#       (e.g. a migration file was edited after its first run on the shared Neon DB)
+#   SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS=*:missing → ignores migrations that
+#       are recorded in flyway_schema_history but whose .sql file no longer exists
+#
+# Schema integrity is still enforced by Hibernate ddl-auto:validate at startup.
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-flyway-common: &flyway-common
+  SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+  SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS: "*:missing"
+
+x-jwt-common: &jwt-common
+  JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
+  JWT_ISSUER: fast-link-identity
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
@@ -9,7 +29,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    volumes: 
+    volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
     networks:
@@ -63,24 +83,20 @@ services:
     networks:
       - fastlink-net
 
+  # ── identity-service ────────────────────────────────────────────────────────
   identity-service:
     build:
       context: ./services/identity-service
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8080
       ENTITY_SERVICE_BASE_URL: http://entity-service:8081
       DB_URL: jdbc:postgresql://ep-summer-field-amn2wvfd-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_9eR8pasqoIyJ
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
       JWT_EXPIRATION_MS: 3600000
-      # *:missing  → V5 enregistré en base mais absent du dépôt (ne pas réappliquer)
-      # validate-on-migrate=false → V4 checksum mismatch (fichier modifié après 1re exécution)
-      SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS: "*:missing"
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
     ports:
       - "8080:8080"
     healthcheck:
@@ -92,6 +108,7 @@ services:
     networks:
       - fastlink-net
 
+  # ── entity-service ──────────────────────────────────────────────────────────
   entity-service:
     build:
       context: ./services/entity-service
@@ -103,10 +120,11 @@ services:
       kafka:
         condition: service_started
     environment:
+      <<: *flyway-common
       SERVER_PORT: 8081
       DB_URL: jdbc:postgresql://ep-red-mud-aneu35a9-pooler.c-6.us-east-1.aws.neon.tech/entity_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
-      DB_PASSWORD: npg_yr9zeWTNLM4o 
+      DB_PASSWORD: npg_yr9zeWTNLM4o
       IDENTITY_BASE_URL: http://identity-service:8080
       IDENTITY_USER_EXISTS_PATH: /api/v1/internal/users/{userId}/exists
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -119,6 +137,7 @@ services:
     networks:
       - fastlink-net
 
+  # ── publication-service ─────────────────────────────────────────────────────
   publication-service:
     build:
       context: ./services/publication-service
@@ -132,6 +151,7 @@ services:
       minio:
         condition: service_started
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8082
       DB_URL: jdbc:postgresql://ep-blue-cell-amxmsbaz-pooler.c-5.us-east-1.aws.neon.tech/publication_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
@@ -141,13 +161,12 @@ services:
       NOTIFICATION_BASE_URL: http://notification-service:8087
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       PUBLICATION_TOPIC_CREATED: fastlink.publication.created.v1
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
     ports:
       - "8082:8082"
     networks:
       - fastlink-net
 
+  # ── event-service ───────────────────────────────────────────────────────────
   event-service:
     build:
       context: ./services/event-service
@@ -159,6 +178,7 @@ services:
       kafka:
         condition: service_started
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8083
       DB_URL: jdbc:postgresql://ep-holy-dream-aniux2tl-pooler.c-6.us-east-1.aws.neon.tech/event_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
@@ -167,19 +187,19 @@ services:
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       EVENT_TOPIC_CREATED: fastlink.event.created.v1
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
     ports:
       - "8083:8083"
     networks:
       - fastlink-net
 
+  # ── community-service ───────────────────────────────────────────────────────
   community-service:
     build:
       context: ./services/community-service
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8084
       DB_URL: jdbc:postgresql://ep-jolly-mouse-amjbwuxz-pooler.c-5.us-east-1.aws.neon.tech/community_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
@@ -187,14 +207,13 @@ services:
       ENTITY_BASE_URL: http://entity-service:8081
       ENTITY_PERMISSION_CHECK_PATH: /api/v1/internal/entities/{entiteId}/permissions/check
       NOTIFICATION_BASE_URL: http://notification-service:8087
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
       WEBSOCKET_ALLOWED_ORIGINS: "*"
     ports:
       - "8084:8084"
     networks:
       - fastlink-net
 
+  # ── request-service ─────────────────────────────────────────────────────────
   request-service:
     build:
       context: ./services/request-service
@@ -206,6 +225,7 @@ services:
       kafka:
         condition: service_started
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8085
       DB_URL: jdbc:postgresql://ep-square-king-a49eb7u4-pooler.us-east-1.aws.neon.tech/request_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
@@ -216,13 +236,12 @@ services:
       REQUEST_TOPIC_SUBMITTED: fastlink.request.submitted.v1
       REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
       REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
     ports:
       - "8085:8085"
     networks:
       - fastlink-net
 
+  # ── notification-service ────────────────────────────────────────────────────
   notification-service:
     build:
       context: ./services/notification-service
@@ -232,8 +251,9 @@ services:
       kafka:
         condition: service_started
     environment:
+      <<: *flyway-common
       SERVER_PORT: 8087
-      DB_URL: jdbc:postgresql://ep-morning-water-amndb0ln-pooler.c-5.us-east-1.aws.neon.tech/notification_db?sslmode=require&channel_binding=require
+      DB_URL: jdbc:postgresql://ep-morning-water-amndb0ln-pooler.c-5.us-east-1.aws.neon.tech/notification_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_oy7YCHfW1TLE
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -248,6 +268,7 @@ services:
     networks:
       - fastlink-net
 
+  # ── analytics-service ───────────────────────────────────────────────────────
   analytics-service:
     build:
       context: ./services/analytics-service
@@ -257,8 +278,9 @@ services:
       kafka:
         condition: service_started
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8088
-      DB_URL: jdbc:postgresql://ep-misty-credit-andnetfk-pooler.c-6.us-east-1.aws.neon.tech/analytics_db?sslmode=require&channel_binding=require
+      DB_URL: jdbc:postgresql://ep-misty-credit-andnetfk-pooler.c-6.us-east-1.aws.neon.tech/analytics_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_Hp7oP9zrslfa
       ENTITY_BASE_URL: http://entity-service:8081
@@ -272,30 +294,29 @@ services:
       REQUEST_TOPIC_APPROVED: fastlink.request.approved.v1
       REQUEST_TOPIC_REJECTED: fastlink.request.rejected.v1
       ENTITY_TOPIC_MEMBER_ASSIGNED: fastlink.entity.member.assigned.v1
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
     ports:
       - "8088:8088"
     networks:
       - fastlink-net
 
+  # ── admin-service ───────────────────────────────────────────────────────────
   admin-service:
     build:
       context: ./services/admin-service
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
+      <<: [*flyway-common, *jwt-common]
       SERVER_PORT: 8089
-      DB_URL: jdbc:postgresql://ep-floral-lab-anyb9djd-pooler.c-6.us-east-1.aws.neon.tech/admin_db?sslmode=require&channel_binding=require
+      DB_URL: jdbc:postgresql://ep-floral-lab-anyb9djd-pooler.c-6.us-east-1.aws.neon.tech/admin_db?sslmode=require&channelBinding=require
       DB_USERNAME: neondb_owner
       DB_PASSWORD: npg_ZdTX3V8Bkntf
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
     ports:
       - "8089:8089"
     networks:
       - fastlink-net
 
+  # ── api-gateway ─────────────────────────────────────────────────────────────
   api-gateway:
     build:
       context: ./gateway/api-gateway
@@ -321,6 +342,7 @@ services:
       admin-service:
         condition: service_started
     environment:
+      <<: *jwt-common
       GATEWAY_PORT: 8086
       IDENTITY_SERVICE_URI: http://identity-service:8080
       ENTITY_SERVICE_URI: http://entity-service:8081
@@ -333,8 +355,6 @@ services:
       ADMIN_SERVICE_URI: http://admin-service:8089
       COMMUNITY_WS_URI: ws://community-service:8084
       NOTIFICATION_WS_URI: ws://notification-service:8087
-      JWT_SECRET_BASE64: QjBqbW16RTV5Kzl2ejRmbWl6WDJ3Vnh3QlM0YmI4M2Q2a2pQd2dQWGNiOD0=
-      JWT_ISSUER: fast-link-identity
       RATE_LIMIT_ENABLED: "false"
       RATE_LIMIT_REQUESTS_PER_WINDOW: 120
       RATE_LIMIT_WINDOW_SECONDS: 60

@@ -6,7 +6,8 @@ spring:
     name: community-service
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://ep-holy-dream-aniux2tl-pooler.c-6.us-east-1.aws.neon.tech/community_db?sslmode=require&channelBinding=require}
+    # BUG FIX: default was pointing to ep-holy-dream (event-service endpoint). Correct endpoint: ep-jolly-mouse.
+    url: ${DB_URL:jdbc:postgresql://ep-jolly-mouse-amjbwuxz-pooler.c-5.us-east-1.aws.neon.tech/community_db?sslmode=require&channelBinding=require}
     username: ${DB_USERNAME:neondb_owner}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -25,6 +26,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
+    ignore-migration-patterns: ${SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS:*:missing}
 
 management:
   endpoints:

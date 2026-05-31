@@ -46,8 +46,7 @@ export const CommunitiesPage = () => {
         {communities.map((community: CommunitySummary) => {
           const isMember = myIds.has(community.id)
           const isJoining =
-            joinMutation.isPending &&
-            joinMutation.variables === community.id
+            joinMutation.isPending && joinMutation.variables === community.id
 
           return (
             <article
@@ -93,12 +92,22 @@ export const CommunitiesPage = () => {
                   </Button>
                 ) : null}
 
-                <Link to={`/messages/community/${community.id}`} className="inline-flex">
-                  <Button size="sm" variant={isMember ? 'primary' : 'ghost'}>
-                    <MessageSquare size={13} />
-                    {isMember ? 'Open chat' : 'View community'}
-                  </Button>
-                </Link>
+                {isMember ? (
+                  /* Member → opens the messaging page for that specific community */
+                  <Link to={`/messages/community/${community.id}`} className="inline-flex">
+                    <Button size="sm" variant="primary">
+                      <MessageSquare size={13} />
+                      Open chat
+                    </Button>
+                  </Link>
+                ) : (
+                  /* Non-member → opens the community detail page (feed + info) */
+                  <Link to={`/communities/${community.id}`} className="inline-flex">
+                    <Button size="sm" variant="ghost">
+                      View community
+                    </Button>
+                  </Link>
+                )}
               </div>
             </article>
           )
