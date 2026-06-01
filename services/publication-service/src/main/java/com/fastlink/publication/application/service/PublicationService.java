@@ -72,6 +72,15 @@ public class PublicationService implements PublicationUseCase {
 
     @Override
     public PublicationResponse createPublication(Long authenticatedUserId, CreatePublicationRequest request) {
+        return createPublication(authenticatedUserId, false, false, request);
+    }
+
+    @Override
+    public PublicationResponse createPublication(
+            Long authenticatedUserId,
+            boolean admin,
+            boolean coordinator,
+            CreatePublicationRequest request) {
         if (authenticatedUserId == null || authenticatedUserId <= 0) {
             throw new ForbiddenOperationException("Utilisateur authentifie introuvable");
         }
@@ -86,7 +95,9 @@ public class PublicationService implements PublicationUseCase {
             throw new ForbiddenOperationException("Le contenu ou un media est requis");
         }
 
-        entityPermissionPort.checkPermission(authenticatedUserId, publishingEntityId, ACTION_CREATE_PUBLICATION);
+        if (!admin && !coordinator) {
+            entityPermissionPort.checkPermission(authenticatedUserId, publishingEntityId, ACTION_CREATE_PUBLICATION);
+        }
         validateSelectedEntitiesExist(targetEntityIds, publishingEntityId);
 
         Publication publication = new Publication(
@@ -144,13 +155,15 @@ public class PublicationService implements PublicationUseCase {
 
     private PublicationResponse toResponse(Publication publication, Long currentUserId) {
         Long publicationId = publication.getId();
+        PublicationScope scope = publication.getScope() == null ? PublicationScope.MY_ENTITY : publication.getScope();
+        Set<Long> entiteIds = publication.getEntiteIds() == null ? Set.of() : publication.getEntiteIds();
         return new PublicationResponse(
                 publicationId,
                 publication.getUtilisateurId(),
                 publication.getContenu(),
                 publication.getPublishingEntityId(),
-                publication.getScope(),
-                publication.getEntiteIds(),
+                scope,
+                entiteIds,
                 mediaPort.findByPublicationId(publicationId).stream()
                         .map(media -> new PublicationMediaResponse(media.getId(), media.getUrl(), media.getType()))
                         .toList(),

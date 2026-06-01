@@ -214,6 +214,8 @@ export interface PublicationRecord {
   authorName: string | null
   authorEmail: string | null
   contenu: string
+  publishingEntityId: number | null
+  scope: 'MY_ENTITY' | 'ALL_ENTITIES' | 'ALL_USERS' | 'SELECTED_ENTITIES'
   entiteIds: number[]
   entityNames: string[]
   createdAt: string

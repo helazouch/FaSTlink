@@ -12,6 +12,12 @@ public interface PublicationUseCase {
 
     PublicationResponse createPublication(Long authenticatedUserId, CreatePublicationRequest request);
 
+    PublicationResponse createPublication(
+            Long authenticatedUserId,
+            boolean admin,
+            boolean coordinator,
+            CreatePublicationRequest request);
+
     List<PublicationResponse> listPublications();
 
     Page<PublicationResponse> searchPublications(Long entityId, Long authorId, String search, Pageable pageable);

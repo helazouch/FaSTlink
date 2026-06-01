@@ -16,7 +16,12 @@ const entityCache = new Map<number, EntityDirectoryEntry>()
 const userCache = new Map<number, UserDirectoryEntry>()
 
 export const hydrateEntityDirectory = async (): Promise<Map<number, EntityDirectoryEntry>> => {
-  const response = await httpClient.get<unknown>('/v1/entities')
+  let response
+  try {
+    response = await httpClient.get<unknown>('/v1/entities')
+  } catch {
+    return new Map(entityCache)
+  }
 
   asArray(response.data).forEach((item) => {
     const payload = asObject(item)
@@ -38,10 +43,15 @@ export const hydrateUserDirectory = async (ids: number[]): Promise<Map<number, U
   const missingIds = normalizedIds.filter((id) => !userCache.has(id))
 
   if (missingIds.length > 0) {
-    const response = await httpClient.get<unknown>('/v1/users/directory', {
-      params: { ids: missingIds },
-      paramsSerializer: { indexes: null },
-    })
+    let response
+    try {
+      response = await httpClient.get<unknown>('/v1/users/directory', {
+        params: { ids: missingIds },
+        paramsSerializer: { indexes: null },
+      })
+    } catch {
+      return new Map(userCache)
+    }
 
     asArray(response.data).forEach((item) => {
       const payload = asObject(item)

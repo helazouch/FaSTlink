@@ -145,6 +145,8 @@ const mapPublication = (item: unknown): PublicationRecord => {
     authorName: null,
     authorEmail: null,
     contenu: toStringValue(payload.contenu),
+    publishingEntityId: payload.publishingEntityId == null ? null : toNumber(payload.publishingEntityId),
+    scope: toStringValue(payload.scope, 'MY_ENTITY') as PublicationRecord['scope'],
     entiteIds: asArray<number>(payload.entiteIds),
     entityNames: [],
     createdAt: toStringValue(payload.createdAt),
@@ -256,11 +258,19 @@ export const listPublications = async (query: {
 }
 
 export const createPublication = async (payload: {
-  utilisateurId: number
-  entiteIds: number[]
+  utilisateurId?: number
+  publishingEntityId: number
+  scope: PublicationRecord['scope']
+  selectedEntityIds?: number[]
   contenu: string
 }): Promise<PublicationRecord> => {
-  const response = await httpClient.post<unknown>('/v1/publications', payload)
+  const response = await httpClient.post<unknown>('/v1/publications', {
+    utilisateurId: payload.utilisateurId,
+    contenu: payload.contenu,
+    publishingEntityId: payload.publishingEntityId,
+    scope: payload.scope,
+    selectedEntityIds: payload.scope === 'SELECTED_ENTITIES' ? payload.selectedEntityIds ?? [] : undefined,
+  })
   return (await enrichPublications([mapPublication(response.data)]))[0]
 }
 

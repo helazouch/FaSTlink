@@ -36,6 +36,9 @@ public class PublicationPersistenceAdapter implements PublicationPort {
     @Override
     public Page<Publication> search(Long entityId, Long authorId, String search, Pageable pageable) {
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        if (normalizedSearch == null) {
+            return publicationJpaRepository.searchPublicationsWithoutText(entityId, authorId, pageable);
+        }
         return publicationJpaRepository.searchPublications(entityId, authorId, normalizedSearch, pageable);
     }
 

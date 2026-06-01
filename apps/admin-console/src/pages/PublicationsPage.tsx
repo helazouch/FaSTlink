@@ -8,8 +8,10 @@ import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Loader } from '../components/ui/Loader'
 import { Modal } from '../components/ui/Modal'
+import { SelectInput } from '../components/ui/SelectInput'
 import { TextArea } from '../components/ui/TextArea'
 import { TextInput } from '../components/ui/TextInput'
+import { env } from '../config/env'
 import { appendAuditEntry } from '../lib/auditTrail'
 import { normalizeApiError } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
@@ -29,8 +31,9 @@ export const PublicationsPage = () => {
   const [detailTarget, setDetailTarget] = useState<PublicationRecord | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const [userId, setUserId] = useState(String(currentUserId || ''))
-  const [entityIdsRaw, setEntityIdsRaw] = useState('1')
+  const [publishingEntityId, setPublishingEntityId] = useState(String(env.defaultEntityId))
+  const [scope, setScope] = useState<PublicationRecord['scope']>('ALL_USERS')
+  const [selectedEntityIdsRaw, setSelectedEntityIdsRaw] = useState('')
   const [content, setContent] = useState('')
 
   const pageSize = 10
@@ -50,15 +53,17 @@ export const PublicationsPage = () => {
 
   const createMutation = useMutation({
     mutationFn: () => {
-      const parsedUserId = Number(userId)
-      const entiteIds = entityIdsRaw
+      const parsedPublishingEntityId = Number(publishingEntityId)
+      const selectedEntityIds = selectedEntityIdsRaw
         .split(',')
         .map((item) => Number(item.trim()))
         .filter((value) => Number.isFinite(value) && value > 0)
 
       return createPublication({
-        utilisateurId: parsedUserId,
-        entiteIds,
+        utilisateurId: currentUserId || undefined,
+        publishingEntityId: parsedPublishingEntityId,
+        scope,
+        selectedEntityIds,
         contenu: content,
       })
     },
@@ -140,7 +145,7 @@ export const PublicationsPage = () => {
           <div className="p-4">
             <EmptyState
               title="Unable to load publications"
-              message="The publication listing endpoint returned an error. Check backend logs and admin permissions."
+              message={normalizeApiError(publicationsQuery.error).message}
             />
           </div>
         ) : (
@@ -150,6 +155,7 @@ export const PublicationsPage = () => {
                 <tr>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Id</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">User</th>
+                  <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Scope</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Entities</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Content</th>
                   <th className="table-cell text-left font-semibold text-slate-600 dark:text-slate-300">Created</th>
@@ -159,7 +165,7 @@ export const PublicationsPage = () => {
               <tbody>
                 {(publicationsQuery.data?.items ?? []).length === 0 ? (
                   <tr>
-                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={6}>
+                    <td className="table-cell text-slate-500 dark:text-slate-400" colSpan={7}>
                       No publications in current page.
                     </td>
                   </tr>
@@ -175,6 +181,12 @@ export const PublicationsPage = () => {
                           <p className="text-xs text-slate-500 dark:text-slate-400">{publication.authorEmail}</p>
                         ) : null}
                         <p className="text-xs text-slate-500 dark:text-slate-400">#{publication.utilisateurId}</p>
+                      </td>
+                      <td className="table-cell text-slate-600 dark:text-slate-300">
+                        <Badge tone="info">{publication.scope}</Badge>
+                        {publication.publishingEntityId ? (
+                          <p className="mt-1 text-xs text-slate-500">Publisher entity #{publication.publishingEntityId}</p>
+                        ) : null}
                       </td>
                       <td className="table-cell text-slate-600 dark:text-slate-300">
                         <div className="flex flex-wrap gap-1">
@@ -226,19 +238,42 @@ export const PublicationsPage = () => {
             </Button>
             <Button
               onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending || !content.trim() || !userId.trim()}
+              disabled={
+                createMutation.isPending ||
+                !content.trim() ||
+                !Number.isFinite(Number(publishingEntityId)) ||
+                Number(publishingEntityId) <= 0 ||
+                (scope === 'SELECTED_ENTITIES' && selectedEntityIdsRaw.trim().length === 0)
+              }
             >
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
           </div>
         }
       >
-        <TextInput label="User id" value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="1" />
         <TextInput
-          label="Entity ids"
-          value={entityIdsRaw}
-          onChange={(event) => setEntityIdsRaw(event.target.value)}
-          placeholder="1,2"
+          label="Publishing entity id"
+          value={publishingEntityId}
+          onChange={(event) => setPublishingEntityId(event.target.value)}
+          placeholder="1"
+        />
+        <SelectInput
+          label="Scope"
+          value={scope}
+          onChange={(event) => setScope(event.target.value as PublicationRecord['scope'])}
+          options={[
+            { label: 'All users', value: 'ALL_USERS' },
+            { label: 'All entities', value: 'ALL_ENTITIES' },
+            { label: 'My entity', value: 'MY_ENTITY' },
+            { label: 'Selected entities', value: 'SELECTED_ENTITIES' },
+          ]}
+        />
+        <TextInput
+          label="Selected entity ids"
+          value={selectedEntityIdsRaw}
+          onChange={(event) => setSelectedEntityIdsRaw(event.target.value)}
+          placeholder="Required only for SELECTED_ENTITIES, e.g. 1,2"
+          disabled={scope !== 'SELECTED_ENTITIES'}
         />
         <TextArea
           label="Content"
@@ -266,6 +301,13 @@ export const PublicationsPage = () => {
               <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Author</p>
               <p>{detailTarget.authorName ?? `User #${detailTarget.utilisateurId}`}</p>
               {detailTarget.authorEmail ? <p className="text-slate-500">{detailTarget.authorEmail}</p> : null}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Scope</p>
+              <p>
+                {detailTarget.scope}
+                {detailTarget.publishingEntityId ? ` from entity #${detailTarget.publishingEntityId}` : ''}
+              </p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Entities</p>

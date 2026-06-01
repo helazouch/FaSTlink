@@ -123,6 +123,12 @@ public class PublicationController {
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority) || "ROLE_COORDINATOR".equals(authority));
     }
 
+    private boolean isCoordinator(Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_COORDINATOR"::equals);
+    }
+
     private java.util.Set<Long> activeEntityIds(Jwt jwt) {
         Object memberships = jwt.getClaims().get("entityMemberships");
         if (!(memberships instanceof java.util.List<?> list)) {
@@ -152,11 +158,16 @@ public class PublicationController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('USER') or hasRole('COORDINATOR') or hasRole('ADMIN')")
     public ResponseEntity<PublicationResponse> create(
             @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication,
             @Valid @RequestBody CreatePublicationRequest request) {
-        PublicationResponse created = publicationUseCase.createPublication(resolveUserId(jwt), request);
+        PublicationResponse created = publicationUseCase.createPublication(
+                resolveUserId(jwt),
+                isAdmin(authentication),
+                isCoordinator(authentication),
+                request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

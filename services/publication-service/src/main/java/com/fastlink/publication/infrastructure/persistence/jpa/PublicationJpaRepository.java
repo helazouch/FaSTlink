@@ -17,6 +17,17 @@ public interface PublicationJpaRepository extends JpaRepository<Publication, Lon
             from Publication p
             where (:entityId is null or :entityId member of p.entiteIds)
               and (:authorId is null or p.utilisateurId = :authorId)
+            """)
+    Page<Publication> searchPublicationsWithoutText(
+            @Param("entityId") Long entityId,
+            @Param("authorId") Long authorId,
+            Pageable pageable);
+
+    @Query("""
+            select distinct p
+            from Publication p
+            where (:entityId is null or :entityId member of p.entiteIds)
+              and (:authorId is null or p.utilisateurId = :authorId)
               and (:search is null or lower(p.contenu) like lower(concat('%', :search, '%')))
             """)
     Page<Publication> searchPublications(
